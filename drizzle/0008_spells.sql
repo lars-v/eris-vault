@@ -1,0 +1,2 @@
+ALTER TABLE "characters" ADD COLUMN "spells_known" text[] DEFAULT '{}'::text[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "characters" ADD COLUMN "spells_prepared" text[] DEFAULT '{}'::text[] NOT NULL;

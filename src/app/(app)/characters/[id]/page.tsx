@@ -7,16 +7,25 @@ import { getCharacter, sheetsForCharacter } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
 import { ADVANCEMENT_SOURCE, CLASS_NAMES, levelFor } from "@/lib/rules/advancement";
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
+import { castsSpells } from "@/lib/rules/spells";
 import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
 import { SubmitButton } from "./build/forms";
+import { SpellsPanel } from "./SpellsPanel";
 import { approveCharacter, grantReroll, returnToPlayer } from "../actions";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export default async function CharacterPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CharacterPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const viewer = await requireUser();
   const { id } = await params;
+  const { error } = await searchParams;
   const c = await getCharacter(id);
   if (!c) notFound();
 
@@ -87,6 +96,12 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
             )}
           </div>
         </header>
+
+        {error && (
+          <div role="alert" className="rounded-xl border border-[#5c3328] bg-[#2e1a15] px-4 py-3 text-sm text-ember">
+            {error}
+          </div>
+        )}
 
         {(canBuild || staff) && (
           <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-4">
@@ -271,6 +286,18 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
             {c.notes && <p className="whitespace-pre-line border-t border-[#262920] pt-3 text-sm text-muted">{c.notes}</p>}
           </Panel>
         </div>
+        {active && lvl && castsSpells(active.class) && (
+          <SpellsPanel
+            id={c.id}
+            cls={active.class}
+            level={lvl.level}
+            wis={c.wis}
+            recorded={c.spellsKnown}
+            prepared={c.spellsPrepared}
+            canPrepare={can.editPlayState(viewer, c)}
+            staff={staff}
+          />
+        )}
         <Panel title={`Rolls · ${c.rolls.length}`} aside="Insert-only; see the full roll log">
           {c.rolls.length === 0 ? (
             <p className="text-sm text-muted">

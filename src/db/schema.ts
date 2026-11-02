@@ -113,6 +113,11 @@ export const characters = pgTable("characters", {
   coinsSp: integer("coins_sp").notNull().default(0),
   coinsCp: integer("coins_cp").notNull().default(0),
   deity: text("deity"),
+  // Spell keys from src/lib/rules/spells.ts. `spellsKnown` holds only what Jay
+  // recorded (books and scrolls bought or found, WW p. 25); starting spells are
+  // derived. `spellsPrepared` has one entry per filled slot.
+  spellsKnown: text("spells_known").array().notNull().default(sql`'{}'::text[]`),
+  spellsPrepared: text("spells_prepared").array().notNull().default(sql`'{}'::text[]`),
   notes: text("notes"),
   source: text("source").notNull().default("app"),
   importFlags: jsonb("import_flags").$type<ImportFlag[]>().notNull().default([]),
