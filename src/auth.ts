@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import NextAuth from "next-auth";
 import type { Provider } from "next-auth/providers";
 import GitHub from "next-auth/providers/github";
@@ -64,6 +65,16 @@ if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
   );
 }
 
+/** AUTH_SECRET from the environment, else the one the server generated at boot (scripts/migrate.mjs). */
+function authSecret(): string | undefined {
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  try {
+    return readFileSync(".auth-secret", "utf8").trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const enabledProviders = providers.map((p) => (typeof p === "function" ? p().id : p.id));
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -74,6 +85,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     verificationTokensTable: verificationTokens,
   }),
   providers,
+  secret: authSecret(),
   trustHost: true,
   session: { strategy: "database" },
   pages: { signIn: "/", error: "/auth-error" },

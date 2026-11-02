@@ -192,3 +192,10 @@ export const auditLog = pgTable("audit_log", {
   after: jsonb("after"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+/** Server-owned settings, e.g. the Auth.js signing secret generated on first boot. */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});

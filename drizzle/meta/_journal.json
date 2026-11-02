@@ -15,6 +15,13 @@
       "when": 1793583316933,
       "tag": "0001_insert_only_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793589691752,
+      "tag": "0002_app_settings",
+      "breakpoints": true
     }
   ]
 }
