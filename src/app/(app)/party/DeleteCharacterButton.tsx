@@ -27,8 +27,14 @@ export function DeleteCharacterButton({ id, name }: { id: string; name: string }
         type="button"
         onClick={() => setConfirming(true)}
         aria-label={`Delete ${name}`}
-        className="relative z-10 min-h-9 rounded-lg px-2 text-[13px] text-subtle hover:text-ember"
+        className="relative z-10 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[#5c3328] px-3 text-[13px] font-semibold text-ember hover:bg-[#2e1a15]"
       >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 7h16" />
+          <path d="M9 7V4.5h6V7" />
+          <path d="M6 7l1 13h10l1-13" />
+          <path d="M10 11v6M14 11v6" />
+        </svg>
         Delete
       </button>
     );
