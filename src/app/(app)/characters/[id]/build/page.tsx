@@ -276,7 +276,7 @@ export default async function BuildPage({
                     {i.name}
                   </span>
                   <span className="flex items-center gap-3">
-                    <span className="text-xs text-subtle">{i.encUnits === null ? "weight: awaiting p. 18" : `${i.encUnits * i.quantity} units`}</span>
+                    <span className="text-xs text-subtle">{i.encUnits === null ? "weight unknown" : `${i.encUnits * i.quantity} unit${i.encUnits * i.quantity === 1 ? "" : "s"}`}</span>
                     <form action={removeItem}>
                       <input type="hidden" name="id" value={id} />
                       <input type="hidden" name="itemId" value={i.id} />
@@ -290,13 +290,12 @@ export default async function BuildPage({
             </ul>
           )}
           <div className="rounded-xl bg-surface-2 px-4 py-3 text-sm">
-            Encumbrance: <span className="font-mono">{units}</span> units known ({band.name}
-            {band.move ? `, move ${band.move}` : ""})
+            Encumbrance: <span className="font-mono">{units}</span> units ({band.name}
+            {band.move ? `, move ${band.move}` : ""}). Weights from Woundwort&apos;s Warren p. 18, bands from p. 16.
             {unknown > 0 && (
               <span className="text-amber">
                 {" "}
-                · {unknown} item{unknown === 1 ? "" : "s"} waiting for weights from Woundwort&apos;s Warren p. 18, so this is
-                a floor
+                {unknown} item{unknown === 1 ? " has" : "s have"} no weight, so this is a floor.
               </span>
             )}
           </div>

@@ -17,7 +17,7 @@ Every game mechanic in this app must come from the campaign sources, in this ord
 
 - Cite the page in a comment or `*_SOURCE` constant next to every rule (e.g. `// WW p. 6`).
 - If the books are silent, ambiguous or optional ("at the referee's discretion"), do not pick an answer. Add a `pending` entry to the rulings seed in `scripts/migrate.mjs` and leave the behavior open for Jay.
-- Unknown values stay unknown. Item encumbrance from WW p. 18 has not been transcribed yet (printed as dots that the text copy loses), so `CATALOG[].enc` and `inventory.enc_units` are `null` and the UI shows "awaiting p. 18". Never fill them with guesses.
+- Unknown values stay unknown. Item encumbrance (WW p. 18) is printed as dots that the text copy loses; `CATALOG[].enc` was read from the page image (dot = 1 unit, circle = 0). An imported item with no weight entered keeps `inventory.enc_units = null` and the encumbrance total says it is a floor. Never fill unknowns with guesses.
 - Flag conflicts in imported sheets (see `importFlags`) instead of silently correcting them.
 - Only the four races with rules: human, dwarf, elf, halfling.
 

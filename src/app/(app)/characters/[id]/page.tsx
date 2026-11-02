@@ -230,7 +230,7 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
               <div className="text-xs text-subtle">Magic gear counts 0 (campaign ruling).</div>
               {unknown > 0 && (
                 <div className="text-xs text-amber">
-                  {unknown} item{unknown === 1 ? "" : "s"} waiting for weights from Woundwort&apos;s Warren p. 18, so the total is a floor.
+                  {unknown} item{unknown === 1 ? "" : "s"} with no weight entered, so the total is a floor. Weights are on Woundwort&apos;s Warren p. 18.
                 </div>
               )}
             </Panel>

@@ -110,7 +110,7 @@ export function buildSteps(): GuideStep[] {
     {
       target: "kit",
       title: "Starting kit",
-      body: "Pick from the price list, or press Random basic kit. Items your class can't use are marked and can't be picked, and Jay approves the kit. Item weights are still waiting on p. 18, so encumbrance is a floor for now.",
+      body: "Pick from the price list, or press Random basic kit. Items your class can't use are marked and can't be picked, and Jay approves the kit. Item weights come from Woundwort's Warren p. 18.",
       source: EQUIPMENT_SOURCE,
     },
     {

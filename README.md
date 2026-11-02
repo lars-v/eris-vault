@@ -28,7 +28,7 @@ In practice:
 
 - Cite the page next to every rule, in a comment or a `*_SOURCE` constant (`// WW p. 6`).
 - If the books are silent, unclear, or leave it to the referee, don't pick an answer. Add a `pending` entry to the rulings seed and leave the behavior open for Jay.
-- Unknown values stay unknown. Item encumbrance (WW p. 18) isn't transcribed yet, so it is `null` and the UI says "awaiting p. 18". Don't fill it with guesses.
+- Unknown values stay unknown. Price-list weights come from WW p. 18 (read from the page image). An imported item with no weight entered stays `null`, and the total is shown as a floor. Don't fill it with guesses.
 - Only the four races with rules: human, dwarf, elf, halfling.
 
 If you're working on rules and don't have the books, ask Lars.

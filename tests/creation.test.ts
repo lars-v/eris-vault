@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { alignmentsFor, assignScores, classesFor, isValidIdentity } from "@/lib/rules/creation";
 import { rollAbilitySets, rollFirstLevelHp, rollStartingGold, type D6 } from "@/lib/rules/dice";
 import { CATALOG, catalogItem, classAllows } from "@/lib/rules/equipment";
-import { carriedUnits, unknownUnitItems } from "@/lib/rules/encumbrance";
+import { bandFor, carriedUnits, unknownUnitItems } from "@/lib/rules/encumbrance";
 
 const fixed = (...faces: number[]): D6 => {
   let i = 0;
@@ -82,11 +82,22 @@ describe("race, class and alignment (WW pp. 8-10)", () => {
 });
 
 describe("price list and class limits (WW pp. 9, 17, 19)", () => {
-  it("has the p. 17 weapons, armor and gear, with weights left unknown", () => {
+  it("has the p. 17 weapons, armor and gear, with p. 18 weights", () => {
     expect(CATALOG.filter((i) => i.category === "weapon")).toHaveLength(26);
     expect(CATALOG.filter((i) => i.category === "armor")).toHaveLength(6);
     expect(catalogItem("long-sword")?.costGp).toBe(10);
-    expect(CATALOG.every((i) => i.enc === null)).toBe(true);
+    expect(CATALOG.every((i) => Number.isInteger(i.enc) && i.enc >= 0)).toBe(true);
+    expect(catalogItem("plate-mail")?.enc).toBe(8);
+    expect(catalogItem("pole-arm")?.enc).toBe(4);
+    // Circles on p. 18 count as 0.
+    expect(catalogItem("tinderbox")?.enc).toBe(0);
+    expect(catalogItem("arrow-silver")?.enc).toBe(0);
+  });
+  it("puts a typical fighter kit in the p. 16 bands", () => {
+    const kit = ["plate-mail", "shield", "long-sword", "backpack", "rations-iron", "waterskin", "torches", "rope-hemp"];
+    const items = kit.map((k) => ({ encUnits: catalogItem(k)!.enc, quantity: 1, isMagic: false, location: "carried" }));
+    expect(carriedUnits(items)).toBe(19);
+    expect(bandFor(carriedUnits(items)).name).toBe("Heavy");
   });
   const T = { cls: "thief" as const, race: "halfling" as const, int: 10 };
   it("keeps thieves to small or normal weapons, leather, no shield", () => {

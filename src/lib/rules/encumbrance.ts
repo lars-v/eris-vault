@@ -1,8 +1,8 @@
 /**
  * Encumbrance bands and base move.
  * Source: Woundwort's Warren p. 16 (Encumbrance has these effects) and p. 47
- * (Movement Rates Table). Per-item units come from p. 18 and are not
- * transcribed yet; items carry the units entered on the character.
+ * (Movement Rates Table). Per-item units come from p. 18 (see CATALOG in
+ * equipment.ts); imported items carry the units entered from the sheet.
  * Campaign ruling: magic gear counts 0.
  */
 export type Band = { name: string; min: number; max: number | null; move: number | null };
@@ -18,7 +18,7 @@ export const BANDS: Band[] = [
 
 export const ENCUMBRANCE_SOURCE = "Woundwort's Warren pp. 16, 47";
 
-/** encUnits null = not known yet (p. 18 not transcribed); never guessed. */
+/** encUnits null = not known (an imported item with no weight entered); never guessed. */
 export type CarriedItem = { encUnits: number | null; quantity: number; isMagic: boolean; location: string };
 
 export function carriedUnits(items: CarriedItem[]): number {

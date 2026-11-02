@@ -142,7 +142,7 @@ export const inventory = pgTable("inventory", {
   name: text("name").notNull(),
   kind: text("kind").notNull(),
   quantity: smallint("quantity").notNull().default(1),
-  // Null = not known yet (Woundwort's Warren p. 18 not transcribed).
+  // Units from Woundwort's Warren p. 18. Null = not known (an imported item with no weight entered).
   encUnits: smallint("enc_units"),
   catalogKey: text("catalog_key"),
   isMagic: boolean("is_magic").notNull().default(false),
