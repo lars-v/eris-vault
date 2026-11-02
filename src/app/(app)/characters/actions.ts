@@ -20,7 +20,7 @@ import { can } from "@/lib/roles";
 import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities";
 import { assignScores, isValidIdentity } from "@/lib/rules/creation";
 import { rollAbilitySets, rollFirstLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
-import { catalogItem, classAllows } from "@/lib/rules/equipment";
+import { catalogItem, classAllows, randomKitKeys } from "@/lib/rules/equipment";
 import { requireStaff, requireUser, type CurrentUser } from "@/lib/session";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -259,6 +259,34 @@ async function addItemImpl(formData: FormData) {
   refresh(id);
 }
 
+/** Replaces the kit with a random basic kit that fits the class (see randomKitKeys). Not a roll: it isn't logged. */
+async function randomKitImpl(formData: FormData) {
+  const viewer = await requireUser();
+  const id = str(formData, "id");
+  await db.transaction(async (tx) => {
+    const c = await lockEditable(tx, viewer, id);
+    const cls = await activeClass(tx, id);
+    if (!cls) throw new Error("Choose a class first, so the kit fits it.");
+    const keys = randomKitKeys({ cls, race: c.race, int: c.int });
+    await tx.delete(inventory).where(eq(inventory.characterId, id));
+    await tx.insert(inventory).values(
+      keys.map((key) => {
+        const item = catalogItem(key)!;
+        return {
+          characterId: id,
+          name: item.name,
+          kind: item.category === "weapon" ? "Weapon" : item.category === "armor" ? "Armor" : "Gear",
+          quantity: 1,
+          encUnits: item.enc,
+          catalogKey: item.key,
+          location: "carried" as const,
+        };
+      }),
+    );
+  });
+  refresh(id);
+}
+
 async function removeItemImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
@@ -333,6 +361,10 @@ export async function spendRollGrant(formData: FormData) {
 
 export async function addItem(formData: FormData) {
   return guard(formData, addItemImpl);
+}
+
+export async function randomKit(formData: FormData) {
+  return guard(formData, randomKitImpl);
 }
 
 export async function removeItem(formData: FormData) {

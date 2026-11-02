@@ -16,6 +16,7 @@ import { requireUser } from "@/lib/session";
 import {
   addItem,
   deleteDraft,
+  randomKit,
   removeItem,
   rollGold,
   rollHitPoints,
@@ -240,6 +241,18 @@ export default async function BuildPage({
               <SubmitButton tone="plain" pendingText="Adding…">
                 Add
               </SubmitButton>
+            </form>
+          ) : null}
+          {cls ? (
+            <form action={randomKit} className="flex flex-wrap items-center gap-3">
+              <input type="hidden" name="id" value={id} />
+              <SubmitButton tone="plain" pendingText="Packing…">
+                Random basic kit
+              </SubmitButton>
+              <span className="text-xs text-subtle">
+                Replaces the list with a weapon and armor your class may use, its tools, and 4 to 6 pieces of gear. Clerics
+                get a non-edged weapon until Jay rules on edged ones. Not a roll, so it isn&apos;t logged.
+              </span>
             </form>
           ) : (
             <p className="text-sm text-subtle">Choose a class first, so class limits can be checked.</p>

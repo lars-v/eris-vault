@@ -178,3 +178,54 @@ export function classAllows(w: Wielder, item: CatalogItem): { ok: true } | { ok:
   }
   return { ok: true };
 }
+
+const AMMO_OR_LAUNCHER = new Set([
+  "arrow-silver",
+  "arrows-score",
+  "bolts-score",
+  "sling-stones-iron",
+  "sling-stones-silver",
+  "crossbow",
+  "long-bow",
+  "short-bow",
+  "sling",
+]);
+/** Damage table (WW p. 19) weapons with no edge. Used for clerics while "cleric-edged-weapons" waits on Jay. */
+const NON_EDGED = new Set(["club", "flail", "mace", "morning-star", "staff", "war-hammer", "heavy-war-hammer"]);
+const CLASS_EXTRAS = new Set(["thieves-tools", "holy-symbol-wood", "holy-symbol-silver", "spellbook"]);
+
+/**
+ * A random basic starting kit that stays inside the rules for the class:
+ * one weapon the class may use, armor the books allow, the class's own tools,
+ * and 4 to 6 pieces of dungeon gear. Jay still approves it.
+ * - Fighting-men (dwarves, halflings, elves in that class) and clerics: plate mail and shield.
+ * - Thieves: leather armor, no shield (WW p. 9); thieves' tools.
+ * - Magic-users: no armor (left to Jay); human magic-users get a dagger and a
+ *   spellbook (Men & Magic p. 6; WW p. 23: first-level magic-users have a spellbook).
+ * - Clerics: a non-edged weapon until Jay rules on edged weapons; a wooden holy symbol.
+ */
+export function randomKitKeys(w: Wielder, rand: () => number = Math.random): string[] {
+  const pickOne = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)];
+  const weapons = CATALOG.filter(
+    (i) =>
+      i.category === "weapon" &&
+      !AMMO_OR_LAUNCHER.has(i.key) &&
+      classAllows(w, i).ok &&
+      (w.cls !== "cleric" || NON_EDGED.has(i.key)),
+  );
+  const keys: string[] = [pickOne(weapons).key];
+
+  if (w.cls === "thief") keys.push("leather-armor", "thieves-tools");
+  else if (w.cls === "cleric") keys.push("plate-mail", "shield", "holy-symbol-wood");
+  else if (w.cls === "fighting-man") keys.push("plate-mail", "shield");
+  else if (w.cls === "magic-user" && w.race !== "elf") keys.push("spellbook");
+
+  const gear = CATALOG.filter((i) => i.category === "gear" && i.costGp !== null && !CLASS_EXTRAS.has(i.key));
+  const count = 4 + Math.floor(rand() * 3);
+  const pool = [...gear];
+  for (let n = 0; n < count && pool.length; n++) {
+    const [item] = pool.splice(Math.floor(rand() * pool.length), 1);
+    keys.push(item.key);
+  }
+  return keys;
+}
