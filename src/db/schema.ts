@@ -8,6 +8,7 @@ import {
   smallint,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -135,6 +136,10 @@ export const characterClasses = pgTable("character_classes", {
   class: text("class").$type<CharacterClass>().notNull(),
   xp: integer("xp").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  // The level this class's hit points already covered when it entered the app:
+  // 1 for a new character, the sheet's level for an import. Later levels each
+  // get a hit_dice row (WW p. 6).
+  baseHpLevel: smallint("base_hp_level").notNull().default(1),
 });
 
 export type ItemLocation = "carried" | "stashed" | "mount";
@@ -156,7 +161,7 @@ export const inventory = pgTable("inventory", {
   notes: text("notes"),
 });
 
-export type RollPurpose = "abilities" | "hp" | "gold" | "play";
+export type RollPurpose = "abilities" | "hp" | "gold" | "level-hp" | "play";
 
 /** Insert-only. Every die is kept. */
 export const rolls = pgTable("rolls", {
@@ -172,13 +177,36 @@ export const rolls = pgTable("rolls", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+/**
+ * The hit die rolled for one new level of one class (WW p. 6). `gain` is what
+ * it added to maximum hit points; null while the total is below 1 and the
+ * "hit-die-floor" ruling is pending.
+ */
+export const hitDice = pgTable(
+  "hit_dice",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    characterId: uuid("character_id")
+      .notNull()
+      .references(() => characters.id),
+    class: text("class").$type<CharacterClass>().notNull(),
+    level: smallint("level").notNull(),
+    rollId: uuid("roll_id")
+      .notNull()
+      .references(() => rolls.id),
+    gain: smallint("gain"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("hit_dice_level").on(t.characterId, t.class, t.level)],
+);
+
 /** A GM or admin lets a player roll one purpose again for one character. */
 export const rollGrants = pgTable("roll_grants", {
   id: uuid("id").primaryKey().defaultRandom(),
   characterId: uuid("character_id")
     .notNull()
     .references(() => characters.id),
-  purpose: text("purpose").$type<Exclude<RollPurpose, "play">>().notNull(),
+  purpose: text("purpose").$type<Exclude<RollPurpose, "play" | "level-hp">>().notNull(),
   grantedBy: text("granted_by")
     .notNull()
     .references(() => users.id),

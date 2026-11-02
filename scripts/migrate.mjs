@@ -32,6 +32,7 @@ const RULINGS = [
   ["ashan-patronage", "What does Ashan's patronage grant Liz?", "Campaign note", null, "pending"],
   ["elf-second-class-hp", "An elf keeps separate hit points per class (WW p. 10). When are hit points for the second class rolled?", "WW p. 10", null, "pending"],
   ["name-level-xp", "What does '+100,000' mean for 10th level XP?", "WW pp. 7 to 9", null, "pending"],
+  ["level-hp-current", "When a character gains a level, does the new hit die raise current hit points as well as the maximum?", "WW p. 6 silent", null, "pending"],
   ["prepare-same-spell", "May a caster prepare the same spell in more than one slot?", "WW pp. 7, 8, 25 silent", null, "pending"],
   ["cleric-wis-penalty", "Does a Wisdom penalty (Wis 3 to 6) take 1st-level spells away from a cleric?", "WW p. 5 names only bonuses", null, "pending"],
   ["cleric-l1-scroll-spells", "Who picks the spells on a 1st-level cleric's limited prayer scroll: the player, or Jay?", "WW p. 25", null, "pending"],

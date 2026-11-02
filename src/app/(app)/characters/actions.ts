@@ -8,6 +8,7 @@ import {
   characterClasses,
   characters,
   inventory,
+  hitDice,
   rollGrants,
   rolls,
   sheetUploads,
@@ -20,7 +21,8 @@ import { writeAudit } from "@/lib/audit";
 import { can } from "@/lib/roles";
 import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities";
 import { assignScores, isValidIdentity } from "@/lib/rules/creation";
-import { rollAbilitySets, rollFirstLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
+import { countedHpLevel, levelFor, levelsToRoll } from "@/lib/rules/advancement";
+import { rollAbilitySets, rollFirstLevelHp, rollLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
 import { catalogItem, checkKit, classAllows, randomKitKeys } from "@/lib/rules/equipment";
 import { changedFromSheet, importFlags } from "@/lib/rules/import";
 import { draftFromFields, matchCatalog, readPdfFields, SHEET_MAX_BYTES, sniffSheetType } from "@/lib/sheets";
@@ -73,6 +75,14 @@ async function activeClass(tx: Tx, id: string): Promise<CharacterClass | null> {
   return k?.cls ?? null;
 }
 
+/**
+ * A re-roll of abilities or 1st-level hit points resets maximum hit points,
+ * which would throw away the hit dice rolled for later levels, so it stops here.
+ */
+async function refuseAfterLevelUp(q: Tx | typeof db, id: string) {
+  const [any] = await q.select({ id: hitDice.id }).from(hitDice).where(eq(hitDice.characterId, id)).limit(1);
+  if (any) throw new Error("This character has rolled hit points for new levels, so a re-roll of abilities or 1st-level hit points would undo them.");
+}
 
 /**
  * Runs a wizard step. Rule problems come back to the build page (or `back`)
@@ -207,6 +217,7 @@ async function spendRollGrantImpl(formData: FormData) {
       .where(and(eq(rollGrants.id, grantId), eq(rollGrants.characterId, id), isNull(rollGrants.usedAt)))
       .for("update");
     if (!grant) throw new Error("That re-roll was already used or doesn't exist.");
+    if (grant.purpose !== "gold") await refuseAfterLevelUp(tx, id);
     let rollId: string;
     if (grant.purpose === "abilities") {
       rollId = await recordRoll(tx, viewer, id, "abilities", rollAbilitySets());
@@ -549,7 +560,8 @@ async function sendImportImpl(formData: FormData) {
         importFlags: flags,
       })
       .returning({ id: characters.id });
-    await tx.insert(characterClasses).values({ characterId: c.id, class: cls, xp });
+    // The sheet's hit points already cover the level its XP reached.
+    await tx.insert(characterClasses).values({ characterId: c.id, class: cls, xp, baseHpLevel: levelFor(cls, xp).level });
     if (items.length) await tx.insert(inventory).values(items.map((it) => ({ characterId: c.id, ...it })));
     await tx.update(sheetUploads).set({ characterId: c.id }).where(eq(sheetUploads.id, uploadId));
     return { id: c.id, flagCount: flags.length };
@@ -604,7 +616,112 @@ export async function grantReroll(formData: FormData) {
   if (!["abilities", "hp", "gold"].includes(purpose)) throw new Error("Unknown roll");
   const [c] = await db.select({ id: characters.id }).from(characters).where(and(eq(characters.id, id), isNull(characters.deletedAt)));
   if (!c) throw new Error("Unknown character");
+  if (purpose !== "gold") await refuseAfterLevelUp(db, id);
   await db.insert(rollGrants).values({ characterId: id, purpose, grantedBy: viewer.userId, reason });
   await writeAudit(viewer, { action: "roll.regrant", characterId: id, after: { purpose, reason } });
   refresh(id);
+}
+
+/* ---------- Experience and levels ---------- */
+
+const XP_STATUSES = new Set(["submitted", "approved"]);
+
+/**
+ * Staff add (or, with a negative amount, correct) XP for one class.
+ * WW p. 11: no bonus or penalty to earned XP for high or low scores.
+ */
+async function awardXpImpl(formData: FormData) {
+  const viewer = await requireStaff();
+  if (!can.awardXp(viewer)) throw new Error("Only Jay or an admin can award XP.");
+  const id = str(formData, "id");
+  const classId = str(formData, "classId");
+  const amount = wholeNumber(formData, "amount", "XP", -10_000_000, 10_000_000);
+  if (amount === 0) throw new Error("Enter an amount of XP other than 0.");
+  const note = str(formData, "note").slice(0, 200) || null;
+  const change = await db.transaction(async (tx) => {
+    const [c] = await tx
+      .select()
+      .from(characters)
+      .where(and(eq(characters.id, id), isNull(characters.deletedAt)))
+      .for("update");
+    if (!c) throw new Error("Unknown character");
+    if (!XP_STATUSES.has(c.status)) throw new Error("XP goes to submitted or approved characters.");
+    const [k] = await tx
+      .select()
+      .from(characterClasses)
+      .where(and(eq(characterClasses.characterId, id), classId ? eq(characterClasses.id, classId) : eq(characterClasses.active, true)));
+    if (!k) throw new Error("Unknown class");
+    const xp = k.xp + amount;
+    if (xp < 0) throw new Error(`That would leave ${k.xp + amount} XP. A correction can take XP down to 0 at most.`);
+    await tx.update(characterClasses).set({ xp }).where(eq(characterClasses.id, k.id));
+    await tx.update(characters).set({ updatedAt: new Date() }).where(eq(characters.id, id));
+    return { cls: k.class, from: k.xp, to: xp };
+  });
+  await writeAudit(viewer, {
+    action: "character.xp_awarded",
+    characterId: id,
+    before: { class: change.cls, xp: change.from },
+    after: { class: change.cls, xp: change.to, amount, note },
+  });
+  refresh(id);
+}
+
+/**
+ * Rolls the hit die for the next level the XP has reached (WW p. 6), for the
+ * owner or staff. The roll is logged first; its gain is added to maximum hit
+ * points. Current hit points are left alone ("level-hp-current" is pending).
+ */
+async function rollLevelHpImpl(formData: FormData) {
+  const viewer = await requireUser();
+  const id = str(formData, "id");
+  const classId = str(formData, "classId");
+  const rolled = await db.transaction(async (tx) => {
+    const [c] = await tx
+      .select()
+      .from(characters)
+      .where(and(eq(characters.id, id), isNull(characters.deletedAt)))
+      .for("update");
+    if (!c) throw new Error("Unknown character");
+    if (!can.editPlayState(viewer, c)) throw new Error("Only the player or Jay can roll for this character.");
+    if (!XP_STATUSES.has(c.status)) throw new Error("Hit points for new levels are rolled once the character is with Jay.");
+    if (c.con === null || c.hpMax === null) throw new Error("This character has no Constitution or hit points yet.");
+    const [k] = await tx
+      .select()
+      .from(characterClasses)
+      .where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
+    if (!k) throw new Error("Unknown class");
+    const done = await tx
+      .select({ level: hitDice.level })
+      .from(hitDice)
+      .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class)));
+    const counted = countedHpLevel(c.source !== "app" || Boolean(c.hpRollId), k.baseHpLevel, done.map((d) => d.level));
+    const [level] = levelsToRoll(c.race, k.class, k.xp, counted);
+    if (!level) throw new Error("There is no new level to roll hit points for.");
+    const roll = rollLevelHp(k.class, abilityModifier(c.con), level);
+    const rollId = await recordRoll(tx, viewer, id, "level-hp", roll);
+    await tx.insert(hitDice).values({ characterId: id, class: k.class, level, rollId, gain: roll.gain });
+    if (roll.gain !== null) {
+      await tx.update(characters).set({ hpMax: c.hpMax + roll.gain, updatedAt: new Date() }).where(eq(characters.id, id));
+    }
+    return { ownerId: c.ownerId, cls: k.class, level, gain: roll.gain, hpMax: c.hpMax };
+  });
+  if (rolled.ownerId !== viewer.userId) {
+    await writeAudit(viewer, {
+      action: "character.level_hp_rolled",
+      characterId: id,
+      before: { hpMax: rolled.hpMax },
+      after: { class: rolled.cls, level: rolled.level, gain: rolled.gain },
+    });
+  }
+  refresh(id);
+}
+
+const sheetPath = (fd: FormData) => `/characters/${encodeURIComponent(str(fd, "id"))}`;
+
+export async function awardXp(formData: FormData) {
+  return guard(formData, awardXpImpl, sheetPath(formData));
+}
+
+export async function rollLevelHitPoints(formData: FormData) {
+  return guard(formData, rollLevelHpImpl, sheetPath(formData));
 }

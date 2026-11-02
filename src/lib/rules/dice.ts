@@ -47,6 +47,31 @@ export function rollFirstLevelHp(cls: CharacterClass, conModifier: number, d6: D
   };
 }
 
+/**
+ * Hit points for a new level after the first: 1d6 adjusted by class (WW p. 6)
+ * and by the Constitution modifier (WW p. 5, "whenever hit points are rolled").
+ * The 3 hp minimum is for 1st level only (WW p. 6). Whether a total below 1
+ * still adds anything is the pending ruling "hit-die-floor", so `gain` is null
+ * then and nothing is added until Jay rules; the roll itself is kept either way.
+ */
+export function rollLevelHp(
+  cls: CharacterClass,
+  conModifier: number,
+  level: number,
+  d6: D6 = cryptoD6,
+): Roll & { total: number; gain: number | null } {
+  const face = d6();
+  const total = face + HIT_DIE_ADJUST[cls] + conModifier;
+  const sign = (n: number) => (n === 0 ? "" : n > 0 ? ` + ${n}` : ` − ${Math.abs(n)}`);
+  return {
+    formula: `1d6${sign(HIT_DIE_ADJUST[cls])}${conModifier ? `${sign(conModifier)} Con` : ""}, level ${level}`,
+    dice: [[face]],
+    totals: [total],
+    total,
+    gain: total >= 1 ? total : null,
+  };
+}
+
 /** Men & Magic p. 10: 3d6 × 10 gold pieces (campaign ruling: what remains after gear). */
 export function rollStartingGold(d6: D6 = cryptoD6): Roll & { gold: number } {
   const faces = [d6(), d6(), d6()];

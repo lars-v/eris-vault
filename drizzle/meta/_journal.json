@@ -64,6 +64,13 @@
       "when": 1793654173026,
       "tag": "0008_spells",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793654462723,
+      "tag": "0009_levels",
+      "breakpoints": true
     }
   ]
 }

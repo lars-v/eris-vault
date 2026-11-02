@@ -8,6 +8,7 @@ import { accounts, characterClasses, characters, gmClaims, inventory, profiles, 
 import { writeAudit } from "@/lib/audit";
 import { claimExpiry, hashClaimCode, newClaimCode } from "@/lib/claim";
 import { canChangeAccount } from "@/lib/roles";
+import { levelFor } from "@/lib/rules/advancement";
 import { isRailwayAdmin, requireAdmin, requireStaff } from "@/lib/session";
 import { LIZ } from "@/lib/seed/liz";
 
@@ -95,7 +96,7 @@ export async function importLiz() {
       importFlags: LIZ.flags,
     })
     .returning({ id: characters.id });
-  await db.insert(characterClasses).values({ characterId: row.id, class: LIZ.cls, xp: LIZ.xp });
+  await db.insert(characterClasses).values({ characterId: row.id, class: LIZ.cls, xp: LIZ.xp, baseHpLevel: levelFor(LIZ.cls, LIZ.xp).level });
   await db.insert(inventory).values(LIZ.items.map((i) => ({ characterId: row.id, ...i })));
   await writeAudit(actor, { action: "character.imported", characterId: row.id, after: { name: LIZ.name } });
   revalidatePath("/party");

@@ -91,6 +91,51 @@ export type LevelInfo = {
   pastNine: boolean;
 };
 
+/**
+ * The highest level this race may reach in this class (RACE_CLASSES), and no
+ * higher than 9th: above that the XP needed is the pending ruling "name-level-xp".
+ */
+export function maxLevel(race: Race | null, cls: CharacterClass): number {
+  const cap = race ? RACE_CLASSES[race][cls] : null;
+  return Math.min(cap ?? 9, 9);
+}
+
+/**
+ * levelFor, held at the race's level cap (WW pp. 7-10): XP past the cap still
+ * counts as XP, but the level, title and save stay at the cap and there is no
+ * next level to show.
+ */
+export function cappedLevelFor(race: Race | null, cls: CharacterClass, xp: number): LevelInfo {
+  const info = levelFor(cls, xp);
+  const max = maxLevel(race, cls);
+  if (info.level <= max) return info;
+  const row = TABLES[cls].find((r) => r.level === max)!;
+  return { level: row.level, title: row.title, save: row.save, startXp: row.xp, nextTitle: null, nextXp: null, pastNine: false };
+}
+
+/**
+ * The highest level already counted in a class's hit points: 0 until the
+ * 1st-level roll (or an imported sheet) gives hit points, then the larger of
+ * the level they came with (`baseLevel`) and the last level-up die rolled.
+ */
+export function countedHpLevel(firstLevelCounted: boolean, baseLevel: number, rolledLevels: number[]): number {
+  return firstLevelCounted ? Math.max(baseLevel, ...rolledLevels) : 0;
+}
+
+/**
+ * Levels whose hit die still has to be rolled: every level above `hpLevel`
+ * (the highest level already counted in the character's hit points) up to
+ * the level the XP reaches, stopping at maxLevel. WW p. 6: a d6 per level.
+ */
+export function levelsToRoll(race: Race | null, cls: CharacterClass, xp: number, hpLevel: number): number[] {
+  // 1st-level hit points come from the creation roll (or the imported sheet) first.
+  if (hpLevel < 1) return [];
+  const reached = Math.min(levelFor(cls, xp).level, maxLevel(race, cls));
+  const out: number[] = [];
+  for (let l = hpLevel + 1; l <= reached; l++) out.push(l);
+  return out;
+}
+
 export function levelFor(cls: CharacterClass, xp: number): LevelInfo {
   if (!Number.isInteger(xp) || xp < 0) throw new RangeError(`XP must be a whole number, got ${xp}`);
   const table = TABLES[cls];

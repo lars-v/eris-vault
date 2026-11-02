@@ -5,12 +5,13 @@ import { Nav } from "@/components/Nav";
 import { Chip, Panel } from "@/components/ui";
 import { getCharacter, sheetsForCharacter } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
-import { ADVANCEMENT_SOURCE, CLASS_NAMES, levelFor } from "@/lib/rules/advancement";
+import { ADVANCEMENT_SOURCE, cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
 import { castsSpells } from "@/lib/rules/spells";
 import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
 import { SubmitButton } from "./build/forms";
+import { LevelPanel } from "./LevelPanel";
 import { SpellsPanel } from "./SpellsPanel";
 import { approveCharacter, grantReroll, returnToPlayer } from "../actions";
 
@@ -30,7 +31,7 @@ export default async function CharacterPage({
   if (!c) notFound();
 
   const active = c.classes.find((k) => k.active) ?? c.classes[0];
-  const lvl = active ? levelFor(active.class, active.xp) : null;
+  const lvl = active ? cappedLevelFor(c.race, active.class, active.xp) : null;
   const units = carriedUnits(c.items);
   const band = bandFor(units);
   const unknown = unknownUnitItems(c.items);
@@ -86,7 +87,9 @@ export default async function CharacterPage({
                   <span className="text-subtle">
                     {lvl.nextTitle && lvl.nextXp
                       ? `${lvl.nextTitle} at ${lvl.nextXp.toLocaleString("en-US")}`
-                      : "10th level waits on a GM ruling"}
+                      : lvl.level < 9
+                        ? `Highest level for a ${c.race} ${CLASS_NAMES[active.class].toLowerCase()} (WW pp. 7-10)`
+                        : "10th level waits on a GM ruling"}
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-[#262920]">
@@ -133,9 +136,10 @@ export default async function CharacterPage({
                 <label className="sr-only" htmlFor="reroll-purpose">
                   Roll to grant again
                 </label>
-                <select id="reroll-purpose" name="purpose" defaultValue="abilities" className="min-h-11 rounded-xl border border-line-2 bg-ink px-2 text-sm">
-                  <option value="abilities">Ability scores</option>
-                  <option value="hp">Hit points</option>
+                <select id="reroll-purpose" name="purpose" defaultValue={c.levelDice.length === 0 ? "abilities" : "gold"} className="min-h-11 rounded-xl border border-line-2 bg-ink px-2 text-sm">
+                  {/* A re-roll of these would undo hit dice rolled for later levels. */}
+                  {c.levelDice.length === 0 && <option value="abilities">Ability scores</option>}
+                  {c.levelDice.length === 0 && <option value="hp">Hit points</option>}
                   <option value="gold">Starting gold</option>
                 </select>
                 <input name="reason" placeholder="Reason" maxLength={200} className="min-h-11 w-44 rounded-xl border border-line-2 bg-ink px-3 text-sm" />
@@ -286,6 +290,19 @@ export default async function CharacterPage({
             {c.notes && <p className="whitespace-pre-line border-t border-[#262920] pt-3 text-sm text-muted">{c.notes}</p>}
           </Panel>
         </div>
+        {active && (c.status === "submitted" || c.status === "approved") && (
+          <LevelPanel
+            characterId={c.id}
+            race={c.race}
+            classes={c.classes}
+            firstLevelCounted={imported || Boolean(c.hpRollId)}
+            conModifier={c.con === null ? 0 : abilityModifier(c.con)}
+            levelDice={c.levelDice}
+            canRoll={can.editPlayState(viewer, c)}
+            canAward={can.awardXp(viewer)}
+          />
+        )}
+
         {active && lvl && castsSpells(active.class) && (
           <SpellsPanel
             id={c.id}

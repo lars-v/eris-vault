@@ -6,6 +6,7 @@ import {
   auditLog,
   characterClasses,
   characters,
+  hitDice,
   inventory,
   profiles,
   rollGrants,
@@ -59,9 +60,18 @@ export async function getCharacter(id: string) {
     .from(inventory)
     .where(eq(inventory.characterId, id))
     .orderBy(asc(inventory.name));
-  const [characterRolls, grants] = await Promise.all([listRolls({ characterId: id }), openGrants(id)]);
+  const [characterRolls, grants, levelDice] = await Promise.all([
+    listRolls({ characterId: id }),
+    openGrants(id),
+    db
+      .select({ class: hitDice.class, level: hitDice.level, gain: hitDice.gain, dice: rolls.dice, total: rolls.totals, formula: rolls.formula })
+      .from(hitDice)
+      .innerJoin(rolls, eq(rolls.id, hitDice.rollId))
+      .where(eq(hitDice.characterId, id))
+      .orderBy(asc(hitDice.level)),
+  ]);
   const abilityRoll = c.abilityRollId ? characterRolls.find((r) => r.id === c.abilityRollId) ?? null : null;
-  return { ...c, ownerName: owner?.name ?? null, classes, items, rolls: characterRolls, grants, abilityRoll };
+  return { ...c, ownerName: owner?.name ?? null, classes, items, rolls: characterRolls, grants, abilityRoll, levelDice };
 }
 
 /** Every roll, newest first. Rolls are insert-only, so this is the full record. */
