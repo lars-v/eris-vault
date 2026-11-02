@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { signOut } from "@/auth";
 import { GuideButton } from "@/components/Guide";
-import { Moons } from "@/components/Moons";
+import { Logo } from "@/components/Logo";
 import type { CurrentUser } from "@/lib/session";
 
 export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" | "rolls" | "gm" | "admin" | "account" }) {
@@ -21,7 +21,7 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" 
     <nav aria-label="Main" className="border-b border-[#262920] bg-ink-2">
       <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-x-7 gap-y-3 px-4 py-3.5 sm:px-8">
         <Link href="/party" className="flex items-center gap-2.5">
-          <Moons />
+          <Logo />
           <span className="font-display text-2xl">Eris Vault</span>
         </Link>
         <div className="flex flex-1 flex-wrap gap-1">

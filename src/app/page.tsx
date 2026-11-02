@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { enabledProviders } from "@/auth";
-import { Moons } from "@/components/Moons";
+import { Logo } from "@/components/Logo";
 import { SignInButtons } from "@/components/SignInButtons";
 import { getCurrentUser } from "@/lib/session";
 
@@ -11,7 +11,7 @@ export default async function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-[880px] flex-col justify-center gap-8 px-4 py-16 sm:px-8">
       <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-lime">
-        <Moons size={22} />
+        <Logo size={22} />
         Planet Eris · OD&amp;D campaign
       </div>
       <h1 className="font-display text-6xl leading-none text-parchment-2 sm:text-7xl">Eris Vault</h1>
