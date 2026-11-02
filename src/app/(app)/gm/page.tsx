@@ -37,7 +37,7 @@ export default async function GmPage() {
                 ))}
               </ul>
             )}
-            <p className="text-xs text-subtle">Approving, XP awards and re-roll grants arrive with the next build.</p>
+            <p className="text-xs text-subtle">Open a character to approve it, return it to the player, or grant a re-roll. XP awards come later.</p>
           </Panel>
 
           <Panel title="Rulings ledger" className="min-w-0 flex-[1_1_360px]">

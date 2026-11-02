@@ -8,6 +8,8 @@ import {
   characters,
   inventory,
   profiles,
+  rollGrants,
+  rolls,
   rulings,
   users,
 } from "@/db/schema";
@@ -56,7 +58,41 @@ export async function getCharacter(id: string) {
     .from(inventory)
     .where(eq(inventory.characterId, id))
     .orderBy(asc(inventory.name));
-  return { ...c, ownerName: owner?.name ?? null, classes, items };
+  const [characterRolls, grants] = await Promise.all([listRolls({ characterId: id }), openGrants(id)]);
+  const abilityRoll = c.abilityRollId ? characterRolls.find((r) => r.id === c.abilityRollId) ?? null : null;
+  return { ...c, ownerName: owner?.name ?? null, classes, items, rolls: characterRolls, grants, abilityRoll };
+}
+
+/** Every roll, newest first. Rolls are insert-only, so this is the full record. */
+export async function listRolls(opts: { characterId?: string; limit?: number } = {}) {
+  const q = db
+    .select({
+      id: rolls.id,
+      purpose: rolls.purpose,
+      formula: rolls.formula,
+      dice: rolls.dice,
+      totals: rolls.totals,
+      createdAt: rolls.createdAt,
+      rollerName: users.name,
+      characterId: rolls.characterId,
+      characterName: characters.name,
+      characterDeleted: characters.deletedAt,
+    })
+    .from(rolls)
+    .innerJoin(users, eq(users.id, rolls.userId))
+    .leftJoin(characters, eq(characters.id, rolls.characterId))
+    .where(opts.characterId ? eq(rolls.characterId, opts.characterId) : undefined)
+    .orderBy(desc(rolls.createdAt))
+    .limit(opts.limit ?? 200);
+  return q;
+}
+
+export async function openGrants(characterId: string) {
+  return db
+    .select({ id: rollGrants.id, purpose: rollGrants.purpose, reason: rollGrants.reason, grantedByName: users.name })
+    .from(rollGrants)
+    .innerJoin(users, eq(users.id, rollGrants.grantedBy))
+    .where(and(eq(rollGrants.characterId, characterId), isNull(rollGrants.usedAt)));
 }
 
 export async function listPeople() {

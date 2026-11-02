@@ -90,18 +90,21 @@ export const characters = pgTable("characters", {
     .notNull()
     .references(() => users.id, { onDelete: "restrict" }),
   name: text("name").notNull(),
-  race: text("race").$type<Race>().notNull(),
-  alignment: text("alignment").$type<Alignment>().notNull(),
+  // Null while a draft is still being built in the creation wizard.
+  race: text("race").$type<Race>(),
+  alignment: text("alignment").$type<Alignment>(),
   status: text("status").$type<CharacterStatus>().notNull().default("draft"),
-  str: smallint("str").notNull(),
-  int: smallint("int").notNull(),
-  wis: smallint("wis").notNull(),
-  dex: smallint("dex").notNull(),
-  con: smallint("con").notNull(),
-  cha: smallint("cha").notNull(),
+  str: smallint("str"),
+  int: smallint("int"),
+  wis: smallint("wis"),
+  dex: smallint("dex"),
+  con: smallint("con"),
+  cha: smallint("cha"),
   abilityRollId: uuid("ability_roll_id"),
-  hpCurrent: smallint("hp_current").notNull(),
-  hpMax: smallint("hp_max").notNull(),
+  hpRollId: uuid("hp_roll_id"),
+  goldRollId: uuid("gold_roll_id"),
+  hpCurrent: smallint("hp_current"),
+  hpMax: smallint("hp_max"),
   coinsGp: integer("coins_gp").notNull().default(0),
   coinsSp: integer("coins_sp").notNull().default(0),
   coinsCp: integer("coins_cp").notNull().default(0),
@@ -135,7 +138,9 @@ export const inventory = pgTable("inventory", {
   name: text("name").notNull(),
   kind: text("kind").notNull(),
   quantity: smallint("quantity").notNull().default(1),
-  encUnits: smallint("enc_units").notNull().default(0),
+  // Null = not known yet (Woundwort's Warren p. 18 not transcribed).
+  encUnits: smallint("enc_units"),
+  catalogKey: text("catalog_key"),
   isMagic: boolean("is_magic").notNull().default(false),
   magicBonus: smallint("magic_bonus"),
   location: text("location").$type<ItemLocation>().notNull().default("carried"),
@@ -156,6 +161,22 @@ export const rolls = pgTable("rolls", {
   dice: jsonb("dice").$type<number[][]>().notNull(),
   totals: jsonb("totals").$type<number[]>().notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+/** A GM or admin lets a player roll one purpose again for one character. */
+export const rollGrants = pgTable("roll_grants", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  characterId: uuid("character_id")
+    .notNull()
+    .references(() => characters.id),
+  purpose: text("purpose").$type<Exclude<RollPurpose, "play">>().notNull(),
+  grantedBy: text("granted_by")
+    .notNull()
+    .references(() => users.id),
+  reason: text("reason"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  usedRollId: uuid("used_roll_id"),
+  usedAt: timestamp("used_at", { mode: "date" }),
 });
 
 export const rulings = pgTable("rulings", {

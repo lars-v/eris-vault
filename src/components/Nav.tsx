@@ -3,7 +3,7 @@ import { signOut } from "@/auth";
 import { Moons } from "@/components/Moons";
 import type { CurrentUser } from "@/lib/session";
 
-export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" | "gm" | "admin" | "account" }) {
+export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" | "rolls" | "gm" | "admin" | "account" }) {
   const item = (key: string) =>
     `rounded-lg px-3.5 py-2.5 text-[15px] ${
       active === key ? "bg-surface-2 font-medium text-parchment-2" : "text-muted hover:text-lime"
@@ -26,6 +26,9 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" 
         <div className="flex flex-1 flex-wrap gap-1">
           <Link href="/party" className={item("party")}>
             Party
+          </Link>
+          <Link href="/rolls" className={item("rolls")}>
+            Roll log
           </Link>
           {(viewer.role === "gm" || viewer.role === "admin") && (
             <Link href="/gm" className={item("gm")}>

@@ -1,11 +1,16 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DiceFaces, PURPOSE_LABEL } from "@/components/Dice";
 import { Nav } from "@/components/Nav";
 import { Chip, Panel } from "@/components/ui";
 import { getCharacter } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
 import { ADVANCEMENT_SOURCE, CLASS_NAMES, levelFor } from "@/lib/rules/advancement";
-import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE } from "@/lib/rules/encumbrance";
+import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
+import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
+import { SubmitButton } from "./build/forms";
+import { approveCharacter, grantReroll, returnToPlayer } from "../actions";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -19,6 +24,9 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
   const lvl = active ? levelFor(active.class, active.xp) : null;
   const units = carriedUnits(c.items);
   const band = bandFor(units);
+  const unknown = unknownUnitItems(c.items);
+  const canBuild = can.editCoreStats(viewer, c);
+  const staff = can.approve(viewer);
   const xpPct =
     lvl && active && lvl.nextXp ? Math.round(((active.xp - lvl.startXp) / (lvl.nextXp - lvl.startXp)) * 100) : 100;
 
@@ -38,7 +46,8 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
           <div className="flex min-w-0 flex-[999_1_380px] flex-col gap-2">
             <h1 className="font-display text-5xl leading-none text-parchment-2">{c.name}</h1>
             <div className="text-[#c9c5b4]">
-              {cap(c.race)} {active ? CLASS_NAMES[active.class] : ""} · {cap(c.alignment)}
+              {c.race ? cap(c.race) : "Race not chosen"} {active ? CLASS_NAMES[active.class] : ""}
+              {c.alignment ? ` · ${cap(c.alignment)}` : ""}
               {c.deity ? ` · Patron: ${c.deity}` : ""}
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -48,7 +57,13 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
                   {lvl.pastNine ? "+" : ""} · {lvl.title}
                 </Chip>
               )}
-              {c.status === "submitted" ? <Chip tone="amber">Awaiting Jay</Chip> : <Chip>{cap(c.status)}</Chip>}
+              {c.status === "submitted" ? (
+                <Chip tone="amber">Awaiting Jay</Chip>
+              ) : c.status === "approved" ? (
+                <Chip tone="lime">Approved</Chip>
+              ) : (
+                <Chip>{cap(c.status)}</Chip>
+              )}
               <span className="text-sm text-subtle">Player: {c.ownerName ?? "unknown"}</span>
             </div>
             {lvl && active && (
@@ -69,6 +84,51 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
           </div>
         </header>
 
+        {(canBuild || staff) && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-4">
+            {canBuild && (
+              <Link href={`/characters/${c.id}/build`} className="inline-flex min-h-11 items-center rounded-xl bg-lime px-4 text-sm font-semibold text-lime-ink">
+                {c.status === "draft" ? "Continue building" : "Edit as GM"}
+              </Link>
+            )}
+            {staff && c.status === "submitted" && (
+              <form action={approveCharacter}>
+                <input type="hidden" name="id" value={c.id} />
+                <SubmitButton tone="amber" pendingText="Approving…">
+                  Approve
+                </SubmitButton>
+              </form>
+            )}
+            {staff && (c.status === "submitted" || c.status === "approved") && (
+              <form action={returnToPlayer} className="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="id" value={c.id} />
+                <input name="note" placeholder="Note for the player (optional)" maxLength={300} className="min-h-11 w-64 rounded-xl border border-line-2 bg-ink px-3 text-sm" />
+                <SubmitButton tone="plain" pendingText="Returning…">
+                  Return to player
+                </SubmitButton>
+              </form>
+            )}
+            {staff && (
+              <form action={grantReroll} className="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="id" value={c.id} />
+                <label className="sr-only" htmlFor="reroll-purpose">
+                  Roll to grant again
+                </label>
+                <select id="reroll-purpose" name="purpose" defaultValue="abilities" className="min-h-11 rounded-xl border border-line-2 bg-ink px-2 text-sm">
+                  <option value="abilities">Ability scores</option>
+                  <option value="hp">Hit points</option>
+                  <option value="gold">Starting gold</option>
+                </select>
+                <input name="reason" placeholder="Reason" maxLength={200} className="min-h-11 w-44 rounded-xl border border-line-2 bg-ink px-3 text-sm" />
+                <SubmitButton tone="plain" pendingText="Granting…">
+                  Grant re-roll
+                </SubmitButton>
+              </form>
+            )}
+            {c.grants.length > 0 && <Chip tone="amber">{c.grants.length} re-roll{c.grants.length === 1 ? "" : "s"} waiting</Chip>}
+          </div>
+        )}
+
         {c.importFlags.length > 0 && (
           <Panel title={`Import flags for Jay · ${c.importFlags.length}`} className="border-[#5e4720]">
             <ul className="flex flex-col divide-y divide-[#262920]">
@@ -87,6 +147,14 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
           <Panel title="Abilities" aside={ABILITY_SOURCE} className="min-w-0 flex-[1_1_360px]">
             {ABILITIES.map((a) => {
               const score = c[a];
+              if (score === null) {
+                return (
+                  <div key={a} className="flex items-center justify-between rounded-xl border border-dashed border-line px-4 py-3 text-sm text-subtle">
+                    <span className="font-semibold tracking-wide">{ABILITY_NAMES[a].toUpperCase()}</span>
+                    <span>Not assigned yet</span>
+                  </div>
+                );
+              }
               const mod = abilityModifier(score);
               return (
                 <div key={a} className="flex items-center gap-4 rounded-xl border border-line px-4 py-2.5">
@@ -112,10 +180,14 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
           <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
               <Panel title="Hit points">
-                <div className="font-mono text-4xl">
-                  {c.hpCurrent}
-                  <span className="text-lg text-subtle"> / {c.hpMax}</span>
-                </div>
+                {c.hpMax === null ? (
+                  <div className="text-sm text-subtle">Not rolled yet</div>
+                ) : (
+                  <div className="font-mono text-4xl">
+                    {c.hpCurrent}
+                    <span className="text-lg text-subtle"> / {c.hpMax}</span>
+                  </div>
+                )}
               </Panel>
               <Panel title="Saving throw" aside={active ? ADVANCEMENT_SOURCE[active.class] : undefined}>
                 <div className="font-mono text-4xl">{lvl?.save ?? "?"}</div>
@@ -134,6 +206,11 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
                 </span>
               </div>
               <div className="text-xs text-subtle">Magic gear counts 0 (campaign ruling).</div>
+              {unknown > 0 && (
+                <div className="text-xs text-amber">
+                  {unknown} item{unknown === 1 ? "" : "s"} waiting for weights from Woundwort&apos;s Warren p. 18, so the total is a floor.
+                </div>
+              )}
             </Panel>
             <Panel title="Coins">
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -164,7 +241,7 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
                       <span>{i.name}</span>
                       {i.isMagic && <span className="text-xs text-lime">Magic: counts 0</span>}
                     </span>
-                    <span className="font-mono">{i.isMagic ? 0 : i.encUnits * i.quantity}</span>
+                    <span className="font-mono">{i.isMagic ? 0 : i.encUnits === null ? "?" : i.encUnits * i.quantity}</span>
                   </li>
                 ))}
               </ul>
@@ -172,6 +249,35 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
             {c.notes && <p className="border-t border-[#262920] pt-3 text-sm text-muted">{c.notes}</p>}
           </Panel>
         </div>
+        <Panel title={`Rolls · ${c.rolls.length}`} aside="Insert-only; see the full roll log">
+          {c.rolls.length === 0 ? (
+            <p className="text-sm text-muted">No rolls recorded for this character (imported from a paper sheet).</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-[#262920]">
+              {c.rolls.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+                  <span className="text-sm">
+                    {PURPOSE_LABEL[r.purpose] ?? r.purpose} <span className="text-subtle">by {r.rollerName ?? "someone"}</span>
+                    {r.id !== c.abilityRollId && r.id !== c.hpRollId && r.id !== c.goldRollId && (
+                      <span className="ml-2 text-xs text-amber">replaced by a granted re-roll</span>
+                    )}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-3">
+                    {r.dice.map((set, i) => (
+                      <span key={i} className="flex items-center gap-1.5">
+                        <DiceFaces faces={set} size="sm" />
+                        <span className="font-mono text-sm">= {r.totals[i]}</span>
+                      </span>
+                    ))}
+                    <time className="text-xs text-subtle" dateTime={r.createdAt.toISOString()}>
+                      {r.createdAt.toISOString().replace("T", " ").slice(0, 16)} UTC
+                    </time>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </main>
     </>
   );

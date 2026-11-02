@@ -18,12 +18,18 @@ export const BANDS: Band[] = [
 
 export const ENCUMBRANCE_SOURCE = "Woundwort's Warren pp. 16, 47";
 
-export type CarriedItem = { encUnits: number; quantity: number; isMagic: boolean; location: string };
+/** encUnits null = not known yet (p. 18 not transcribed); never guessed. */
+export type CarriedItem = { encUnits: number | null; quantity: number; isMagic: boolean; location: string };
 
 export function carriedUnits(items: CarriedItem[]): number {
   return items
     .filter((i) => i.location === "carried")
-    .reduce((sum, i) => sum + (i.isMagic ? 0 : i.encUnits * i.quantity), 0);
+    .reduce((sum, i) => sum + (i.isMagic ? 0 : (i.encUnits ?? 0) * i.quantity), 0);
+}
+
+/** Carried, non-magic items whose units aren't known, so the total is a floor. */
+export function unknownUnitItems(items: CarriedItem[]): number {
+  return items.filter((i) => i.location === "carried" && !i.isMagic && i.encUnits === null).length;
 }
 
 export function bandFor(units: number): Band {

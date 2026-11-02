@@ -18,12 +18,12 @@ export default async function PartyPage() {
       <Nav viewer={viewer} active="party" />
       <main className="mx-auto flex max-w-[1280px] flex-col gap-7 px-4 py-10 sm:px-8">
         <PageHeader eyebrow="Rath Denacht · last year of Hibernumn" title="The party">
-          <span
-            className="inline-flex min-h-11 items-center rounded-xl border border-dashed border-line-2 px-4 text-sm text-subtle"
-            title="The creation wizard arrives in the next build"
+          <Link
+            href="/characters/new"
+            className="inline-flex min-h-11 items-center rounded-xl bg-lime px-4 text-sm font-semibold text-lime-ink hover:brightness-110"
           >
-            New character: next build
-          </span>
+            New character
+          </Link>
         </PageHeader>
 
         {party.length === 0 ? (
@@ -34,7 +34,7 @@ export default async function PartyPage() {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
             {party.map((c) => {
               const lvl = c.cls ? levelFor(c.cls, c.xp ?? 0) : null;
-              const pct = c.hpMax > 0 ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;
+              const pct = c.hpMax && c.hpCurrent !== null ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;
               return (
                 <Link
                   key={c.id}
@@ -53,7 +53,8 @@ export default async function PartyPage() {
                     <div className="flex min-w-0 flex-col gap-1">
                       <div className="font-display text-[28px] leading-none">{c.name}</div>
                       <div className="text-sm text-muted">
-                        {cap(c.race)} {c.cls ? CLASS_NAMES[c.cls] : ""} · {cap(c.alignment)}
+                        {c.race ? cap(c.race) : "Still being built"} {c.cls ? CLASS_NAMES[c.cls] : ""}
+                        {c.alignment ? ` · ${cap(c.alignment)}` : ""}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {lvl && (
@@ -70,7 +71,7 @@ export default async function PartyPage() {
                     <div className="flex justify-between text-[13px]">
                       <span className="text-muted">Hit points</span>
                       <span className="font-mono">
-                        {c.hpCurrent} / {c.hpMax}
+                        {c.hpMax === null ? "Not rolled" : `${c.hpCurrent} / ${c.hpMax}`}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-[#262920]">

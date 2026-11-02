@@ -18,6 +18,7 @@ const sql = postgres(url, { max: 1 });
 const RULINGS = [
   // Decided campaign rulings already on file.
   ["magic-gear-encumbrance", "Does magic gear count toward encumbrance?", "Campaign ruling (overrides Woundwort's Warren p. 16)", "No. Magic gear counts as 0 units.", "decided"],
+  ["one-ability-set", "Can a player throw away a set of ability rolls and roll again?", "WW p. 5 silent; table decision (Lars), 1 Nov 2026", "No. One set per character, kept in the public roll log. Only the GM or admin can grant a re-roll.", "decided"],
   ["starting-gold", "Is 3d6 x 10 gp a shopping budget or what is left after gear?", "Men & Magic p. 10; campaign ruling", "It is what remains after buying starting gear.", "decided"],
   // Open questions where the books are silent, optional or ambiguous.
   ["hit-die-floor", "Can a hit die total fall below 1 after 1st level?", "WW p. 6 silent; M&M p. 11 sets 1 for its own Con rule", null, "pending"],
@@ -29,6 +30,7 @@ const RULINGS = [
   ["cleric-l1-scroll", "1st-level cleric with Wis 15+: prayer scroll of one or two spells?", "WW p. 25", null, "pending"],
   ["cleric-edged-weapons", "May clerics use ordinary edged weapons?", "M&M p. 7; WW silent", null, "pending"],
   ["ashan-patronage", "What does Ashan's patronage grant Liz?", "Campaign note", null, "pending"],
+  ["elf-second-class-hp", "An elf keeps separate hit points per class (WW p. 10). When are hit points for the second class rolled?", "WW p. 10", null, "pending"],
   ["name-level-xp", "What does '+100,000' mean for 10th level XP?", "WW pp. 7 to 9", null, "pending"],
 ];
 
