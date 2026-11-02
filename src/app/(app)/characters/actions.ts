@@ -329,8 +329,14 @@ async function deleteDraftImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
-    if (!can.deleteCharacter(viewer, c)) throw new Error("Only drafts can be deleted by their player.");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Unknown character");
+    const [c] = await tx
+      .select()
+      .from(characters)
+      .where(and(eq(characters.id, id), isNull(characters.deletedAt)))
+      .for("update");
+    if (!c) throw new Error("Unknown character");
+    if (!can.deleteCharacter(viewer, c)) throw new Error("Players can delete a character only before Jay approves it.");
     // Soft delete: the character's rolls stay visible in the roll log.
     await tx.update(characters).set({ deletedAt: new Date() }).where(eq(characters.id, id));
   });

@@ -42,8 +42,10 @@ export const can = {
   editRulings: (v: Viewer) => v.status === "active" && isStaff(v),
   blockAccounts: (v: Viewer) => v.status === "active" && isStaff(v),
   readAuditLog: (v: Viewer) => v.status === "active" && isStaff(v),
+  // Players may withdraw a character until Jay approves it.
   deleteCharacter: (v: Viewer, c: CharacterRef) =>
-    v.status === "active" && (isStaff(v) || (c.ownerId === v.userId && c.status === "draft")),
+    v.status === "active" &&
+    (isStaff(v) || (c.ownerId === v.userId && (c.status === "draft" || c.status === "submitted"))),
   manageGms: (v: Viewer) => v.status === "active" && v.role === "admin",
   manageAdmins: (v: Viewer) => v.status === "active" && v.role === "admin",
   settings: (v: Viewer) => v.status === "active" && v.role === "admin",

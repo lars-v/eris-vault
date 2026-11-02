@@ -10,6 +10,7 @@ const blocked: Viewer = { userId: "x", role: "player", status: "blocked", railwa
 
 const own = { ownerId: "p1", status: "approved" as const };
 const ownDraft = { ownerId: "p1", status: "draft" as const };
+const ownSubmitted = { ownerId: "p1", status: "submitted" as const };
 
 describe("ADMIN_GITHUB_IDS", () => {
   it("keeps only numeric ids", () => {
@@ -32,6 +33,14 @@ describe("who can do what (plan: Who can do what)", () => {
     expect(can.editPlayState(other, own)).toBe(false);
     expect(can.editPlayState(gm, own)).toBe(true);
     expect(can.editPlayState(admin, own)).toBe(true);
+  });
+  it("players delete their own characters until Jay approves; GM and admin delete any", () => {
+    expect(can.deleteCharacter(player, ownDraft)).toBe(true);
+    expect(can.deleteCharacter(player, ownSubmitted)).toBe(true);
+    expect(can.deleteCharacter(player, own)).toBe(false);
+    expect(can.deleteCharacter(other, ownSubmitted)).toBe(false);
+    expect(can.deleteCharacter(gm, own)).toBe(true);
+    expect(can.deleteCharacter(admin, own)).toBe(true);
   });
   it("core stats lock once a character leaves draft, except for GM and admin", () => {
     expect(can.editCoreStats(player, ownDraft)).toBe(true);
