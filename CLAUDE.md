@@ -2,7 +2,7 @@
 
 Character keeper for one private OD&D table playing the Planet Eris campaign. Players build and manage characters; the GM (Jay) approves them; Lars is the admin.
 
-Live: https://web-production-9dfd2.up.railway.app · Repo: github.com/lars-v/eris-vault (private) · Hosting: Railway project `eris-vault` (web service + Postgres).
+Live: https://eris.myconoid.com (also https://web-production-9dfd2.up.railway.app) · Repo: github.com/lars-v/eris-vault (private) · Hosting: Railway project `eris-vault` (web service + Postgres).
 
 @AGENTS.md
 
