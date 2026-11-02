@@ -1,0 +1,47 @@
+// Runs database migrations, then seeds the rulings ledger (idempotent).
+// Called by `npm start` before the server boots, so every Railway deploy
+// brings the database up to date.
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+
+const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error("DATABASE_URL is not set");
+  process.exit(1);
+}
+
+const sql = postgres(url, { max: 1 });
+
+const RULINGS = [
+  // Decided campaign rulings already on file.
+  ["magic-gear-encumbrance", "Does magic gear count toward encumbrance?", "Campaign ruling (overrides Woundwort's Warren p. 16)", "No. Magic gear counts as 0 units.", "decided"],
+  ["starting-gold", "Is 3d6 x 10 gp a shopping budget or what is left after gear?", "Men & Magic p. 10; campaign ruling", "It is what remains after buying starting gear.", "decided"],
+  // Open questions where the books are silent, optional or ambiguous.
+  ["hit-die-floor", "Can a hit die total fall below 1 after 1st level?", "WW p. 6 silent; M&M p. 11 sets 1 for its own Con rule", null, "pending"],
+  ["low-int-literacy", "Int 4 to 6: limit reading and writing?", "WW p. 11 (referee may)", null, "pending"],
+  ["dwarf-darkvision", "Does a player dwarf have the 2 in 6 latent sight in the dark?", "WW p. 10 (referee's discretion)", null, "pending"],
+  ["save-bonus-stacking", "Do class and race saving throw bonuses add together?", "WW p. 23 silent", null, "pending"],
+  ["wis-vs-mind", "Apply the Wisdom modifier to saves vs charms and illusions?", "WW p. 5 (referee's discretion)", null, "pending"],
+  ["survive-adversity", "Exact odds to survive adversity for each Constitution band", "M&M p. 11, via WW p. 5", null, "pending"],
+  ["cleric-l1-scroll", "1st-level cleric with Wis 15+: prayer scroll of one or two spells?", "WW p. 25", null, "pending"],
+  ["cleric-edged-weapons", "May clerics use ordinary edged weapons?", "M&M p. 7; WW silent", null, "pending"],
+  ["ashan-patronage", "What does Ashan's patronage grant Liz?", "Campaign note", null, "pending"],
+  ["name-level-xp", "What does '+100,000' mean for 10th level XP?", "WW pp. 7 to 9", null, "pending"],
+];
+
+try {
+  await migrate(drizzle(sql), { migrationsFolder: "./drizzle" });
+  for (const [key, question, sources, answer, status] of RULINGS) {
+    await sql`
+      insert into rulings (key, question, sources, answer, status)
+      values (${key}, ${question}, ${sources}, ${answer}, ${status})
+      on conflict (key) do nothing`;
+  }
+  console.log("Migrations applied; rulings ledger seeded.");
+} catch (err) {
+  console.error("Migration failed:", err);
+  process.exitCode = 1;
+} finally {
+  await sql.end();
+}

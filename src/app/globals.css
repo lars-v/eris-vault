@@ -1,26 +1,40 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Eris palette: ink ground, parchment text, Eris-sky lime, Ixion amber,
+   Samer red and Damini blue. Same tokens as the design canvas. */
+@theme {
+  --color-ink: #0f100d;
+  --color-ink-2: #12140f;
+  --color-surface: #171914;
+  --color-surface-2: #1e211b;
+  --color-line: #2f3329;
+  --color-line-2: #3a3f33;
+  --color-parchment: #eee9db;
+  --color-parchment-2: #f3eedf;
+  --color-muted: #b3b0a0;
+  --color-subtle: #8e8c7e;
+  --color-lime: #b9d55f;
+  --color-lime-ink: #14170f;
+  --color-amber: #e5aa4e;
+  --color-ember: #e8775f;
+  --color-moon: #8fb1e6;
+
+  --font-display: var(--font-fell), Georgia, serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ink);
+  color: var(--color-parchment);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-moon);
+  outline-offset: 2px;
 }
