@@ -22,7 +22,10 @@ export default async function Home() {
       <SignInButtons providers={enabledProviders} redirectTo="/party" />
       <p className="text-sm text-subtle">
         Anyone with a GitHub{enabledProviders.includes("google") ? " or Google" : ""} account can sign in and read every
-        sheet. GitHub sign-ins need an email GitHub has verified.
+        sheet. GitHub sign-ins need an email GitHub has verified.{" "}
+        <a href="/privacy" className="underline-offset-4 hover:underline">
+          Privacy
+        </a>
       </p>
     </main>
   );
