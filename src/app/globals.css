@@ -38,3 +38,8 @@ body {
   outline: 2px solid var(--color-moon);
   outline-offset: 2px;
 }
+
+/* The guide card takes focus so screen readers read it; its buttons keep their own ring. */
+[role="dialog"]:focus-visible {
+  outline: none;
+}

@@ -11,9 +11,10 @@ export function Chip({ tone = "plain", children }: { tone?: "lime" | "amber" | "
   return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${styles}`}>{children}</span>;
 }
 
-export function Panel({ title, aside, children, className = "" }: { title?: string; aside?: ReactNode; children: ReactNode; className?: string }) {
+/** `guide`: the `data-guide` name a first-time guide step can point at. */
+export function Panel({ title, aside, children, className = "", guide }: { title?: string; aside?: ReactNode; children: ReactNode; className?: string; guide?: string }) {
   return (
-    <section className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 ${className}`}>
+    <section data-guide={guide} className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 ${className}`}>
       {(title || aside) && (
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           {title && <h2 className="text-[13px] font-semibold uppercase tracking-[0.14em] text-subtle">{title}</h2>}

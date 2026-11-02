@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "guides_seen" text[] DEFAULT '{}'::text[] NOT NULL;

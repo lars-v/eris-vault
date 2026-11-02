@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signOut } from "@/auth";
+import { GuideButton } from "@/components/Guide";
 import { Moons } from "@/components/Moons";
 import type { CurrentUser } from "@/lib/session";
 
@@ -27,23 +28,25 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" 
           <Link href="/party" className={item("party")}>
             Party
           </Link>
-          <Link href="/rolls" className={item("rolls")}>
+          <Link href="/rolls" data-guide="nav-rolls" className={item("rolls")}>
             Roll log
           </Link>
           {(viewer.role === "gm" || viewer.role === "admin") && (
-            <Link href="/gm" className={item("gm")}>
+            <Link href="/gm" data-guide="nav-gm" className={item("gm")}>
               GM tools
             </Link>
           )}
           {viewer.role === "admin" && (
-            <Link href="/admin" className={item("admin")}>
+            <Link href="/admin" data-guide="nav-admin" className={item("admin")}>
               Admin
             </Link>
           )}
         </div>
         <div className="flex items-center gap-2">
+          <GuideButton />
           <Link
             href="/account"
+            data-guide="nav-account"
             title="Your account and linked sign-ins"
             className={`flex min-h-11 items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-3 text-sm hover:border-lime ${
               active === "account" ? "border-lime" : "border-line"

@@ -10,6 +10,7 @@ export type CurrentUser = Viewer & {
   name: string | null;
   image: string | null;
   githubLogin: string | null;
+  guidesSeen: string[];
 };
 
 /** True when this user has a linked GitHub account whose ID is listed in ADMIN_GITHUB_IDS. */
@@ -42,6 +43,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       image: users.image,
       role: profiles.role,
       status: profiles.status,
+      guidesSeen: profiles.guidesSeen,
     })
     .from(users)
     .leftJoin(profiles, eq(profiles.userId, users.id))
@@ -62,6 +64,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     role: effectiveRole(row.role ?? "player", railwayAdmin),
     status: row.status ?? "active",
     railwayAdmin,
+    guidesSeen: row.guidesSeen ?? [],
   };
 }
 

@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { enabledProviders } from "@/auth";
+import { Guide } from "@/components/Guide";
 import { Nav } from "@/components/Nav";
 import { Chip, PageHeader } from "@/components/ui";
 import { listCharacters } from "@/lib/queries";
+import { welcomeSteps } from "@/lib/guide";
 import { can } from "@/lib/roles";
 import { CLASS_NAMES, levelFor } from "@/lib/rules/advancement";
 import { requireUser } from "@/lib/session";
@@ -11,18 +14,25 @@ export const metadata = { title: "The party" };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export default async function PartyPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function PartyPage({ searchParams }: { searchParams: Promise<{ error?: string; guide?: string }> }) {
   const viewer = await requireUser();
-  const { error } = await searchParams;
+  const { error, guide } = await searchParams;
   const party = await listCharacters();
 
   return (
     <>
       <Nav viewer={viewer} active="party" />
+      <Guide
+        guide="welcome"
+        steps={welcomeSteps({ name: viewer.name, role: viewer.role, canLinkSignIns: enabledProviders.length > 1 })}
+        autoStart={!viewer.guidesSeen.includes("welcome")}
+        forceOpen={guide === "1"}
+      />
       <main className="mx-auto flex max-w-[1280px] flex-col gap-7 px-4 py-10 sm:px-8">
         <PageHeader eyebrow="Rath Denacht · last year of Hibernumn" title="The party">
           <Link
             href="/characters/new"
+            data-guide="new-character"
             className="inline-flex min-h-11 items-center rounded-xl bg-lime px-4 text-sm font-semibold text-lime-ink hover:brightness-110"
           >
             New character
@@ -36,11 +46,11 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
         )}
 
         {party.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-line-2 p-8 text-muted">
+          <div data-guide="party" className="rounded-2xl border border-dashed border-line-2 p-8 text-muted">
             No characters yet. {viewer.role === "admin" ? "Import Liz from the admin page to see a full sheet." : "They'll appear here as players make them."}
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+          <div data-guide="party" className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
             {party.map((c) => {
               const lvl = c.cls ? levelFor(c.cls, c.xp ?? 0) : null;
               const pct = c.hpMax && c.hpCurrent !== null ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;

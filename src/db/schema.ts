@@ -9,6 +9,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { AdapterAccountType } from "@auth/core/adapters";
 
 /* ---------- Auth.js tables (shape required by @auth/drizzle-adapter) ---------- */
@@ -74,6 +75,8 @@ export const profiles = pgTable("profiles", {
     .references(() => users.id, { onDelete: "cascade" }),
   role: text("role").$type<Role>().notNull().default("player"),
   status: text("status").$type<AccountStatus>().notNull().default("active"),
+  // Keys of the first-time guides this person has finished or skipped (src/lib/guide.ts).
+  guidesSeen: text("guides_seen").array().notNull().default(sql`'{}'::text[]`),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 

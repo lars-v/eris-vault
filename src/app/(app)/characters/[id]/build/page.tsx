@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DiceFaces } from "@/components/Dice";
+import { Guide } from "@/components/Guide";
 import { Nav } from "@/components/Nav";
 import { Chip, PageHeader, Panel } from "@/components/ui";
 import type { CharacterClass, Race } from "@/db/schema";
+import { buildSteps } from "@/lib/guide";
 import { getCharacter } from "@/lib/queries";
 import { can } from "@/lib/roles";
 import { ABILITIES, ABILITY_NAMES, abilityModifier, formatModifier } from "@/lib/rules/abilities";
@@ -31,9 +33,10 @@ export const metadata = { title: "Build a character" };
 
 const GRANT_LABEL = { abilities: "ability scores (hit points are rolled again too)", hp: "hit points", gold: "starting gold" };
 
-function Step({ n, title, done, children, aside }: { n: number; title: string; done: boolean; children: React.ReactNode; aside?: string }) {
+function Step({ n, title, done, children, aside, guide }: { n: number; title: string; done: boolean; children: React.ReactNode; aside?: string; guide: string }) {
   return (
     <Panel
+      guide={guide}
       title={`${n} · ${title}`}
       aside={
         <span className="flex items-center gap-2">
@@ -90,6 +93,11 @@ export default async function BuildPage({
   return (
     <>
       <Nav viewer={viewer} active="party" />
+      <Guide
+        guide="build"
+        steps={buildSteps()}
+        autoStart={c.status === "draft" && c.ownerId === viewer.userId && !viewer.guidesSeen.includes("build")}
+      />
       <main className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-10 sm:px-8">
         <PageHeader eyebrow={c.status === "draft" ? "New character · draft" : `Editing as ${viewer.role}`} title={c.name}>
           <Link href={`/characters/${id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2]">
@@ -128,7 +136,7 @@ export default async function BuildPage({
           </Panel>
         )}
 
-        <Step n={1} title="Ability scores" done={scoresDone} aside="WW p. 5">
+        <Step n={1} title="Ability scores" done={scoresDone} aside="WW p. 5" guide="abilities">
           <p className="text-sm text-muted">Six rolls of 3d6. Arrange them as you like: each set goes to one ability.</p>
           <ol className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2.5">
             {totals.map((t, i) => (
@@ -153,7 +161,7 @@ export default async function BuildPage({
           )}
         </Step>
 
-        <Step n={2} title="Race, class and alignment" done={identityDone} aside="WW pp. 8-10">
+        <Step n={2} title="Race, class and alignment" done={identityDone} aside="WW pp. 8-10" guide="identity">
           <IdentityForm
             id={id}
             action={saveIdentity}
@@ -167,7 +175,7 @@ export default async function BuildPage({
           </p>
         </Step>
 
-        <Step n={3} title="Hit points" done={Boolean(c.hpRollId)} aside="WW pp. 5-6">
+        <Step n={3} title="Hit points" done={Boolean(c.hpRollId)} aside="WW pp. 5-6" guide="hp">
           {hpRoll ? (
             <div className="flex flex-wrap items-center gap-3">
               <DiceFaces faces={hpRoll.dice[0]} />
@@ -188,7 +196,7 @@ export default async function BuildPage({
           )}
         </Step>
 
-        <Step n={4} title="Starting gold" done={Boolean(c.goldRollId)} aside="Men & Magic p. 10">
+        <Step n={4} title="Starting gold" done={Boolean(c.goldRollId)} aside="Men & Magic p. 10" guide="gold">
           {goldRoll ? (
             <div className="flex flex-wrap items-center gap-3">
               <DiceFaces faces={goldRoll.dice[0]} />
@@ -204,7 +212,7 @@ export default async function BuildPage({
           )}
         </Step>
 
-        <Step n={5} title="Starting kit" done={c.items.length > 0} aside={EQUIPMENT_SOURCE}>
+        <Step n={5} title="Starting kit" done={c.items.length > 0} aside={EQUIPMENT_SOURCE} guide="kit">
           <p className="text-sm text-muted">
             Pick freely from the price list; Jay approves the kit. Thieves keep to small or normal weapons, leather at
             most and no shield (WW p. 9). Magic-users other than elves carry daggers only (Men &amp; Magic p. 6), plus a
@@ -292,7 +300,7 @@ export default async function BuildPage({
           </div>
         </Step>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-5">
+        <div data-guide="send" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-5">
           {c.status === "draft" ? (
             <form action={submitCharacter} className="flex flex-wrap items-center gap-3">
               <input type="hidden" name="id" value={id} />
