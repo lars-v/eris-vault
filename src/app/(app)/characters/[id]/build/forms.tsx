@@ -36,16 +36,33 @@ export function RandomButton({ label, onClick, disabled }: { label: string; onCl
   );
 }
 
+/** `saved`: the form matches what is stored, so the button rests as "Saved" until something changes. */
 export function SubmitButton({
   children,
   pendingText,
   tone = "lime",
+  saved = false,
 }: {
   children: React.ReactNode;
   pendingText: string;
   tone?: "lime" | "plain" | "ember" | "amber";
+  saved?: boolean;
 }) {
   const { pending } = useFormStatus();
+  if (saved && !pending) {
+    return (
+      <button
+        type="submit"
+        disabled
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-line-2 px-4 text-sm font-semibold text-muted"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+        Saved
+      </button>
+    );
+  }
   const cls = {
     lime: "bg-lime text-lime-ink hover:brightness-110",
     amber: "bg-amber text-[#1a1408] hover:brightness-110",
@@ -83,6 +100,10 @@ export function AbilityAssign({
   );
   const used = new Set(Object.values(picks).filter((v) => v !== ""));
   const complete = used.size === 6;
+  // Compare scores, not set numbers: two sets with the same total are interchangeable.
+  const saved =
+    complete &&
+    ABILITY_ORDER.every(({ key }) => initial[key] !== undefined && totals[Number(picks[key])] === totals[initial[key]]);
 
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -119,7 +140,9 @@ export function AbilityAssign({
           }}
         />
         {complete ? (
-          <SubmitButton pendingText="Saving…">Save abilities</SubmitButton>
+          <SubmitButton pendingText="Saving…" saved={saved}>
+            Save abilities
+          </SubmitButton>
         ) : (
           <span className="text-sm text-subtle">Give every ability one set to save, or arrange them at random.</span>
         )}
@@ -159,6 +182,13 @@ export function IdentityForm({
   const alignmentsFor = (k: CharacterClass | ""): Alignment[] =>
     k === "thief" ? ["neutral", "chaotic"] : ["lawful", "neutral", "chaotic"];
   const alignments = alignmentsFor(cls);
+  const saved =
+    initial.alignment !== null &&
+    name.trim() === initial.name &&
+    race === (initial.race ?? "") &&
+    cls === (initial.cls ?? "") &&
+    alignment === initial.alignment &&
+    deity.trim() === (initial.deity ?? "");
   const field = "min-h-11 min-w-0 flex-1 rounded-xl border border-line-2 bg-ink px-3 text-[15px] text-parchment disabled:opacity-60";
 
   // Every random pick respects the rules for what's already chosen:
@@ -294,7 +324,9 @@ export function IdentityForm({
             Randomize all
           </button>
         )}
-        <SubmitButton pendingText="Saving…">Save</SubmitButton>
+        <SubmitButton pendingText="Saving…" saved={saved}>
+          Save
+        </SubmitButton>
         <span className="text-xs text-subtle">Random picks only fill the form. Nothing is saved until you press Save.</span>
       </div>
     </form>
