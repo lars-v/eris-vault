@@ -10,6 +10,7 @@ import {
   inventory,
   rollGrants,
   rolls,
+  sheetUploads,
   type Alignment,
   type CharacterClass,
   type Race,
@@ -21,6 +22,8 @@ import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities"
 import { assignScores, isValidIdentity } from "@/lib/rules/creation";
 import { rollAbilitySets, rollFirstLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
 import { catalogItem, classAllows, randomKitKeys } from "@/lib/rules/equipment";
+import { changedFromSheet, importFlags } from "@/lib/rules/import";
+import { draftFromFields, matchCatalog, readPdfFields, SHEET_MAX_BYTES, sniffSheetType } from "@/lib/sheets";
 import { requireStaff, requireUser, type CurrentUser } from "@/lib/session";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -54,6 +57,10 @@ async function lockEditable(tx: Tx, viewer: CurrentUser, id: string) {
     .for("update");
   if (!c) throw new Error("Unknown character");
   if (!can.editCoreStats(viewer, c)) throw new Error("Only the player can change a draft; Jay can change any character.");
+  // Imported characters have no app rolls to build on, so the wizard stays shut for players.
+  if (c.source !== "app" && !can.approve(viewer)) {
+    throw new Error("This character came from a sheet. Ask Jay to change it, or delete it and upload the sheet again.");
+  }
   return c;
 }
 
@@ -388,6 +395,167 @@ export async function deleteDraft(formData: FormData) {
 /** Same delete from a party card; problems come back to the party page. */
 export async function deleteFromParty(formData: FormData) {
   return guard(formData, deleteDraftImpl, "/party");
+}
+
+/* ---------- Bringing a character in from a sheet ---------- */
+
+async function uploadSheetImpl(formData: FormData) {
+  const viewer = await requireUser();
+  if (!can.createCharacter(viewer)) throw new Error("Not allowed");
+  const file = formData.get("sheet");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose your character sheet file first.");
+  if (file.size > SHEET_MAX_BYTES) throw new Error("That file is over 8 MB. Try a smaller scan or photo.");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const type = sniffSheetType(bytes);
+  if (!type) throw new Error("Upload a PDF, PNG or JPEG of your sheet.");
+  const fields = type === "application/pdf" ? await readPdfFields(bytes) : {};
+  const [row] = await db
+    .insert(sheetUploads)
+    .values({
+      ownerId: viewer.userId,
+      filename: file.name.slice(0, 120) || "sheet",
+      contentType: type,
+      size: bytes.length,
+      data: Buffer.from(bytes),
+      fields,
+    })
+    .returning({ id: sheetUploads.id });
+  redirect(`/characters/import/${row.id}`);
+}
+
+function wholeNumber(fd: FormData, key: string, label: string, min: number, max: number) {
+  const raw = str(fd, key);
+  const v = Number(raw);
+  if (raw === "" || !Number.isInteger(v) || v < min || v > max) throw new Error(`${label} must be a whole number from ${min} to ${max}.`);
+  return v;
+}
+
+/**
+ * Creates the character from the reviewed sheet and sends it straight to Jay.
+ * No dice are rolled or logged: the numbers are the sheet's, Jay checks them
+ * against the uploaded file, and every mismatch with the books is a flag.
+ */
+async function sendImportImpl(formData: FormData) {
+  const viewer = await requireUser();
+  if (!can.createCharacter(viewer)) throw new Error("Not allowed");
+  const uploadId = str(formData, "uploadId");
+  if (!/^[0-9a-f-]{36}$/i.test(uploadId)) throw new Error("Unknown upload");
+
+  const name = str(formData, "name").slice(0, 60);
+  if (!name) throw new Error("Give the character a name.");
+  const race = str(formData, "race") as Race;
+  const cls = str(formData, "cls") as CharacterClass;
+  const alignment = str(formData, "alignment") as Alignment;
+  if (!["human", "dwarf", "elf", "halfling"].includes(race)) throw new Error("Choose one of the four races.");
+  if (!["fighting-man", "magic-user", "cleric", "thief"].includes(cls)) throw new Error("Choose a class.");
+  if (!["lawful", "neutral", "chaotic"].includes(alignment)) throw new Error("Choose an alignment.");
+  const deity = str(formData, "deity").slice(0, 60) || null;
+  const scores = Object.fromEntries(
+    ABILITIES.map((ab) => [ab, wholeNumber(formData, ab, ab.toUpperCase(), 3, 18)]),
+  ) as Record<Ability, number>;
+  const xp = wholeNumber(formData, "xp", "XP", 0, 10_000_000);
+  const hpMax = wholeNumber(formData, "hpMax", "Maximum hit points", 1, 999);
+  const hpCurrent = wholeNumber(formData, "hpCurrent", "Current hit points", -99, 999);
+  const coinsGp = wholeNumber(formData, "coinsGp", "Gold", -1_000_000, 10_000_000);
+  const coinsSp = wholeNumber(formData, "coinsSp", "Silver", 0, 10_000_000);
+  const coinsCp = wholeNumber(formData, "coinsCp", "Copper", 0, 10_000_000);
+  const notes = str(formData, "notes").slice(0, 4000) || null;
+
+  const items: Omit<typeof inventory.$inferInsert, "characterId">[] = [];
+  const rows = Math.min(80, Math.max(0, Math.floor(Number(formData.get("itemRows")) || 0)));
+  for (let i = 0; i < rows; i++) {
+    const itemName = str(formData, `item${i}`).slice(0, 80);
+    if (!itemName) continue;
+    const units = str(formData, `units${i}`);
+    const encUnits = units === "" ? null : wholeNumber(formData, `units${i}`, `Units for ${itemName}`, 0, 99);
+    const isMagic = formData.get(`magic${i}`) === "on";
+    const bonus = itemName.match(/\+(\d)\b/);
+    const entry = matchCatalog(itemName);
+    items.push({
+      name: itemName,
+      kind: entry?.category === "weapon" ? "Weapon" : entry?.category === "armor" ? "Armor" : "Gear",
+      quantity: 1,
+      encUnits,
+      catalogKey: entry?.key ?? null,
+      isMagic,
+      magicBonus: isMagic && bonus ? Number(bonus[1]) : null,
+      location: "carried" as const,
+    });
+  }
+
+  const done = await db.transaction(async (tx) => {
+    const [upload] = await tx
+      .select()
+      .from(sheetUploads)
+      .where(and(eq(sheetUploads.id, uploadId), eq(sheetUploads.ownerId, viewer.userId)))
+      .for("update");
+    if (!upload) throw new Error("Unknown upload");
+    if (upload.characterId) throw new Error("This sheet was already sent to Jay.");
+
+    const sheet = draftFromFields(upload.fields);
+    const flags = importFlags({ race, cls, alignment, xp, scores, hpCurrent, hpMax, coinsGp, items }, sheet.written);
+    const changed = changedFromSheet([
+      { label: "Name", sheet: sheet.name, entered: name },
+      { label: "Race", sheet: sheet.race, entered: race },
+      { label: "Class", sheet: sheet.cls, entered: cls },
+      { label: "Alignment", sheet: sheet.alignment, entered: alignment },
+      { label: "XP", sheet: sheet.xp, entered: xp },
+      ...ABILITIES.map((ab) => ({ label: ab.toUpperCase(), sheet: sheet.scores[ab], entered: scores[ab] })),
+      { label: "Maximum hit points", sheet: sheet.hpMax, entered: hpMax },
+      { label: "Current hit points", sheet: sheet.hpCurrent, entered: hpCurrent },
+      { label: "Gold", sheet: sheet.coinsGp, entered: coinsGp },
+    ]);
+    if (changed) flags.push(changed);
+    if (Object.keys(upload.fields).length === 0) {
+      flags.push({
+        title: "Typed in by the player",
+        body: "The uploaded file had no form fields to read, so every number was entered by hand. Check them against the file.",
+        source: "Uploaded sheet",
+      });
+    }
+
+    const [c] = await tx
+      .insert(characters)
+      .values({
+        ownerId: viewer.userId,
+        name,
+        race,
+        alignment,
+        status: "submitted",
+        ...scores,
+        hpCurrent,
+        hpMax,
+        coinsGp,
+        coinsSp,
+        coinsCp,
+        deity,
+        notes,
+        source: "sheet-import",
+        importFlags: flags,
+      })
+      .returning({ id: characters.id });
+    await tx.insert(characterClasses).values({ characterId: c.id, class: cls, xp });
+    if (items.length) await tx.insert(inventory).values(items.map((it) => ({ characterId: c.id, ...it })));
+    await tx.update(sheetUploads).set({ characterId: c.id }).where(eq(sheetUploads.id, uploadId));
+    return { id: c.id, flagCount: flags.length };
+  });
+
+  await writeAudit(viewer, {
+    action: "character.imported",
+    characterId: done.id,
+    after: { name, source: "sheet-import", uploadId, flags: done.flagCount },
+  });
+  refresh(done.id);
+  redirect(`/characters/${done.id}`);
+}
+
+export async function uploadSheet(formData: FormData) {
+  return guard(formData, uploadSheetImpl, "/characters/import");
+}
+
+export async function sendImport(formData: FormData) {
+  const back = `/characters/import/${encodeURIComponent(str(formData, "uploadId"))}`;
+  return guard(formData, sendImportImpl, back);
 }
 
 /* ---------- Jay (GM) and admin ---------- */

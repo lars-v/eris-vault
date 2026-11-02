@@ -48,7 +48,8 @@ Local Postgres for browser testing: any Postgres works; set `DATABASE_URL` plus 
 - `src/lib/rules/`: pure rules modules, each citing its source. Keep them pure and tested.
   - `abilities.ts` (WW p. 5), `advancement.ts` (WW pp. 7-10), `encumbrance.ts` (WW pp. 16, 47), `dice.ts` (WW pp. 5-6, M&M p. 10), `equipment.ts` (WW p. 17 price list; class limits WW p. 9, M&M pp. 6, 8), `creation.ts`, `names.ts` (Gazetteer word lists for random buttons).
 - `src/app/(app)/characters/actions.ts`: creation wizard and GM server actions. Player-facing actions go through `guard()`, which sends rule errors back to the build page as `?error=`.
-- Pages: `/party`, `/characters/new`, `/characters/[id]`, `/characters/[id]/build`, `/rolls`, `/account`, `/gm`, `/admin`, `/claim`, `/privacy`.
+- `src/lib/sheets.ts` reads uploaded sheets (fillable Planet Eris or OD&D PDF) into a draft; `src/lib/rules/import.ts` checks an imported character and returns `importFlags`. Uploads live in `sheet_uploads` (file kept for Jay, served by `/api/sheets/[id]` to the owner and staff). Imports go straight to "submitted" with `source = 'sheet-import'`, write no rolls, and players can't open the build wizard on them.
+- Pages: `/party`, `/characters/new`, `/characters/import`, `/characters/import/[uploadId]`, `/characters/[id]`, `/characters/[id]/build`, `/rolls`, `/account`, `/gm`, `/admin`, `/claim`, `/privacy`.
 
 ## Invariants (don't break these)
 

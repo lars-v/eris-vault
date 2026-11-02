@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { PageHeader, Panel } from "@/components/ui";
 import { requireUser } from "@/lib/session";
@@ -29,6 +30,13 @@ export default async function NewCharacterPage() {
         <form action={startCharacter}>
           <SubmitButton pendingText="Rolling…">Roll 3d6 six times</SubmitButton>
         </form>
+        <p className="text-sm text-muted">
+          Already playing a character on paper or PDF?{" "}
+          <Link href="/characters/import" className="text-moon underline-offset-4 hover:underline">
+            Upload your sheet
+          </Link>{" "}
+          instead.
+        </p>
       </main>
     </>
   );

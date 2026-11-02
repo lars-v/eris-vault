@@ -30,13 +30,21 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
       />
       <main className="mx-auto flex max-w-[1280px] flex-col gap-7 px-4 py-10 sm:px-8">
         <PageHeader eyebrow="Rath Denacht · last year of Hibernumn" title="The party">
-          <Link
-            href="/characters/new"
-            data-guide="new-character"
-            className="inline-flex min-h-11 items-center rounded-xl bg-lime px-4 text-sm font-semibold text-lime-ink hover:brightness-110"
-          >
-            New character
-          </Link>
+          <span className="flex flex-wrap gap-2">
+            <Link
+              href="/characters/import"
+              className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime"
+            >
+              Upload a sheet
+            </Link>
+            <Link
+              href="/characters/new"
+              data-guide="new-character"
+              className="inline-flex min-h-11 items-center rounded-xl bg-lime px-4 text-sm font-semibold text-lime-ink hover:brightness-110"
+            >
+              New character
+            </Link>
+          </span>
         </PageHeader>
 
         {error && (

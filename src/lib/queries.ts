@@ -11,6 +11,7 @@ import {
   rollGrants,
   rolls,
   rulings,
+  sheetUploads,
   users,
 } from "@/db/schema";
 import { parseAdminIds } from "@/lib/roles";
@@ -157,4 +158,40 @@ export async function reviewQueue() {
     .from(characters)
     .innerJoin(users, eq(users.id, characters.ownerId))
     .where(and(eq(characters.status, "submitted"), isNull(characters.deletedAt)));
+}
+
+/** Upload details without the file itself; the file is served by /api/sheets/[id]. */
+const sheetMeta = {
+  id: sheetUploads.id,
+  ownerId: sheetUploads.ownerId,
+  characterId: sheetUploads.characterId,
+  filename: sheetUploads.filename,
+  contentType: sheetUploads.contentType,
+  size: sheetUploads.size,
+  fields: sheetUploads.fields,
+  createdAt: sheetUploads.createdAt,
+};
+
+export async function getSheetUpload(id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const [row] = await db.select(sheetMeta).from(sheetUploads).where(eq(sheetUploads.id, id)).limit(1);
+  return row ?? null;
+}
+
+/** Sheets this player uploaded but hasn't sent to Jay yet, newest first. */
+export async function openSheetUploads(ownerId: string) {
+  return db
+    .select(sheetMeta)
+    .from(sheetUploads)
+    .where(and(eq(sheetUploads.ownerId, ownerId), isNull(sheetUploads.characterId)))
+    .orderBy(desc(sheetUploads.createdAt))
+    .limit(10);
+}
+
+export async function sheetsForCharacter(characterId: string) {
+  return db
+    .select(sheetMeta)
+    .from(sheetUploads)
+    .where(eq(sheetUploads.characterId, characterId))
+    .orderBy(asc(sheetUploads.createdAt));
 }

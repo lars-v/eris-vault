@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   integer,
   jsonb,
   pgTable,
@@ -214,6 +215,28 @@ export const auditLog = pgTable("audit_log", {
   action: text("action").notNull(),
   before: jsonb("before"),
   after: jsonb("after"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
+
+/**
+ * A character sheet a player uploaded to bring an existing character in.
+ * The file is kept so Jay can check the imported numbers against it.
+ * `fields` holds the form fields read from a fillable PDF (empty for images).
+ * `characterId` is set once the player sends the imported character to Jay.
+ */
+export const sheetUploads = pgTable("sheet_uploads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict" }),
+  characterId: uuid("character_id").references(() => characters.id),
+  filename: text("filename").notNull(),
+  contentType: text("content_type").notNull(),
+  size: integer("size").notNull(),
+  data: bytea("data").notNull(),
+  fields: jsonb("fields").$type<Record<string, string>>().notNull().default({}),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 

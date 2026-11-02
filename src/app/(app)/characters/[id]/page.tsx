@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { DiceFaces, PURPOSE_LABEL } from "@/components/Dice";
 import { Nav } from "@/components/Nav";
 import { Chip, Panel } from "@/components/ui";
-import { getCharacter } from "@/lib/queries";
+import { getCharacter, sheetsForCharacter } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
 import { ADVANCEMENT_SOURCE, CLASS_NAMES, levelFor } from "@/lib/rules/advancement";
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
@@ -25,8 +25,11 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
   const units = carriedUnits(c.items);
   const band = bandFor(units);
   const unknown = unknownUnitItems(c.items);
-  const canBuild = can.editCoreStats(viewer, c);
   const staff = can.approve(viewer);
+  // Imported characters have no app rolls, so only Jay and admins open the build page for them.
+  const imported = c.source !== "app";
+  const canBuild = can.editCoreStats(viewer, c) && (!imported || staff);
+  const sheets = staff || c.ownerId === viewer.userId ? await sheetsForCharacter(c.id) : [];
   const xpPct =
     lvl && active && lvl.nextXp ? Math.round(((active.xp - lvl.startXp) / (lvl.nextXp - lvl.startXp)) * 100) : 100;
 
@@ -64,6 +67,7 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
               ) : (
                 <Chip>{cap(c.status)}</Chip>
               )}
+              {imported && <Chip tone="moon">From a sheet</Chip>}
               <span className="text-sm text-subtle">Player: {c.ownerName ?? "unknown"}</span>
             </div>
             {lvl && active && (
@@ -127,6 +131,24 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
             )}
             {c.grants.length > 0 && <Chip tone="amber">{c.grants.length} re-roll{c.grants.length === 1 ? "" : "s"} waiting</Chip>}
           </div>
+        )}
+
+        {sheets.length > 0 && (
+          <Panel title="Uploaded sheet" aside="Seen by the player, Jay and admins">
+            <ul className="flex flex-col gap-1.5">
+              {sheets.map((s) => (
+                <li key={s.id} className="text-sm">
+                  <a href={`/api/sheets/${s.id}`} target="_blank" rel="noopener" className="text-moon underline-offset-4 hover:underline">
+                    {s.filename}
+                  </a>{" "}
+                  <span className="text-subtle">
+                    · uploaded {s.createdAt.toISOString().slice(0, 10)} ·{" "}
+                    {Object.keys(s.fields).length > 0 ? `${Object.keys(s.fields).length} fields read` : "typed in by hand"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
         )}
 
         {c.importFlags.length > 0 && (
@@ -246,12 +268,14 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
                 ))}
               </ul>
             )}
-            {c.notes && <p className="border-t border-[#262920] pt-3 text-sm text-muted">{c.notes}</p>}
+            {c.notes && <p className="whitespace-pre-line border-t border-[#262920] pt-3 text-sm text-muted">{c.notes}</p>}
           </Panel>
         </div>
         <Panel title={`Rolls · ${c.rolls.length}`} aside="Insert-only; see the full roll log">
           {c.rolls.length === 0 ? (
-            <p className="text-sm text-muted">No rolls recorded for this character (imported from a paper sheet).</p>
+            <p className="text-sm text-muted">
+              {imported ? "No rolls recorded for this character (imported from a sheet)." : "No rolls recorded for this character yet."}
+            </p>
           ) : (
             <ul className="flex flex-col divide-y divide-[#262920]">
               {c.rolls.map((r) => (

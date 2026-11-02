@@ -63,6 +63,8 @@ export default async function BuildPage({
   const c = await getCharacter(id);
   if (!c) notFound();
   if (!can.editCoreStats(viewer, c)) redirect(`/characters/${id}`);
+  // Imported characters have no app rolls to build on (see lockEditable in ../../actions).
+  if (c.source !== "app" && !can.approve(viewer)) redirect(`/characters/${id}`);
 
   const cls: CharacterClass | null = (c.classes.find((k) => k.active) ?? c.classes[0])?.class ?? null;
   const totals = c.abilityRoll?.totals ?? [];
