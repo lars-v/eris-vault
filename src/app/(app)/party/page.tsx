@@ -2,15 +2,18 @@ import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Chip, PageHeader } from "@/components/ui";
 import { listCharacters } from "@/lib/queries";
+import { can } from "@/lib/roles";
 import { CLASS_NAMES, levelFor } from "@/lib/rules/advancement";
 import { requireUser } from "@/lib/session";
+import { DeleteCharacterButton } from "./DeleteCharacterButton";
 
 export const metadata = { title: "The party" };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export default async function PartyPage() {
+export default async function PartyPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const viewer = await requireUser();
+  const { error } = await searchParams;
   const party = await listCharacters();
 
   return (
@@ -26,6 +29,12 @@ export default async function PartyPage() {
           </Link>
         </PageHeader>
 
+        {error && (
+          <div role="alert" className="rounded-xl border border-[#5c3328] bg-[#2e1a15] px-4 py-3 text-sm text-ember">
+            {error}
+          </div>
+        )}
+
         {party.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-line-2 p-8 text-muted">
             No characters yet. {viewer.role === "admin" ? "Import Liz from the admin page to see a full sheet." : "They'll appear here as players make them."}
@@ -36,10 +45,9 @@ export default async function PartyPage() {
               const lvl = c.cls ? levelFor(c.cls, c.xp ?? 0) : null;
               const pct = c.hpMax && c.hpCurrent !== null ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;
               return (
-                <Link
+                <div
                   key={c.id}
-                  href={`/characters/${c.id}`}
-                  className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 hover:border-line-2"
+                  className="relative flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 hover:border-line-2"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex h-20 w-16 flex-none items-center justify-center rounded-[50%] border-[1.5px] border-lime font-display text-2xl text-lime">
@@ -51,7 +59,13 @@ export default async function PartyPage() {
                         .slice(0, 2)}
                     </div>
                     <div className="flex min-w-0 flex-col gap-1">
-                      <div className="font-display text-[28px] leading-none">{c.name}</div>
+                      {/* The link stretches over the whole card; the delete control sits above it. */}
+                      <Link
+                        href={`/characters/${c.id}`}
+                        className="font-display text-[28px] leading-none after:absolute after:inset-0 after:rounded-2xl"
+                      >
+                        {c.name}
+                      </Link>
                       <div className="text-sm text-muted">
                         {c.race ? cap(c.race) : "Still being built"} {c.cls ? CLASS_NAMES[c.cls] : ""}
                         {c.alignment ? ` · ${cap(c.alignment)}` : ""}
@@ -88,7 +102,12 @@ export default async function PartyPage() {
                       <Chip>{cap(c.status)}</Chip>
                     )}
                   </div>
-                </Link>
+                  {can.deleteCharacter(viewer, c) && (
+                    <div className="-mt-2 flex justify-end">
+                      <DeleteCharacterButton id={c.id} name={c.name} />
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

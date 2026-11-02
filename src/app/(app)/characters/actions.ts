@@ -68,17 +68,17 @@ async function activeClass(tx: Tx, id: string): Promise<CharacterClass | null> {
 
 
 /**
- * Runs a wizard step. Rule problems come back to the build page as a message
- * instead of an error screen.
+ * Runs a wizard step. Rule problems come back to the build page (or `back`)
+ * as a message instead of an error screen.
  */
-async function guard(formData: FormData, impl: (fd: FormData) => Promise<void>) {
+async function guard(formData: FormData, impl: (fd: FormData) => Promise<void>, back?: string) {
   try {
     await impl(formData);
   } catch (e) {
     unstable_rethrow(e);
     const id = str(formData, "id");
     const msg = e instanceof Error ? e.message : "Something went wrong.";
-    redirect(`/characters/${encodeURIComponent(id)}/build?error=${encodeURIComponent(msg.slice(0, 200))}`);
+    redirect(`${back ?? `/characters/${encodeURIComponent(id)}/build`}?error=${encodeURIComponent(msg.slice(0, 200))}`);
   }
 }
 
@@ -377,6 +377,11 @@ export async function submitCharacter(formData: FormData) {
 
 export async function deleteDraft(formData: FormData) {
   return guard(formData, deleteDraftImpl);
+}
+
+/** Same delete from a party card; problems come back to the party page. */
+export async function deleteFromParty(formData: FormData) {
+  return guard(formData, deleteDraftImpl, "/party");
 }
 
 /* ---------- Jay (GM) and admin ---------- */
