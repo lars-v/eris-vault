@@ -13,10 +13,9 @@ import { CLASS_NAMES } from "@/lib/rules/advancement";
 import { classesFor, RACES } from "@/lib/rules/creation";
 import { HIT_DIE_ADJUST } from "@/lib/rules/dice";
 import { bandFor, carriedUnits, unknownUnitItems } from "@/lib/rules/encumbrance";
-import { CATALOG, classAllows, EQUIPMENT_SOURCE } from "@/lib/rules/equipment";
+import { CATALOG, classAllows, EQUIPMENT_SOURCE, KIT_MAX_QUANTITY } from "@/lib/rules/equipment";
 import { requireUser } from "@/lib/session";
 import {
-  addItem,
   deleteDraft,
   randomKit,
   removeItem,
@@ -28,6 +27,7 @@ import {
   spendRollGrant,
 } from "../../actions";
 import { AbilityAssign, IdentityForm, SubmitButton } from "./forms";
+import { KitPicker, type KitRow } from "./kit";
 
 export const metadata = { title: "Build a character" };
 
@@ -77,6 +77,17 @@ export default async function BuildPage({
   const ready = scoresDone && identityDone && Boolean(c.hpRollId) && Boolean(c.goldRollId);
   const hpRoll = c.rolls.find((r) => r.id === c.hpRollId);
   const goldRoll = c.rolls.find((r) => r.id === c.goldRollId);
+  // The gear dialog manages price-list items that aren't magic (see setKit).
+  const managed = c.items.filter((i) => i.catalogKey && !i.isMagic);
+  const kitQty: Record<string, number> = {};
+  for (const i of managed) kitQty[i.catalogKey!] = (kitQty[i.catalogKey!] ?? 0) + i.quantity;
+  const otherUnits = carriedUnits(c.items.filter((i) => !managed.includes(i)));
+  const kitRows: KitRow[] = cls
+    ? CATALOG.map((i) => {
+        const allowed = classAllows({ cls, race: c.race, int: c.int }, i);
+        return { key: i.key, name: i.name, category: i.category, cost: i.cost, costGp: i.costGp, enc: i.enc, why: allowed.ok ? null : allowed.why };
+      })
+    : [];
   const raceClasses = Object.fromEntries(RACES.map((r) => [r, classesFor(r)])) as Record<Race, CharacterClass[]>;
 
   // Assignment already saved: map each ability back to the set index it came from.
@@ -221,49 +232,21 @@ export default async function BuildPage({
             staff with Intelligence 15+ (WW p. 7). Jay judges anything the books leave open.
           </p>
           {cls ? (
-            <form action={addItem} className="flex flex-wrap items-end gap-2.5">
-              <input type="hidden" name="id" value={id} />
-              <label className="flex min-w-[260px] flex-1 flex-col gap-1.5 text-[13px] text-muted">
-                Item
-                <select name="key" required defaultValue="" className="min-h-11 rounded-xl border border-line-2 bg-ink px-3 text-[15px] text-parchment">
-                  <option value="" disabled>
-                    Choose from the price list
-                  </option>
-                  {(["weapon", "armor", "gear"] as const).map((cat) => (
-                    <optgroup key={cat} label={cat === "weapon" ? "Weapons" : cat === "armor" ? "Armor" : "Dungeon gear"}>
-                      {CATALOG.filter((i) => i.category === cat).map((i) => {
-                        const allowed = classAllows({ cls, race: c.race, int: c.int }, i);
-                        return (
-                          <option key={i.key} value={i.key} disabled={!allowed.ok}>
-                            {i.name} · {i.cost}
-                            {allowed.ok ? "" : ` · not for ${CLASS_NAMES[cls].toLowerCase()}s`}
-                          </option>
-                        );
-                      })}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-              <label className="flex w-24 flex-col gap-1.5 text-[13px] text-muted">
-                How many
-                <input name="quantity" type="number" min={1} max={20} defaultValue={1} className="min-h-11 rounded-xl border border-line-2 bg-ink px-3 font-mono text-[15px]" />
-              </label>
-              <SubmitButton tone="plain" pendingText="Adding…">
-                Add
-              </SubmitButton>
-            </form>
-          ) : null}
-          {cls ? (
-            <form action={randomKit} className="flex flex-wrap items-center gap-3">
-              <input type="hidden" name="id" value={id} />
-              <SubmitButton tone="plain" pendingText="Packing…">
-                Random basic kit
-              </SubmitButton>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <KitPicker id={id} rows={kitRows} initial={kitQty} otherUnits={otherUnits} max={KIT_MAX_QUANTITY} />
+                <form action={randomKit}>
+                  <input type="hidden" name="id" value={id} />
+                  <SubmitButton tone="plain" pendingText="Packing…">
+                    Random basic kit
+                  </SubmitButton>
+                </form>
+              </div>
               <span className="text-xs text-subtle">
-                Replaces the list with a weapon and armor your class may use, its tools, and 4 to 6 pieces of gear. Clerics
-                get a non-edged weapon until Jay rules on edged ones. Not a roll, so it isn&apos;t logged.
+                Random basic kit replaces the list with a weapon and armor your class may use, its tools, and 4 to 6 pieces
+                of gear. Clerics get a non-edged weapon until Jay rules on edged ones. Not a roll, so it isn&apos;t logged.
               </span>
-            </form>
+            </div>
           ) : (
             <p className="text-sm text-subtle">Choose a class first, so class limits can be checked.</p>
           )}

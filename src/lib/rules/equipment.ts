@@ -179,6 +179,29 @@ export function classAllows(w: Wielder, item: CatalogItem): { ok: true } | { ok:
   return { ok: true };
 }
 
+export const KIT_MAX_QUANTITY = 20;
+
+/**
+ * Checks a whole kit picked in one go: every key must be on the price list,
+ * allowed for the class (classAllows), and taken 1 to 20 times. Returns the
+ * first problem as a message, or the picks in price-list order.
+ */
+export function checkKit(w: Wielder, picks: Record<string, number>): { key: string; quantity: number }[] | string {
+  for (const key of Object.keys(picks)) if (!catalogItem(key)) return "That item isn't on the price list.";
+  const kit: { key: string; quantity: number }[] = [];
+  for (const item of CATALOG) {
+    const quantity = picks[item.key];
+    if (quantity === undefined || quantity === 0) continue;
+    if (!Number.isInteger(quantity) || quantity < 0 || quantity > KIT_MAX_QUANTITY) {
+      return `Take 1 to ${KIT_MAX_QUANTITY} of ${item.name}.`;
+    }
+    const allowed = classAllows(w, item);
+    if (!allowed.ok) return allowed.why;
+    kit.push({ key: item.key, quantity });
+  }
+  return kit;
+}
+
 const AMMO_OR_LAUNCHER = new Set([
   "arrow-silver",
   "arrows-score",

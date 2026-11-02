@@ -110,7 +110,7 @@ export function buildSteps(): GuideStep[] {
     {
       target: "kit",
       title: "Starting kit",
-      body: "Pick from the price list, or press Random basic kit. Items your class can't use are marked and can't be picked, and Jay approves the kit. Item weights come from Woundwort's Warren p. 18.",
+      body: "Press Choose gear and tick everything you want in one go, or press Random basic kit. Items your class can't use are greyed out, and Jay approves the kit. Item weights come from Woundwort's Warren p. 18.",
       source: EQUIPMENT_SOURCE,
     },
     {

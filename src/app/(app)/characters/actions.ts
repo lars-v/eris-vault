@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   characterClasses,
@@ -21,7 +21,7 @@ import { can } from "@/lib/roles";
 import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities";
 import { assignScores, isValidIdentity } from "@/lib/rules/creation";
 import { rollAbilitySets, rollFirstLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
-import { catalogItem, classAllows, randomKitKeys } from "@/lib/rules/equipment";
+import { catalogItem, checkKit, classAllows, randomKitKeys } from "@/lib/rules/equipment";
 import { changedFromSheet, importFlags } from "@/lib/rules/import";
 import { draftFromFields, matchCatalog, readPdfFields, SHEET_MAX_BYTES, sniffSheetType } from "@/lib/sheets";
 import { requireStaff, requireUser, type CurrentUser } from "@/lib/session";
@@ -241,27 +241,42 @@ async function spendRollGrantImpl(formData: FormData) {
   refresh(id);
 }
 
-async function addItemImpl(formData: FormData) {
+/**
+ * Saves the kit picked in the gear dialog in one go. It replaces the
+ * character's price-list items (one row per item); magic items and items not
+ * on the price list are left alone.
+ */
+async function setKitImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
-  const item = catalogItem(str(formData, "key"));
-  const quantity = Math.max(1, Math.min(20, Math.floor(Number(formData.get("quantity")) || 1)));
-  if (!item) throw new Error("That item isn't on the price list.");
+  const picks: Record<string, number> = {};
+  for (const [name, value] of formData) {
+    if (name.startsWith("qty:")) picks[name.slice(4)] = Number(value);
+  }
   await db.transaction(async (tx) => {
     const c = await lockEditable(tx, viewer, id);
     const cls = await activeClass(tx, id);
     if (!cls) throw new Error("Choose a class first, so class limits can be checked.");
-    const allowed = classAllows({ cls, race: c.race, int: c.int }, item);
-    if (!allowed.ok) throw new Error(allowed.why);
-    await tx.insert(inventory).values({
-      characterId: id,
-      name: item.name,
-      kind: item.category === "weapon" ? "Weapon" : item.category === "armor" ? "Armor" : "Gear",
-      quantity,
-      encUnits: item.enc,
-      catalogKey: item.key,
-      location: "carried",
-    });
+    const kit = checkKit({ cls, race: c.race, int: c.int }, picks);
+    if (typeof kit === "string") throw new Error(kit);
+    await tx
+      .delete(inventory)
+      .where(and(eq(inventory.characterId, id), isNotNull(inventory.catalogKey), eq(inventory.isMagic, false)));
+    if (kit.length === 0) return;
+    await tx.insert(inventory).values(
+      kit.map(({ key, quantity }) => {
+        const item = catalogItem(key)!;
+        return {
+          characterId: id,
+          name: item.name,
+          kind: item.category === "weapon" ? "Weapon" : item.category === "armor" ? "Armor" : "Gear",
+          quantity,
+          encUnits: item.enc,
+          catalogKey: item.key,
+          location: "carried" as const,
+        };
+      }),
+    );
   });
   refresh(id);
 }
@@ -372,8 +387,8 @@ export async function spendRollGrant(formData: FormData) {
   return guard(formData, spendRollGrantImpl);
 }
 
-export async function addItem(formData: FormData) {
-  return guard(formData, addItemImpl);
+export async function setKit(formData: FormData) {
+  return guard(formData, setKitImpl);
 }
 
 export async function randomKit(formData: FormData) {

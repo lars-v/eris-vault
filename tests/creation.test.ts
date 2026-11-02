@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { alignmentsFor, assignScores, classesFor, isValidIdentity } from "@/lib/rules/creation";
 import { rollAbilitySets, rollFirstLevelHp, rollStartingGold, type D6 } from "@/lib/rules/dice";
-import { CATALOG, catalogItem, classAllows } from "@/lib/rules/equipment";
+import { CATALOG, catalogItem, checkKit, classAllows } from "@/lib/rules/equipment";
 import { bandFor, carriedUnits, unknownUnitItems } from "@/lib/rules/encumbrance";
 
 const fixed = (...faces: number[]): D6 => {
@@ -115,6 +115,18 @@ describe("price list and class limits (WW pp. 9, 17, 19)", () => {
     expect(classAllows(mu, catalogItem("staff")!).ok).toBe(false);
     expect(classAllows({ ...mu, int: 15 }, catalogItem("staff")!).ok).toBe(true);
     expect(classAllows({ ...mu, race: "elf" }, catalogItem("long-sword")!).ok).toBe(true);
+  });
+  it("checks a whole kit at once against the price list and class limits", () => {
+    const fighter = { cls: "fighting-man" as const, race: "human" as const, int: 10 };
+    expect(checkKit(fighter, { torches: 2, "long-sword": 1, rope: 0 } as Record<string, number>)).toBe("That item isn't on the price list.");
+    expect(checkKit(fighter, { torches: 2, "long-sword": 1, shield: 0 })).toEqual([
+      { key: "long-sword", quantity: 1 },
+      { key: "torches", quantity: 2 },
+    ]);
+    expect(checkKit(fighter, { torches: 21 })).toMatch(/1 to 20/);
+    expect(checkKit(fighter, { torches: 1.5 })).toMatch(/1 to 20/);
+    expect(checkKit(T, { "leather-armor": 1, "plate-mail": 1 })).toMatch(/heavier than leather/);
+    expect(checkKit(fighter, {})).toEqual([]);
   });
   it("counts unknown weights separately instead of guessing", () => {
     const items = [
