@@ -64,7 +64,8 @@ export const verificationTokens = pgTable(
 /* ---------- App tables ---------- */
 
 export type Role = "player" | "gm" | "admin";
-export type AccountStatus = "active" | "blocked";
+/** "merged": the account was folded into another one; its sign-ins moved there. */
+export type AccountStatus = "active" | "blocked" | "merged";
 
 /** One row per signed-in person. Railway-listed admins are checked live, not stored here. */
 export const profiles = pgTable("profiles", {

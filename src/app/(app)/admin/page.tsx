@@ -3,7 +3,7 @@ import { Nav } from "@/components/Nav";
 import { Chip, PageHeader, Panel } from "@/components/ui";
 import { listAudit, listCharacters, listPeople } from "@/lib/queries";
 import { requireAdmin } from "@/lib/session";
-import { importLiz, setRole, setStatus } from "./actions";
+import { importLiz, mergeAccount, setRole, setStatus } from "./actions";
 import { ClaimLinkForm } from "./ClaimLinkForm";
 
 export const metadata = { title: "Admin" };
@@ -125,6 +125,38 @@ export default async function AdminPage() {
                             <ActionButton action={setStatus} userId={p.userId} field="status" value="blocked" tone="ember">Block</ActionButton>
                           ) : (
                             <ActionButton action={setStatus} userId={p.userId} field="status" value="active">Unblock</ActionButton>
+                          )}
+                          {p.characters.length === 0 && people.length > 1 && (
+                            <form action={mergeAccount} className="flex flex-wrap items-center gap-1.5">
+                              <input type="hidden" name="userId" value={p.userId} />
+                              <label className="sr-only" htmlFor={`merge-${p.userId}`}>
+                                Merge {p.name ?? "this account"} into
+                              </label>
+                              <select
+                                id={`merge-${p.userId}`}
+                                name="targetId"
+                                required
+                                defaultValue=""
+                                className="min-h-9 rounded-lg border border-line-2 bg-surface px-2 text-[13px] text-[#d6d2c2]"
+                              >
+                                <option value="" disabled>
+                                  Merge into...
+                                </option>
+                                {people
+                                  .filter((o) => o.userId !== p.userId)
+                                  .map((o) => (
+                                    <option key={o.userId} value={o.userId}>
+                                      {o.name ?? "Unnamed"} ({o.providers.map((x) => (x === "github" ? "GitHub" : "Google")).join(", ")})
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="submit"
+                                className="min-h-9 rounded-lg border border-line-2 px-2.5 text-[13px] text-[#d6d2c2] hover:border-moon"
+                              >
+                                Merge
+                              </button>
+                            </form>
                           )}
                         </span>
                       )}

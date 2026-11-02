@@ -111,6 +111,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
+    // Logged only when a sign-in is added to an account that already had one
+    // (the Linked sign-ins page); a brand new account is logged by createUser.
+    async linkAccount({ user, account }) {
+      if (!user.id) return;
+      const all = await db.select({ provider: accounts.provider }).from(accounts).where(eq(accounts.userId, user.id));
+      if (all.length < 2) return;
+      await db.insert(auditLog).values({
+        actorId: user.id,
+        actorRole: "system",
+        targetUserId: user.id,
+        action: "account.linked",
+        after: { provider: account.provider },
+      });
+    },
     async createUser({ user }) {
       if (!user.id) return;
       await db.insert(profiles).values({ userId: user.id }).onConflictDoNothing();

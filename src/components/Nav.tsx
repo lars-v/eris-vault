@@ -3,7 +3,7 @@ import { signOut } from "@/auth";
 import { Moons } from "@/components/Moons";
 import type { CurrentUser } from "@/lib/session";
 
-export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" | "gm" | "admin" }) {
+export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" | "gm" | "admin" | "account" }) {
   const item = (key: string) =>
     `rounded-lg px-3.5 py-2.5 text-[15px] ${
       active === key ? "bg-surface-2 font-medium text-parchment-2" : "text-muted hover:text-lime"
@@ -39,13 +39,19 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: "party" 
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="flex min-h-11 items-center gap-2.5 rounded-full border border-line py-1.5 pl-1.5 pr-3 text-sm">
+          <Link
+            href="/account"
+            title="Your account and linked sign-ins"
+            className={`flex min-h-11 items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-3 text-sm hover:border-lime ${
+              active === "account" ? "border-lime" : "border-line"
+            }`}
+          >
             <span className="flex size-8 items-center justify-center rounded-full bg-[#2b3122] font-semibold text-lime">
               {initial}
             </span>
             <span>{viewer.name ?? "Signed in"}</span>
             {badge}
-          </span>
+          </Link>
           <form
             action={async () => {
               "use server";

@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { characterClasses, characters, gmClaims, inventory, profiles, type Role } from "@/db/schema";
+import { accounts, characterClasses, characters, gmClaims, inventory, profiles, sessions, users, type Role } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { claimExpiry, hashClaimCode, newClaimCode } from "@/lib/claim";
 import { canChangeAccount } from "@/lib/roles";
@@ -99,5 +99,57 @@ export async function importLiz() {
   await db.insert(inventory).values(LIZ.items.map((i) => ({ characterId: row.id, ...i })));
   await writeAudit(actor, { action: "character.imported", characterId: row.id, after: { name: LIZ.name } });
   revalidatePath("/party");
+  revalidatePath("/admin");
+}
+
+/**
+ * Folds an account that has no characters into another account: its sign-ins
+ * (GitHub or Google) move over, its sessions end, and it is hidden as "merged".
+ * Nothing is deleted, so the insert-only audit log keeps every reference.
+ */
+export async function mergeAccount(formData: FormData) {
+  const actor = await requireAdmin();
+  const sourceId = String(formData.get("userId") ?? "");
+  const targetId = String(formData.get("targetId") ?? "");
+  if (!sourceId || !targetId || sourceId === targetId) throw new Error("Pick a different account to merge into");
+  if (sourceId === actor.userId) throw new Error("You can't merge the account you're signed in with");
+  if (await isRailwayAdmin(sourceId)) throw new Error("A Railway-listed admin can't be merged away");
+
+  const owned = await db
+    .select({ id: characters.id })
+    .from(characters)
+    .where(and(eq(characters.ownerId, sourceId), isNull(characters.deletedAt)))
+    .limit(1);
+  if (owned.length > 0) throw new Error("Only accounts without characters can be merged");
+
+  const [target] = await db
+    .select({ id: users.id, name: users.name, status: profiles.status })
+    .from(users)
+    .leftJoin(profiles, eq(profiles.userId, users.id))
+    .where(eq(users.id, targetId))
+    .limit(1);
+  if (!target || target.status === "merged") throw new Error("That account can't take a merge");
+
+  const [source] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, sourceId)).limit(1);
+  const moved = await db.transaction(async (tx) => {
+    const links = await tx
+      .update(accounts)
+      .set({ userId: targetId })
+      .where(eq(accounts.userId, sourceId))
+      .returning({ provider: accounts.provider });
+    await tx.delete(sessions).where(eq(sessions.userId, sourceId));
+    await tx
+      .insert(profiles)
+      .values({ userId: sourceId, status: "merged" })
+      .onConflictDoUpdate({ target: profiles.userId, set: { status: "merged" } });
+    return links.map((l) => l.provider);
+  });
+
+  await writeAudit(actor, {
+    action: "account.merged",
+    targetUserId: sourceId,
+    before: { account: source?.name ?? null, email: source?.email ?? null },
+    after: { mergedInto: target.name ?? targetId, signInsMoved: moved },
+  });
   revalidatePath("/admin");
 }

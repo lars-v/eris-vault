@@ -5,7 +5,7 @@ const MESSAGES: Record<string, string> = {
     "GitHub hasn't verified the email on that account. Verify it in GitHub's email settings, then sign in again.",
   GoogleEmailNotVerified: "Google reports that email as unverified, so the sign-in was turned away.",
   OAuthAccountNotLinked:
-    "That email already belongs to an account made with a different sign-in. Use the one you signed up with.",
+    "That sign-in already belongs to a different Eris Vault account. Sign in with that one instead, or ask the admin to merge the two accounts.",
   AccessDenied: "This sign-in was turned away.",
   Configuration: "Sign-in isn't fully set up on the server yet.",
 };

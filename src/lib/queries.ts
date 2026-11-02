@@ -80,7 +80,7 @@ export async function listPeople() {
     .select({ ownerId: characters.ownerId, name: characters.name })
     .from(characters)
     .where(isNull(characters.deletedAt));
-  return people.map((p) => {
+  return people.filter((p) => p.status !== "merged").map((p) => {
     const mine = links.filter((l) => l.userId === p.userId);
     const railwayAdmin = mine.some((l) => l.provider === "github" && adminIds.has(l.providerAccountId));
     return {
