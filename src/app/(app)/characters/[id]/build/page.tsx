@@ -205,8 +205,9 @@ export default async function BuildPage({
 
         <Step n={5} title="Starting kit" done={c.items.length > 0} aside={EQUIPMENT_SOURCE}>
           <p className="text-sm text-muted">
-            Pick freely from the price list; Jay approves the kit. The house rules limit thieves (small or normal weapons,
-            leather at most, no shield); Jay checks the Men &amp; Magic limits for other classes.
+            Pick freely from the price list; Jay approves the kit. Thieves keep to small or normal weapons, leather at
+            most and no shield (WW p. 9). Magic-users other than elves carry daggers only (Men &amp; Magic p. 6), plus a
+            staff with Intelligence 15+ (WW p. 7). Jay judges anything the books leave open.
           </p>
           {cls ? (
             <form action={addItem} className="flex flex-wrap items-end gap-2.5">
@@ -220,11 +221,11 @@ export default async function BuildPage({
                   {(["weapon", "armor", "gear"] as const).map((cat) => (
                     <optgroup key={cat} label={cat === "weapon" ? "Weapons" : cat === "armor" ? "Armor" : "Dungeon gear"}>
                       {CATALOG.filter((i) => i.category === cat).map((i) => {
-                        const allowed = classAllows(cls, i);
+                        const allowed = classAllows({ cls, race: c.race, int: c.int }, i);
                         return (
                           <option key={i.key} value={i.key} disabled={!allowed.ok}>
                             {i.name} · {i.cost}
-                            {allowed.ok ? "" : " · not for thieves"}
+                            {allowed.ok ? "" : ` · not for ${CLASS_NAMES[cls].toLowerCase()}s`}
                           </option>
                         );
                       })}

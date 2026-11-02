@@ -1,4 +1,4 @@
-import type { CharacterClass } from "@/db/schema";
+import type { CharacterClass, Race } from "@/db/schema";
 
 /**
  * Equipment price list, transcribed from Woundwort's Warren p. 17 (Equipment Costs).
@@ -138,24 +138,43 @@ export function catalogItem(key: string): CatalogItem | undefined {
   return CATALOG.find((i) => i.key === key);
 }
 
+export type Wielder = { cls: CharacterClass; race: Race | null; int: number | null };
+
 /**
- * Class limits the house rules state. Only thieves are covered there (WW p. 9):
- * "any type of small or normal weapon", "armor no heavier than leather", no shield.
- * Limits for fighting-men, magic-users and clerics come from Men & Magic, which
- * Jay checks when he approves the character.
+ * Class limits on starting gear that the books state outright:
+ * - Thieves (WW p. 9): "any type of small or normal weapon", armor no heavier
+ *   than leather, no shield.
+ * - Magic-users (Men & Magic p. 6): "may arm themselves with daggers only".
+ *   Woundwort's Warren p. 7 adds a staff for storing spells when Intelligence
+ *   gives a bonus (15+). Elves are exempt: they "may use both weaponry and
+ *   spells" (Men & Magic p. 8).
+ * Anything the books leave open (magic-user armor, clerics and ordinary edged
+ * weapons) is for Jay to judge at approval.
  */
-export function classAllows(cls: CharacterClass, item: CatalogItem): { ok: true } | { ok: false; why: string } {
-  if (cls !== "thief") return { ok: true };
-  if (item.category === "weapon" && item.weaponClass === "two-handed") {
-    return { ok: false, why: "Thieves may wield small or normal weapons only (WW p. 9)." };
+export function classAllows(w: Wielder, item: CatalogItem): { ok: true } | { ok: false; why: string } {
+  if (w.cls === "thief") {
+    if (item.category === "weapon" && item.weaponClass === "two-handed") {
+      return { ok: false, why: "Thieves may wield small or normal weapons only (WW p. 9)." };
+    }
+    if (item.category === "armor") {
+      if (item.key === "shield" || item.key === "shield-large") {
+        return { ok: false, why: "Thieves may not employ a shield (WW p. 9)." };
+      }
+      if (item.key !== "leather-armor") {
+        return { ok: false, why: "Thieves may not wear armor heavier than leather (WW p. 9)." };
+      }
+    }
   }
-  if (item.category === "armor") {
-    if (item.key === "shield" || item.key === "shield-large") {
-      return { ok: false, why: "Thieves may not employ a shield (WW p. 9)." };
-    }
-    if (item.key !== "leather-armor") {
-      return { ok: false, why: "Thieves may not wear armor heavier than leather (WW p. 9)." };
-    }
+  if (w.cls === "magic-user" && w.race !== "elf" && item.category === "weapon") {
+    if (item.key === "dagger") return { ok: true };
+    if (item.key === "staff" && (w.int ?? 0) >= 15) return { ok: true };
+    return {
+      ok: false,
+      why:
+        item.key === "staff"
+          ? "A magic-user may carry a staff for storing spells only with an Intelligence bonus, 15+ (WW p. 7)."
+          : "Magic-users may arm themselves with daggers only (Men & Magic p. 6).",
+    };
   }
   return { ok: true };
 }

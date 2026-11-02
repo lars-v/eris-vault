@@ -88,13 +88,22 @@ describe("price list and class limits (WW pp. 9, 17, 19)", () => {
     expect(catalogItem("long-sword")?.costGp).toBe(10);
     expect(CATALOG.every((i) => i.enc === null)).toBe(true);
   });
+  const T = { cls: "thief" as const, race: "halfling" as const, int: 10 };
   it("keeps thieves to small or normal weapons, leather, no shield", () => {
-    expect(classAllows("thief", catalogItem("two-handed-sword")!).ok).toBe(false);
-    expect(classAllows("thief", catalogItem("short-sword")!).ok).toBe(true);
-    expect(classAllows("thief", catalogItem("leather-armor")!).ok).toBe(true);
-    expect(classAllows("thief", catalogItem("chain-mail")!).ok).toBe(false);
-    expect(classAllows("thief", catalogItem("shield")!).ok).toBe(false);
-    expect(classAllows("fighting-man", catalogItem("plate-mail")!).ok).toBe(true);
+    expect(classAllows(T, catalogItem("two-handed-sword")!).ok).toBe(false);
+    expect(classAllows(T, catalogItem("short-sword")!).ok).toBe(true);
+    expect(classAllows(T, catalogItem("leather-armor")!).ok).toBe(true);
+    expect(classAllows(T, catalogItem("chain-mail")!).ok).toBe(false);
+    expect(classAllows(T, catalogItem("shield")!).ok).toBe(false);
+    expect(classAllows({ cls: "fighting-man", race: "human", int: 10 }, catalogItem("plate-mail")!).ok).toBe(true);
+  });
+  it("keeps human magic-users to daggers, plus a staff with Int 15+; elves are exempt", () => {
+    const mu = { cls: "magic-user" as const, race: "human" as const, int: 12 };
+    expect(classAllows(mu, catalogItem("dagger")!).ok).toBe(true);
+    expect(classAllows(mu, catalogItem("long-sword")!).ok).toBe(false);
+    expect(classAllows(mu, catalogItem("staff")!).ok).toBe(false);
+    expect(classAllows({ ...mu, int: 15 }, catalogItem("staff")!).ok).toBe(true);
+    expect(classAllows({ ...mu, race: "elf" }, catalogItem("long-sword")!).ok).toBe(true);
   });
   it("counts unknown weights separately instead of guessing", () => {
     const items = [

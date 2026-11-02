@@ -241,10 +241,10 @@ async function addItemImpl(formData: FormData) {
   const quantity = Math.max(1, Math.min(20, Math.floor(Number(formData.get("quantity")) || 1)));
   if (!item) throw new Error("That item isn't on the price list.");
   await db.transaction(async (tx) => {
-    await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id);
     const cls = await activeClass(tx, id);
     if (!cls) throw new Error("Choose a class first, so class limits can be checked.");
-    const allowed = classAllows(cls, item);
+    const allowed = classAllows({ cls, race: c.race, int: c.int }, item);
     if (!allowed.ok) throw new Error(allowed.why);
     await tx.insert(inventory).values({
       characterId: id,
@@ -287,7 +287,7 @@ async function submitCharacterImpl(formData: FormData) {
     const items = await tx.select({ key: inventory.catalogKey, name: inventory.name }).from(inventory).where(eq(inventory.characterId, id));
     for (const it of items) {
       const entry = it.key ? catalogItem(it.key) : undefined;
-      const allowed = entry && cls ? classAllows(cls, entry) : { ok: true as const };
+      const allowed = entry && cls ? classAllows({ cls, race: c.race, int: c.int }, entry) : { ok: true as const };
       if (!allowed.ok) throw new Error(`${it.name}: ${allowed.why}`);
     }
     await tx.update(characters).set({ status: "submitted", updatedAt: new Date() }).where(eq(characters.id, id));
