@@ -27,9 +27,8 @@ export default function Privacy() {
       <section className="flex flex-col gap-3 leading-relaxed text-muted">
         <h2 className="font-display text-2xl text-parchment-2">Who can see it</h2>
         <ul className="list-disc space-y-2 pl-5">
-          <li>Everyone signed in can see every character sheet and your display name.</li>
+          <li>Everyone signed in can see every character sheet, every dice roll and your display name.</li>
           <li>The game master and the admin can also see email addresses and the change log.</li>
-          <li>Dice rolls may be posted to the table&apos;s Discord channel.</li>
           <li>Nothing is sold or shared with anyone else.</li>
         </ul>
       </section>

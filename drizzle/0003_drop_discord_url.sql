@@ -1,0 +1,1 @@
+ALTER TABLE "rolls" DROP COLUMN "discord_message_url";

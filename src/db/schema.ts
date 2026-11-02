@@ -154,7 +154,6 @@ export const rolls = pgTable("rolls", {
   formula: text("formula").notNull(),
   dice: jsonb("dice").$type<number[][]>().notNull(),
   totals: jsonb("totals").$type<number[]>().notNull(),
-  discordMessageUrl: text("discord_message_url"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 

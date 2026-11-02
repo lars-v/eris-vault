@@ -21,10 +21,9 @@ Plan and mockups: the "Eris Character Vault" design canvas in Claude.
 | `DATABASE_URL` | Railway reference to Postgres | set |
 | `PORT` | Railway | `3000` |
 | `ADMIN_GITHUB_IDS` | Railway | numeric GitHub IDs, comma separated |
-| `AUTH_SECRET` | Railway, secret | random 32+ bytes |
+| `AUTH_SECRET` | Railway, secret | optional; the server generates and stores one at first boot |
 | `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET` | Railway, secret | GitHub OAuth app |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Railway, secret | optional; Google client must be External |
-| `DISCORD_WEBHOOK_URL` | Railway, secret | next build |
 
 ## Commands
 

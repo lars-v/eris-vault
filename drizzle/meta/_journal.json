@@ -22,6 +22,13 @@
       "when": 1793589691752,
       "tag": "0002_app_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793592691034,
+      "tag": "0003_drop_discord_url",
+      "breakpoints": true
     }
   ]
 }

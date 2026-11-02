@@ -148,7 +148,6 @@ export default async function AdminPage() {
           <Panel title="Settings" className="min-w-0 flex-[1_1_520px]">
             <Setting label="GitHub sign-in" detail="AUTH_GITHUB_ID, AUTH_GITHUB_SECRET" ok={Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET)} />
             <Setting label="Google sign-in" detail="AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET" ok={Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)} />
-            <Setting label="Discord #dice webhook" detail="DISCORD_WEBHOOK_URL (used in the next build)" ok={Boolean(process.env.DISCORD_WEBHOOK_URL)} />
             <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[#262920] py-3">
               <span className="flex flex-col gap-0.5">
                 <span className="text-[15px]">Sample character</span>

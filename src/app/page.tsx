@@ -17,7 +17,7 @@ export default async function Home() {
       <h1 className="font-display text-6xl leading-none text-parchment-2 sm:text-7xl">Eris Vault</h1>
       <p className="max-w-[640px] text-lg leading-relaxed text-[#c9c5b4]">
         Character keeper for the table at Rath Denacht. Sign in to see the party, build characters by Woundwort&apos;s
-        Warren and the brown books, and roll in the open on Discord.
+        Warren and the brown books, and roll in the open, with every roll kept on record.
       </p>
       <SignInButtons providers={enabledProviders} redirectTo="/party" />
       <p className="text-sm text-subtle">
