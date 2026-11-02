@@ -14,7 +14,7 @@ export default async function AuthError({ searchParams }: { searchParams: Promis
   const { error } = await searchParams;
   const message = (error && MESSAGES[error]) ?? "Something went wrong while signing in.";
   return (
-    <main className="mx-auto flex min-h-screen max-w-[640px] flex-col justify-center gap-5 px-4 sm:px-8">
+    <main className="mx-auto flex min-h-dvh max-w-[640px] flex-col justify-center gap-5 px-4 sm:px-8">
       <h1 className="font-display text-5xl text-parchment-2">Couldn&apos;t sign you in</h1>
       <p className="text-lg leading-relaxed text-muted">{message}</p>
       <Link href="/" className="text-moon underline-offset-4 hover:underline">

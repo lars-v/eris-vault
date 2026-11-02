@@ -61,7 +61,7 @@ export default async function ReviewImportPage({
   return (
     <>
       <Nav viewer={viewer} active="party" />
-      <main className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-10 sm:px-8">
+      <main className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow="Upload a character sheet · check" title={d.name || "Your character"}>
           <a href={fileUrl} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2]">
             Open {upload.filename}
@@ -149,7 +149,7 @@ export default async function ReviewImportPage({
               {ABILITIES.map((a) => (
                 <label key={a} className={label}>
                   {ABILITY_NAMES[a]}
-                  <input name={a} type="number" required min={3} max={18} step={1} defaultValue={d.scores[a] ?? ""} className={`${field} font-mono`} />
+                  <input name={a} type="number" inputMode="numeric" required min={3} max={18} step={1} defaultValue={d.scores[a] ?? ""} className={`${field} font-mono`} />
                 </label>
               ))}
             </div>
@@ -159,7 +159,7 @@ export default async function ReviewImportPage({
             <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
               <label className={label}>
                 XP
-                <input name="xp" type="number" required min={0} step={1} defaultValue={d.xp ?? ""} className={`${field} font-mono`} />
+                <input name="xp" type="number" inputMode="numeric" required min={0} step={1} defaultValue={d.xp ?? ""} className={`${field} font-mono`} />
               </label>
               <label className={label}>
                 Current hit points
@@ -167,7 +167,7 @@ export default async function ReviewImportPage({
               </label>
               <label className={label}>
                 Maximum hit points
-                <input name="hpMax" type="number" required min={1} max={999} step={1} defaultValue={d.hpMax ?? ""} className={`${field} font-mono`} />
+                <input name="hpMax" type="number" inputMode="numeric" required min={1} max={999} step={1} defaultValue={d.hpMax ?? ""} className={`${field} font-mono`} />
               </label>
               <label className={label}>
                 Gold
@@ -175,11 +175,11 @@ export default async function ReviewImportPage({
               </label>
               <label className={label}>
                 Silver
-                <input name="coinsSp" type="number" required min={0} step={1} defaultValue={0} className={`${field} font-mono`} />
+                <input name="coinsSp" type="number" inputMode="numeric" required min={0} step={1} defaultValue={0} className={`${field} font-mono`} />
               </label>
               <label className={label}>
                 Copper
-                <input name="coinsCp" type="number" required min={0} step={1} defaultValue={0} className={`${field} font-mono`} />
+                <input name="coinsCp" type="number" inputMode="numeric" required min={0} step={1} defaultValue={0} className={`${field} font-mono`} />
               </label>
             </div>
             <p className="text-xs text-subtle">Level and saving throw are worked out from XP and class, so they aren&apos;t typed in.</p>
@@ -198,6 +198,7 @@ export default async function ReviewImportPage({
                   <input
                     name={`units${i}`}
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     max={99}
                     step={1}

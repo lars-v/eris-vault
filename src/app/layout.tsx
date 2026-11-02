@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -31,12 +31,21 @@ const mono = localFont({
 export const metadata: Metadata = {
   title: { default: "Eris Vault", template: "%s · Eris Vault" },
   description: "Character keeper for the Planet Eris OD&D campaign.",
+  appleWebApp: { title: "Eris Vault", statusBarStyle: "black-translucent" },
+};
+
+// Browser bars match the ink ground; `cover` lets the phone tab bar pad itself for the home indicator.
+// Zoom stays on (no maximumScale): pinch-zoom is an accessibility need.
+export const viewport: Viewport = {
+  themeColor: "#0f100d",
+  colorScheme: "dark",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${fell.variable} ${inter.variable} ${mono.variable}`}>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );
 }

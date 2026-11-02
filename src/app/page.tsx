@@ -9,7 +9,7 @@ export default async function Home() {
   if (viewer) redirect(viewer.status === "blocked" ? "/blocked" : "/party");
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-[880px] flex-col justify-center gap-8 px-4 py-16 sm:px-8">
+    <main className="mx-auto flex min-h-dvh max-w-[880px] flex-col justify-center gap-8 px-4 py-16 sm:px-8">
       <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-lime">
         <Logo size={22} />
         Planet Eris · OD&amp;D campaign

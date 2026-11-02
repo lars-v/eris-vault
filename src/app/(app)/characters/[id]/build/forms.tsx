@@ -117,7 +117,7 @@ export function AbilityAssign({
               required
               value={picks[key]}
               onChange={(e) => setPicks((p) => ({ ...p, [key]: e.target.value }))}
-              className="min-h-10 rounded-lg border border-line-2 bg-ink px-2 font-mono text-[15px]"
+              className="min-h-11 rounded-lg border border-line-2 bg-ink px-2 font-mono text-[15px]"
             >
               <option value="" disabled>
                 Pick

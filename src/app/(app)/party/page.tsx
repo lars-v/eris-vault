@@ -28,7 +28,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
         autoStart={!viewer.guidesSeen.includes("welcome")}
         forceOpen={guide === "1"}
       />
-      <main className="mx-auto flex max-w-[1280px] flex-col gap-7 px-4 py-10 sm:px-8">
+      <main className="mx-auto flex max-w-[1280px] flex-col gap-7 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow="Rath Denacht · last year of Hibernumn" title="The party">
           <span className="flex flex-wrap gap-2">
             <Link
@@ -58,7 +58,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
             No characters yet. {viewer.role === "admin" ? "Import Liz from the admin page to see a full sheet." : "They'll appear here as players make them."}
           </div>
         ) : (
-          <div data-guide="party" className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+          <div data-guide="party" className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-4">
             {party.map((c) => {
               const lvl = c.cls ? levelFor(c.cls, c.xp ?? 0) : null;
               const pct = c.hpMax && c.hpCurrent !== null ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;

@@ -136,6 +136,7 @@ export function KitPicker({
                           {n > 0 && (
                             <input
                               type="number"
+                              inputMode="numeric"
                               min={1}
                               max={max}
                               value={n}

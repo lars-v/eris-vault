@@ -19,8 +19,12 @@ const GAP = 12; // between the spotlight and the card
 const GUTTER = 16;
 const CARD_WIDTH = 380;
 
+// Some targets exist twice (top nav and the phone tab bar); take the one that's showing.
 const targetOf = (step: GuideStep | null) =>
-  step?.target ? document.querySelector<HTMLElement>(`[data-guide="${step.target}"]`) : null;
+  step?.target
+    ? ([...document.querySelectorAll<HTMLElement>(`[data-guide="${step.target}"]`)].find((el) => el.getClientRects().length > 0) ??
+      null)
+    : null;
 
 const sameBox = (a: Box | null, b: Box | null) =>
   a === b || (!!a && !!b && a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height);
@@ -96,9 +100,11 @@ export function Guide({
   }, []);
 
   // New step: scroll its target near the top, which leaves room for the card below it, and move focus to the card.
+  // The phone tab bar is fixed to the screen, so its targets need no scrolling.
   useEffect(() => {
     if (!step) return;
-    const r = targetOf(step)?.getBoundingClientRect();
+    const el = targetOf(step);
+    const r = el?.closest("[data-tabbar]") ? null : el?.getBoundingClientRect();
     if (r) {
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 2 * GUTTER), behavior: reduce ? "auto" : "smooth" });
@@ -204,7 +210,7 @@ export function Guide({
           <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-lime">
             Guide · {index + 1} of {steps.length}
           </span>
-          <button type="button" onClick={close} className="min-h-9 rounded-lg px-2 text-[13px] text-subtle hover:text-parchment">
+          <button type="button" onClick={close} className="min-h-11 rounded-lg px-2 text-[13px] text-subtle hover:text-parchment">
             {last ? "Close" : "Skip guide"}
           </button>
         </div>

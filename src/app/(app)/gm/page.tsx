@@ -15,7 +15,7 @@ export default async function GmPage() {
   return (
     <>
       <Nav viewer={viewer} active="gm" />
-      <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-10 sm:px-8">
+      <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow={viewer.role === "admin" ? "GM tools · as admin" : "Game master"} title="GM tools" tone="amber" />
 
         <div className="flex flex-wrap items-start gap-5">
@@ -72,7 +72,7 @@ export default async function GmPage() {
                       {a.actorName ?? "System"}
                     </span>
                     <span className="font-mono text-xs text-muted">{a.action}</span>
-                    {a.after != null && <span className="font-mono text-xs text-subtle">{JSON.stringify(a.after)}</span>}
+                    {a.after != null && <span className="font-mono text-xs break-all text-subtle">{JSON.stringify(a.after)}</span>}
                   </span>
                   <time className="text-xs text-subtle" dateTime={a.createdAt.toISOString()}>
                     {a.createdAt.toISOString().replace("T", " ").slice(0, 16)} UTC

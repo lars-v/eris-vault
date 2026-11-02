@@ -54,7 +54,7 @@ export default async function AdminPage() {
   return (
     <>
       <Nav viewer={viewer} active="admin" />
-      <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-10 sm:px-8">
+      <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow="Admin · full control" title="Vault control" tone="moon">
           <Link href="/gm" className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2]">
             Open GM tools

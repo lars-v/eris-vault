@@ -32,7 +32,7 @@ export function PageHeader({ eyebrow, title, children, tone = "subtle" }: { eyeb
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex flex-col gap-2">
         <div className={`text-[13px] font-semibold uppercase tracking-[0.14em] ${eyebrowColor}`}>{eyebrow}</div>
-        <h1 className="font-display text-5xl leading-none text-parchment-2">{title}</h1>
+        <h1 className="font-display text-4xl leading-none text-parchment-2 sm:text-5xl">{title}</h1>
       </div>
       {children}
     </div>

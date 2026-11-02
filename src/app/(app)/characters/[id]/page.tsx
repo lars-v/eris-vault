@@ -46,9 +46,9 @@ export default async function CharacterPage({
   return (
     <>
       <Nav viewer={viewer} active="party" />
-      <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-10 sm:px-8">
-        <header className="flex flex-wrap items-center gap-6 rounded-2xl border border-line bg-surface p-6">
-          <div className="flex h-32 w-26 flex-none items-center justify-center rounded-[50%] border-2 border-lime font-display text-4xl text-lime">
+      <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
+        <header className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-surface p-5 sm:gap-6 sm:p-6">
+          <div className="flex h-20 w-16 flex-none items-center justify-center rounded-[50%] border-2 border-lime font-display text-2xl text-lime sm:h-32 sm:w-26 sm:text-4xl">
             {c.name
               .split(" ")
               .filter((w) => /^[A-Z]/.test(w))
@@ -56,8 +56,8 @@ export default async function CharacterPage({
               .join("")
               .slice(0, 2)}
           </div>
-          <div className="flex min-w-0 flex-[999_1_380px] flex-col gap-2">
-            <h1 className="font-display text-5xl leading-none text-parchment-2">{c.name}</h1>
+          <div className="flex min-w-0 flex-[999_1_12rem] flex-col gap-2 sm:basis-[380px]">
+            <h1 className="font-display text-4xl leading-none text-parchment-2 sm:text-5xl">{c.name}</h1>
             <div className="text-[#c9c5b4]">
               {c.race ? cap(c.race) : "Race not chosen"} {active ? CLASS_NAMES[active.class] : ""}
               {c.alignment ? ` · ${cap(c.alignment)}` : ""}
@@ -122,16 +122,16 @@ export default async function CharacterPage({
               </form>
             )}
             {staff && (c.status === "submitted" || c.status === "approved") && (
-              <form action={returnToPlayer} className="flex flex-wrap items-center gap-2">
+              <form action={returnToPlayer} className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <input type="hidden" name="id" value={c.id} />
-                <input name="note" placeholder="Note for the player (optional)" maxLength={300} className="min-h-11 w-64 rounded-xl border border-line-2 bg-ink px-3 text-sm" />
+                <input name="note" placeholder="Note for the player (optional)" maxLength={300} className="min-h-11 min-w-0 flex-[1_1_10rem] rounded-xl border border-line-2 bg-ink px-3 text-sm sm:w-64 sm:flex-none" />
                 <SubmitButton tone="plain" pendingText="Returning…">
                   Return to player
                 </SubmitButton>
               </form>
             )}
             {staff && (
-              <form action={grantReroll} className="flex flex-wrap items-center gap-2">
+              <form action={grantReroll} className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <input type="hidden" name="id" value={c.id} />
                 <label className="sr-only" htmlFor="reroll-purpose">
                   Roll to grant again
@@ -142,7 +142,7 @@ export default async function CharacterPage({
                   {c.levelDice.length === 0 && <option value="hp">Hit points</option>}
                   <option value="gold">Starting gold</option>
                 </select>
-                <input name="reason" placeholder="Reason" maxLength={200} className="min-h-11 w-44 rounded-xl border border-line-2 bg-ink px-3 text-sm" />
+                <input name="reason" placeholder="Reason" maxLength={200} className="min-h-11 min-w-0 flex-[1_1_10rem] rounded-xl border border-line-2 bg-ink px-3 text-sm sm:w-44 sm:flex-none" />
                 <SubmitButton tone="plain" pendingText="Granting…">
                   Grant re-roll
                 </SubmitButton>
@@ -218,8 +218,8 @@ export default async function CharacterPage({
             })}
           </Panel>
 
-          <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="@container flex min-w-0 flex-[1_1_380px] flex-col gap-4">
+            <div className="grid gap-3 @xs:grid-cols-2">
               <Panel title="Hit points">
                 {c.hpMax === null ? (
                   <div className="text-sm text-subtle">Not rolled yet</div>
@@ -236,7 +236,7 @@ export default async function CharacterPage({
               </Panel>
             </div>
             <Panel title="Encumbrance" aside={ENCUMBRANCE_SOURCE}>
-              <div className="flex items-baseline justify-between">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <span className="font-mono text-4xl">
                   {units}
                   <span className="text-lg text-subtle"> of 25 units</span>

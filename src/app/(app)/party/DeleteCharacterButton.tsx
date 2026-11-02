@@ -10,7 +10,7 @@ function ConfirmButton() {
     <button
       type="submit"
       disabled={pending}
-      className="min-h-9 rounded-lg border border-[#5c3328] px-3 text-[13px] font-semibold text-ember hover:bg-[#2e1a15] disabled:opacity-60"
+      className="min-h-11 rounded-lg border border-[#5c3328] px-3 text-[13px] font-semibold text-ember hover:bg-[#2e1a15] disabled:opacity-60"
     >
       {pending ? "Deleting…" : "Yes, delete"}
     </button>
@@ -27,7 +27,7 @@ export function DeleteCharacterButton({ id, name }: { id: string; name: string }
         type="button"
         onClick={() => setConfirming(true)}
         aria-label={`Delete ${name}`}
-        className="relative z-10 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[#5c3328] px-3 text-[13px] font-semibold text-ember hover:bg-[#2e1a15]"
+        className="relative z-10 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[#5c3328] px-3 text-[13px] font-semibold text-ember hover:bg-[#2e1a15]"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 7h16" />
@@ -48,7 +48,7 @@ export function DeleteCharacterButton({ id, name }: { id: string; name: string }
       <button
         type="button"
         onClick={() => setConfirming(false)}
-        className="min-h-9 rounded-lg border border-line-2 px-3 text-[13px] text-[#d6d2c2] hover:border-lime"
+        className="min-h-11 rounded-lg border border-line-2 px-3 text-[13px] text-[#d6d2c2] hover:border-lime"
       >
         Cancel
       </button>

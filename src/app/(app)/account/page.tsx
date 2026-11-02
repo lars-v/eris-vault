@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { enabledProviders, signIn } from "@/auth";
 import { db } from "@/db";
 import { accounts, users } from "@/db/schema";
-import { Nav } from "@/components/Nav";
+import { Nav, SignOutButton } from "@/components/Nav";
 import { Chip, PageHeader, Panel } from "@/components/ui";
 import { requireUser } from "@/lib/session";
 
@@ -22,8 +22,10 @@ export default async function AccountPage() {
   return (
     <>
       <Nav viewer={viewer} active="account" />
-      <main className="mx-auto flex max-w-[880px] flex-col gap-6 px-4 py-10 sm:px-8">
-        <PageHeader eyebrow={me?.email ?? "Signed in"} title="Your account" />
+      <main className="mx-auto flex max-w-[880px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
+        <PageHeader eyebrow={me?.email ?? "Signed in"} title="Your account">
+          <SignOutButton />
+        </PageHeader>
 
         <Panel title="Linked sign-ins">
           <p className="pb-2 text-sm leading-relaxed text-muted">

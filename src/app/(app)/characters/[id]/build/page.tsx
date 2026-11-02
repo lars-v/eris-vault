@@ -111,7 +111,7 @@ export default async function BuildPage({
         steps={buildSteps()}
         autoStart={c.status === "draft" && c.ownerId === viewer.userId && !viewer.guidesSeen.includes("build")}
       />
-      <main className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-10 sm:px-8">
+      <main className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow={c.status === "draft" ? "New character · draft" : `Editing as ${viewer.role}`} title={c.name}>
           <Link href={`/characters/${id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2]">
             View sheet
