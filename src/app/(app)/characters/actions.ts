@@ -18,6 +18,7 @@ import {
   type RollPurpose,
 } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
+import { NOTES_MAX } from "@/lib/limits";
 import { can } from "@/lib/roles";
 import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities";
 import { assignScores, isValidIdentity } from "@/lib/rules/creation";
@@ -485,7 +486,7 @@ async function sendImportImpl(formData: FormData) {
   const coinsGp = wholeNumber(formData, "coinsGp", "Gold", -1_000_000, 10_000_000);
   const coinsSp = wholeNumber(formData, "coinsSp", "Silver", 0, 10_000_000);
   const coinsCp = wholeNumber(formData, "coinsCp", "Copper", 0, 10_000_000);
-  const notes = str(formData, "notes").slice(0, 4000) || null;
+  const notes = str(formData, "notes").slice(0, NOTES_MAX) || null;
 
   const items: Omit<typeof inventory.$inferInsert, "characterId">[] = [];
   const rows = Math.min(80, Math.max(0, Math.floor(Number(formData.get("itemRows")) || 0)));

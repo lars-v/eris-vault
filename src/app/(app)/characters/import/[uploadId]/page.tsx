@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Nav } from "@/components/Nav";
 import { Chip, PageHeader, Panel } from "@/components/ui";
+import { NOTES_MAX } from "@/lib/limits";
 import { getSheetUpload } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE } from "@/lib/rules/abilities";
 import { CLASS_NAMES } from "@/lib/rules/advancement";
@@ -216,7 +217,7 @@ export default async function ReviewImportPage({
           </Panel>
 
           <Panel title="Notes" aside="Spells, skills, retainers, anything else">
-            <textarea name="notes" maxLength={4000} rows={8} defaultValue={d.notes} className={`${field} py-2 leading-relaxed`} />
+            <textarea name="notes" maxLength={NOTES_MAX} rows={8} defaultValue={d.notes} className={`${field} py-2 leading-relaxed`} />
           </Panel>
 
           {preview && preview.length > 0 && (

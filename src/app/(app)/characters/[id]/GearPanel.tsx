@@ -79,14 +79,12 @@ export function GearPanel({
   id,
   items,
   catalog,
-  notes,
   canEdit,
   staff,
 }: {
   id: string;
   items: GearItem[];
   catalog: GearCatalogRow[];
-  notes: string | null;
   canEdit: boolean;
   staff: boolean;
 }) {
@@ -95,7 +93,7 @@ export function GearPanel({
   return (
     <Panel
       title={`Gear · ${items.length}`}
-      className="min-w-0 flex-[1_1_320px]"
+      className="min-w-0"
       aside={
         canEdit && (
           <button
@@ -129,7 +127,6 @@ export function GearPanel({
         </div>
       )}
 
-      {notes && <p className="whitespace-pre-line border-t border-[#262920] pt-3 text-sm text-muted">{notes}</p>}
     </Panel>
   );
 }

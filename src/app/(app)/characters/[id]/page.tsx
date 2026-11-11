@@ -14,6 +14,7 @@ import { requireUser } from "@/lib/session";
 import { SubmitButton } from "./build/forms";
 import { GearPanel, type GearCatalogRow, type GearItem } from "./GearPanel";
 import { LevelPanel } from "./LevelPanel";
+import { NotesPanel } from "./NotesPanel";
 import { SpellsPanel } from "./SpellsPanel";
 import { approveCharacter, grantReroll, returnToPlayer } from "../actions";
 
@@ -298,14 +299,12 @@ export default async function CharacterPage({
             </Panel>
           </div>
 
-          <GearPanel
-            id={c.id}
-            items={gearItems}
-            catalog={gearCatalog}
-            notes={c.notes}
-            canEdit={can.editGear(viewer, c)}
-            staff={staff}
-          />
+          <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
+            <GearPanel id={c.id} items={gearItems} catalog={gearCatalog} canEdit={can.editGear(viewer, c)} staff={staff} />
+            {(c.notes || can.editPlayState(viewer, c)) && (
+              <NotesPanel id={c.id} notes={c.notes} canEdit={can.editPlayState(viewer, c)} />
+            )}
+          </div>
         </div>
         {active && (c.status === "submitted" || c.status === "approved") && (
           <LevelPanel
