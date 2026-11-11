@@ -252,3 +252,70 @@ export function randomKitKeys(w: Wielder, rand: () => number = Math.random): str
   }
   return keys;
 }
+
+/** The `inventory.kind` label for a price-list category. */
+export function kindFor(category: Category): string {
+  return category === "weapon" ? "Weapon" : category === "armor" ? "Armor" : "Gear";
+}
+
+/**
+ * Bounds for editing gear on the sheet. These are input limits only, not game
+ * rules: the books don't cap how many of a thing a character owns.
+ */
+export const ITEM_MAX_QUANTITY = 999;
+export const ITEM_MAX_UNITS = 99;
+export const ITEM_NAME_MAX = 80;
+
+const quantityProblem = (n: number) =>
+  !Number.isInteger(n) || n < 1 || n > ITEM_MAX_QUANTITY ? `Quantity must be a whole number from 1 to ${ITEM_MAX_QUANTITY}.` : null;
+
+/**
+ * Adding an item from the price list (WW p. 17) to a character's gear.
+ * Players keep to the class limits the books state (classAllows), as in the
+ * kit dialog. Jay may add anything; the sheet then flags the item. Whether a
+ * character may carry gear the class can't use waits on "carry-unusable-gear".
+ * `wielder` is null when no class is chosen yet, so there's nothing to check.
+ */
+export function checkAddCatalog(
+  wielder: Wielder | null,
+  key: string,
+  quantity: number,
+  staff: boolean,
+): { item: CatalogItem; quantity: number } | string {
+  const item = catalogItem(key);
+  if (!item) return "Choose an item from the price list.";
+  const q = quantityProblem(quantity);
+  if (q) return q;
+  if (wielder && !staff) {
+    const allowed = classAllows(wielder, item);
+    if (!allowed.ok) return allowed.why;
+  }
+  return { item, quantity };
+}
+
+/**
+ * An item that isn't on the price list (loot, a magic item, something Jay
+ * hands out). `units` is null when the weight isn't known: it stays unknown
+ * and the encumbrance total says it's a floor. Only Jay marks an item magic,
+ * since magic gear counts 0 units (campaign ruling).
+ */
+export function checkCustomItem(
+  input: { name: string; quantity: number; units: number | null; isMagic: boolean },
+  staff: boolean,
+): { name: string; quantity: number; units: number | null; isMagic: boolean } | string {
+  const name = input.name.replace(/\s+/g, " ").trim();
+  if (!name) return "Give the item a name.";
+  if (name.length > ITEM_NAME_MAX) return `Keep the name to ${ITEM_NAME_MAX} characters.`;
+  const q = quantityProblem(input.quantity);
+  if (q) return q;
+  if (input.units !== null && (!Number.isInteger(input.units) || input.units < 0 || input.units > ITEM_MAX_UNITS)) {
+    return `Weight must be a whole number of units from 0 to ${ITEM_MAX_UNITS}, or left blank if you don't know it.`;
+  }
+  if (input.isMagic && !staff) return "Only Jay can mark an item as magic.";
+  return { name, quantity: input.quantity, units: input.units, isMagic: input.isMagic };
+}
+
+/** A new quantity for an item already carried. */
+export function checkQuantity(quantity: number): number | string {
+  return quantityProblem(quantity) ?? quantity;
+}

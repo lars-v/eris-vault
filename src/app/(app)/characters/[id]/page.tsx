@@ -7,10 +7,12 @@ import { getCharacter, sheetsForCharacter } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
 import { ADVANCEMENT_SOURCE, cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
+import { CATALOG, catalogItem, classAllows, type Wielder } from "@/lib/rules/equipment";
 import { castsSpells } from "@/lib/rules/spells";
 import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
 import { SubmitButton } from "./build/forms";
+import { GearPanel, type GearCatalogRow, type GearItem } from "./GearPanel";
 import { LevelPanel } from "./LevelPanel";
 import { SpellsPanel } from "./SpellsPanel";
 import { approveCharacter, grantReroll, returnToPlayer } from "../actions";
@@ -40,6 +42,31 @@ export default async function CharacterPage({
   const imported = c.source !== "app";
   const canBuild = can.editCoreStats(viewer, c) && (!imported || staff);
   const sheets = staff || c.ownerId === viewer.userId ? await sheetsForCharacter(c.id) : [];
+  // Class limits on price-list gear (WW p. 9, M&M pp. 6, 8), shown on the item and in the add list.
+  const wielder: Wielder | null = active ? { cls: active.class, race: c.race, int: c.int } : null;
+  const limitFor = (key: string | null) => {
+    const entry = key ? catalogItem(key) : undefined;
+    if (!entry || !wielder) return null;
+    const allowed = classAllows(wielder, entry);
+    return allowed.ok ? null : allowed.why;
+  };
+  const gearItems: GearItem[] = c.items.map((i) => ({
+    id: i.id,
+    name: i.name,
+    quantity: i.quantity,
+    encUnits: i.encUnits,
+    isMagic: i.isMagic,
+    location: i.location,
+    warn: i.isMagic ? null : limitFor(i.catalogKey),
+  }));
+  const gearCatalog: GearCatalogRow[] = CATALOG.map((i) => ({
+    key: i.key,
+    name: i.name,
+    category: i.category,
+    cost: i.cost,
+    enc: i.enc,
+    why: limitFor(i.key),
+  }));
   const xpPct =
     lvl && active && lvl.nextXp ? Math.round(((active.xp - lvl.startXp) / (lvl.nextXp - lvl.startXp)) * 100) : 100;
 
@@ -271,24 +298,14 @@ export default async function CharacterPage({
             </Panel>
           </div>
 
-          <Panel title={`Gear · ${c.items.length}`} className="min-w-0 flex-[1_1_320px]">
-            {c.items.length === 0 ? (
-              <p className="text-sm text-muted">Nothing carried.</p>
-            ) : (
-              <ul className="flex flex-col divide-y divide-[#262920]">
-                {c.items.map((i) => (
-                  <li key={i.id} className="flex items-center justify-between gap-3 py-2 text-[15px]">
-                    <span className="flex flex-col">
-                      <span>{i.name}</span>
-                      {i.isMagic && <span className="text-xs text-lime">Magic: counts 0</span>}
-                    </span>
-                    <span className="font-mono">{i.isMagic ? 0 : i.encUnits === null ? "?" : i.encUnits * i.quantity}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {c.notes && <p className="whitespace-pre-line border-t border-[#262920] pt-3 text-sm text-muted">{c.notes}</p>}
-          </Panel>
+          <GearPanel
+            id={c.id}
+            items={gearItems}
+            catalog={gearCatalog}
+            notes={c.notes}
+            canEdit={can.editGear(viewer, c)}
+            staff={staff}
+          />
         </div>
         {active && (c.status === "submitted" || c.status === "approved") && (
           <LevelPanel

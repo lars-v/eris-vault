@@ -35,6 +35,9 @@ export const can = {
   createCharacter: (v: Viewer) => v.status === "active",
   editPlayState: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
+  // Gear changes in play: the player who owns the character, or Jay and admins on any character.
+  editGear: (v: Viewer, c: CharacterRef) =>
+    v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
   editCoreStats: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || (c.ownerId === v.userId && c.status === "draft")),
   awardXp: (v: Viewer) => v.status === "active" && isStaff(v),

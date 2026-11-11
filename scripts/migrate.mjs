@@ -35,6 +35,7 @@ const RULINGS = [
   ["level-hp-current", "When a character gains a level, does the new hit die raise current hit points as well as the maximum?", "WW p. 6 silent", null, "pending"],
   ["prepare-same-spell", "May a caster prepare the same spell in more than one slot?", "WW pp. 7, 8, 25 silent", null, "pending"],
   ["cleric-wis-penalty", "Does a Wisdom penalty (Wis 3 to 6) take 1st-level spells away from a cleric?", "WW p. 5 names only bonuses", null, "pending"],
+  ["carry-unusable-gear", "May a character carry gear the class can't use (a magic-user carrying a sword as loot, a thief carrying plate mail)? Until then, players can't add it from the price list; Jay can, and the sheet flags it.", "M&M p. 6 and WW p. 9 say what a class may arm itself with, not what it may carry", null, "pending"],
   ["cleric-l1-scroll-spells", "Who picks the spells on a 1st-level cleric's limited prayer scroll: the player, or Jay?", "WW p. 25", null, "pending"],
 ];
 

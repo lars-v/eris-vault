@@ -23,7 +23,7 @@ import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities"
 import { assignScores, isValidIdentity } from "@/lib/rules/creation";
 import { countedHpLevel, levelFor, levelsToRoll } from "@/lib/rules/advancement";
 import { rollAbilitySets, rollFirstLevelHp, rollLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
-import { catalogItem, checkKit, classAllows, randomKitKeys } from "@/lib/rules/equipment";
+import { catalogItem, checkKit, classAllows, kindFor, randomKitKeys } from "@/lib/rules/equipment";
 import { changedFromSheet, importFlags } from "@/lib/rules/import";
 import { draftFromFields, matchCatalog, readPdfFields, SHEET_MAX_BYTES, sniffSheetType } from "@/lib/sheets";
 import { requireStaff, requireUser, type CurrentUser } from "@/lib/session";
@@ -280,7 +280,7 @@ async function setKitImpl(formData: FormData) {
         return {
           characterId: id,
           name: item.name,
-          kind: item.category === "weapon" ? "Weapon" : item.category === "armor" ? "Armor" : "Gear",
+          kind: kindFor(item.category),
           quantity,
           encUnits: item.enc,
           catalogKey: item.key,
@@ -308,7 +308,7 @@ async function randomKitImpl(formData: FormData) {
         return {
           characterId: id,
           name: item.name,
-          kind: item.category === "weapon" ? "Weapon" : item.category === "armor" ? "Armor" : "Gear",
+          kind: kindFor(item.category),
           quantity: 1,
           encUnits: item.enc,
           catalogKey: item.key,
