@@ -36,6 +36,9 @@ const RULINGS = [
   ["prepare-same-spell", "May a caster prepare the same spell in more than one slot?", "WW pp. 7, 8, 25 silent", null, "pending"],
   ["cleric-wis-penalty", "Does a Wisdom penalty (Wis 3 to 6) take 1st-level spells away from a cleric?", "WW p. 5 names only bonuses", null, "pending"],
   ["carry-unusable-gear", "May a character carry gear the class can't use (a magic-user carrying a sword as loot, a thief carrying plate mail)? Until then, players can't add it from the price list; Jay can, and the sheet flags it.", "M&M p. 6 and WW p. 9 say what a class may arm itself with, not what it may carry", null, "pending"],
+  ["con-change-hp", "If Jay changes Constitution after hit points are rolled, does maximum hit points change with the new modifier? Until then, maximum hit points stay as they are.", "WW pp. 5-6 silent", null, "pending"],
+  ["ability-range", "Can an ability score go below 3 or above 18 (for example through magic)? Until then, hand-set scores stay within 3 to 18.", "WW p. 5 (3d6) silent", null, "pending"],
+  ["hp-below-zero", "What happens to a character at 0 hit points or below? Until then, the sheet only shows the number.", "WW silent; M&M silent", null, "pending"],
   ["cleric-l1-scroll-spells", "Who picks the spells on a 1st-level cleric's limited prayer scroll: the player, or Jay?", "WW p. 25", null, "pending"],
 ];
 

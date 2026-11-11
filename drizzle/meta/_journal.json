@@ -71,6 +71,13 @@
       "when": 1793654462723,
       "tag": "0009_levels",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794426757679,
+      "tag": "0010_manual_fields",
+      "breakpoints": true
     }
   ]
 }

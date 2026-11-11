@@ -43,6 +43,8 @@ export const can = {
   editCoreStats: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || (c.ownerId === v.userId && c.status === "draft")),
   awardXp: (v: Viewer) => v.status === "active" && isStaff(v),
+  // Setting abilities, maximum hit points, XP and identity by hand, with a reason. Audited.
+  overrideStats: (v: Viewer) => v.status === "active" && isStaff(v),
   approve: (v: Viewer) => v.status === "active" && isStaff(v),
   editRulings: (v: Viewer) => v.status === "active" && isStaff(v),
   blockAccounts: (v: Viewer) => v.status === "active" && isStaff(v),

@@ -56,7 +56,8 @@ Local Postgres for browser testing: any Postgres works; set `DATABASE_URL` plus 
 - **The server rolls every die** (`node:crypto` `randomInt`), and every roll is written to `rolls` before it touches a character. `rolls` and `audit_log` are insert-only, enforced by database triggers (`drizzle/0001_insert_only_tables.sql`). Never update or delete them, and never add a code path that lets a client choose a result.
 - One ability set per character. Re-rolls only through a GM/admin grant (`roll_grants`); the replaced roll stays in the log.
 - Random buttons for player choices (name, race, class, alignment, patron, arrangement, kit) only fill the form, must respect the rules for the choices already made, and are not logged as rolls.
-- Abilities, race and class lock once hit points are rolled.
+- Abilities, race and class lock once hit points are rolled. The one exception: Jay or an admin can set abilities, maximum hit points, XP, name, alignment and patron by hand on a submitted or approved character (`overrideStats` in `src/app/(app)/characters/stat-actions.ts`). It needs a reason, writes `character.override` to `audit_log`, leaves the rolls alone, and marks hand-set abilities and maximum hit points in `characters.manual_fields`. Race and class still can't change.
+- Players track current hit points and coins on approved characters; Jay and admins on submitted ones too (`changeHitPoints`, `setCoins`). Drafts belong to the wizard.
 - Nothing that references users is hard-deleted: characters are soft-deleted (`deleted_at`); duplicate accounts are merged (`profiles.status = 'merged'`).
 - Every GM and admin action writes `audit_log` via `writeAudit`; Jay can read it.
 

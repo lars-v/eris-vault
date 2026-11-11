@@ -205,3 +205,27 @@ export async function sheetsForCharacter(characterId: string) {
     .where(eq(sheetUploads.characterId, characterId))
     .orderBy(asc(sheetUploads.createdAt));
 }
+
+/**
+ * Stats Jay or an admin set by hand on one character, newest first: who, when,
+ * which fields and the reason they gave (from the insert-only audit log).
+ */
+export async function statOverrides(characterId: string) {
+  const rows = await db
+    .select({ actorName: users.name, after: auditLog.after, createdAt: auditLog.createdAt })
+    .from(auditLog)
+    .leftJoin(users, eq(users.id, auditLog.actorId))
+    .where(and(eq(auditLog.characterId, characterId), eq(auditLog.action, "character.override")))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(50);
+  return rows.map((r) => {
+    const after = (r.after ?? {}) as Record<string, unknown>;
+    const { reason, ...fields } = after;
+    return {
+      actorName: r.actorName,
+      createdAt: r.createdAt,
+      reason: typeof reason === "string" ? reason : null,
+      fields: Object.keys(fields),
+    };
+  });
+}

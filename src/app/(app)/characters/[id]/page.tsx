@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import { DiceFaces, PURPOSE_LABEL } from "@/components/Dice";
 import { Nav } from "@/components/Nav";
 import { Chip, Panel } from "@/components/ui";
-import { getCharacter, sheetsForCharacter } from "@/lib/queries";
+import { getCharacter, sheetsForCharacter, statOverrides } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
 import { ADVANCEMENT_SOURCE, cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
 import { CATALOG, catalogItem, classAllows, type Wielder } from "@/lib/rules/equipment";
+import { overrideOpen, playStateOpen } from "@/lib/rules/overrides";
 import { castsSpells } from "@/lib/rules/spells";
 import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
@@ -15,6 +16,8 @@ import { SubmitButton } from "./build/forms";
 import { GearPanel, type GearCatalogRow, type GearItem } from "./GearPanel";
 import { LevelPanel } from "./LevelPanel";
 import { NotesPanel } from "./NotesPanel";
+import { CoinsPanel, HitPointsPanel } from "./PlayStatePanels";
+import { StatsEditor } from "./StatsEditor";
 import { SpellsPanel } from "./SpellsPanel";
 import { approveCharacter, grantReroll, returnToPlayer } from "../actions";
 
@@ -68,6 +71,24 @@ export default async function CharacterPage({
     enc: i.enc,
     why: limitFor(i.key),
   }));
+  // Hit points and coins: the player once approved, Jay and admins once submitted.
+  const canPlay = can.editPlayState(viewer, c) && playStateOpen(c.status, staff);
+  const canOverride = can.overrideStats(viewer) && overrideOpen(c.status);
+  // Who set abilities or maximum hit points by hand. The reason shows to the player and staff.
+  const overrides = c.manualFields.length > 0 ? await statOverrides(c.id) : [];
+  const seesReason = staff || c.ownerId === viewer.userId;
+  const lastSet = (fields: readonly string[]) => overrides.find((o) => o.fields.some((f) => fields.includes(f))) ?? null;
+  const handSetNote = (fields: readonly string[]) => {
+    const o = lastSet(fields);
+    if (!o) return null;
+    return (
+      <p className="text-xs text-amber">
+        Set by hand by {o.actorName ?? "Jay"} on {o.createdAt.toISOString().slice(0, 10)}
+        {seesReason && o.reason ? `: ${o.reason}` : "."}
+      </p>
+    );
+  };
+  const hpHandSet = c.manualFields.includes("hpMax") ? handSetNote(["hpMax"]) : null;
   const xpPct =
     lvl && active && lvl.nextXp ? Math.round(((active.xp - lvl.startXp) / (lvl.nextXp - lvl.startXp)) * 100) : 100;
 
@@ -176,6 +197,23 @@ export default async function CharacterPage({
                 </SubmitButton>
               </form>
             )}
+            {canOverride && (
+              <StatsEditor
+                id={c.id}
+                name={c.name}
+                alignment={c.alignment}
+                deity={c.deity}
+                scores={{ str: c.str, int: c.int, wis: c.wis, dex: c.dex, con: c.con, cha: c.cha }}
+                hpMax={c.hpMax}
+                classes={c.classes.map((k) => ({
+                  id: k.id,
+                  class: k.class,
+                  xp: k.xp,
+                  highestHitDie: Math.max(0, ...c.levelDice.filter((d) => d.class === k.class).map((d) => d.level)),
+                }))}
+                activeClass={active?.class ?? null}
+              />
+            )}
             {c.grants.length > 0 && <Chip tone="amber">{c.grants.length} re-roll{c.grants.length === 1 ? "" : "s"} waiting</Chip>}
           </div>
         )}
@@ -233,7 +271,10 @@ export default async function CharacterPage({
                       {score}
                     </div>
                   </div>
-                  <div className="flex-1 text-sm font-semibold tracking-wide">{ABILITY_NAMES[a].toUpperCase()}</div>
+                  <div className="flex flex-1 flex-col text-sm font-semibold tracking-wide">
+                    {ABILITY_NAMES[a].toUpperCase()}
+                    {c.manualFields.includes(a) && <span className="text-xs font-normal tracking-normal text-amber">Set by hand</span>}
+                  </div>
                   <div
                     className={`min-w-11 rounded-lg px-2 py-1.5 text-center font-mono ${
                       mod > 0 ? "bg-[#222c17] text-lime" : mod < 0 ? "bg-[#2e1a15] text-ember" : "bg-surface-2 text-muted"
@@ -244,20 +285,12 @@ export default async function CharacterPage({
                 </div>
               );
             })}
+            {handSetNote(ABILITIES)}
           </Panel>
 
           <div className="@container flex min-w-0 flex-[1_1_380px] flex-col gap-4">
             <div className="grid gap-3 @xs:grid-cols-2">
-              <Panel title="Hit points">
-                {c.hpMax === null ? (
-                  <div className="text-sm text-subtle">Not rolled yet</div>
-                ) : (
-                  <div className="font-mono text-4xl">
-                    {c.hpCurrent}
-                    <span className="text-lg text-subtle"> / {c.hpMax}</span>
-                  </div>
-                )}
-              </Panel>
+              <HitPointsPanel id={c.id} current={c.hpCurrent} max={c.hpMax} canEdit={canPlay} staff={staff} handSet={hpHandSet} />
               <Panel title="Saving throw" aside={active ? ADVANCEMENT_SOURCE[active.class] : undefined}>
                 <div className="font-mono text-4xl">{lvl?.save ?? "?"}</div>
                 <div className="text-xs text-subtle">Class and race bonuses arrive with the rules engine.</div>
@@ -281,22 +314,7 @@ export default async function CharacterPage({
                 </div>
               )}
             </Panel>
-            <Panel title="Coins">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className={`rounded-lg p-2 ${c.coinsGp < 0 ? "bg-[#2e1a15] text-ember" : "bg-surface-2"}`}>
-                  <div className="font-mono text-xl">{c.coinsGp}</div>
-                  <div className="text-xs text-muted">gold</div>
-                </div>
-                <div className="rounded-lg bg-surface-2 p-2">
-                  <div className="font-mono text-xl">{c.coinsSp}</div>
-                  <div className="text-xs text-muted">silver</div>
-                </div>
-                <div className="rounded-lg bg-surface-2 p-2">
-                  <div className="font-mono text-xl">{c.coinsCp}</div>
-                  <div className="text-xs text-muted">copper</div>
-                </div>
-              </div>
-            </Panel>
+            <CoinsPanel id={c.id} gp={c.coinsGp} sp={c.coinsSp} cp={c.coinsCp} canEdit={canPlay} />
           </div>
 
           <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">

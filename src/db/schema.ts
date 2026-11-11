@@ -120,6 +120,9 @@ export const characters = pgTable("characters", {
   spellsKnown: text("spells_known").array().notNull().default(sql`'{}'::text[]`),
   spellsPrepared: text("spells_prepared").array().notNull().default(sql`'{}'::text[]`),
   notes: text("notes"),
+  // Abilities and maximum hit points Jay or an admin set by hand (ManualField
+  // in src/lib/rules/overrides.ts). The rolls behind the old values stay in `rolls`.
+  manualFields: text("manual_fields").array().notNull().default(sql`'{}'::text[]`),
   source: text("source").notNull().default("app"),
   importFlags: jsonb("import_flags").$type<ImportFlag[]>().notNull().default([]),
   deletedAt: timestamp("deleted_at", { mode: "date" }),
