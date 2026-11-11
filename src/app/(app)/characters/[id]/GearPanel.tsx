@@ -3,7 +3,7 @@
 import { startTransition, useActionState, useRef, useState, type FormEvent } from "react";
 import { Panel } from "@/components/ui";
 import { ITEM_MAX_QUANTITY, ITEM_MAX_UNITS, ITEM_NAME_MAX } from "@/lib/rules/equipment";
-import { addCatalogItem, addCustomItem, deleteItem, setItemQuantity, type GearResult } from "../gear-actions";
+import { addCatalogItem, addCustomItem, deleteItem, setItemMagic, setItemQuantity, type GearResult } from "../gear-actions";
 
 export type GearItem = {
   id: string;
@@ -115,7 +115,7 @@ export function GearPanel({
         <p className="text-sm text-muted">Nothing carried.</p>
       ) : (
         <ul className="flex flex-col divide-y divide-[#262920]">
-          {items.map((i) => (editing ? <EditRow key={i.id} characterId={id} item={i} /> : <ViewRow key={i.id} item={i} />))}
+          {items.map((i) => (editing ? <EditRow key={i.id} characterId={id} item={i} staff={staff} /> : <ViewRow key={i.id} item={i} />))}
         </ul>
       )}
 
@@ -161,8 +161,9 @@ function ViewRow({ item }: { item: GearItem }) {
   );
 }
 
-function EditRow({ characterId, item }: { characterId: string; item: GearItem }) {
+function EditRow({ characterId, item, staff }: { characterId: string; item: GearItem; staff: boolean }) {
   const [qtyState, qtyAction] = useActionState(setItemQuantity, idle);
+  const [magicState, magicAction] = useActionState(setItemMagic, idle);
   const [delState, delAction] = useActionState(deleteItem, idle);
   const [qty, setQty] = useState(String(item.quantity));
   const form = useRef<HTMLFormElement>(null);
@@ -188,7 +189,34 @@ function EditRow({ characterId, item }: { characterId: string; item: GearItem })
           )}
           <ItemMeta item={item} />
         </span>
-        <span className="flex items-center gap-2">
+        <span className="flex flex-wrap items-center gap-2">
+          {staff && (
+            <form action={magicAction}>
+              <input type="hidden" name="id" value={characterId} />
+              <input type="hidden" name="itemId" value={item.id} />
+              <input type="hidden" name="magic" value={item.isMagic ? "off" : "on"} />
+              <button
+                type="submit"
+                role="switch"
+                aria-checked={item.isMagic}
+                aria-label={`${item.name} is magic`}
+                title="Magic gear counts 0 units (campaign ruling)"
+                className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[13px] ${
+                  item.isMagic ? "border-[#4b5e2a] bg-[#222c17] text-lime" : "border-line-2 text-muted hover:border-lime"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`relative h-4 w-7 rounded-full transition-colors ${item.isMagic ? "bg-lime" : "bg-[#3a3d33]"}`}
+                >
+                  <span
+                    className={`absolute top-0.5 size-3 rounded-full bg-ink transition-[left] ${item.isMagic ? "left-3.5" : "left-0.5"}`}
+                  />
+                </span>
+                Magic
+              </button>
+            </form>
+          )}
           <form ref={form} action={qtyAction} className="flex items-center">
             <input type="hidden" name="id" value={characterId} />
             <input type="hidden" name="itemId" value={item.id} />
@@ -250,7 +278,7 @@ function EditRow({ characterId, item }: { characterId: string; item: GearItem })
           </form>
         </span>
       </div>
-      <Problem text={qtyState.error ?? delState.error} />
+      <Problem text={qtyState.error ?? magicState.error ?? delState.error} />
     </li>
   );
 }

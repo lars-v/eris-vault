@@ -38,6 +38,8 @@ export const can = {
   // Gear changes in play: the player who owns the character, or Jay and admins on any character.
   editGear: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
+  // Magic gear counts 0 units (campaign ruling), so only Jay and admins mark or unmark it.
+  markMagic: (v: Viewer) => v.status === "active" && isStaff(v),
   editCoreStats: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || (c.ownerId === v.userId && c.status === "draft")),
   awardXp: (v: Viewer) => v.status === "active" && isStaff(v),

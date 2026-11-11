@@ -24,6 +24,14 @@ describe("who can edit gear", () => {
   });
 });
 
+describe("who can mark gear magic (magic counts 0 units, campaign ruling)", () => {
+  it("Jay and admins can; players can't, even on their own characters", () => {
+    expect(can.markMagic(gm)).toBe(true);
+    expect(can.markMagic(admin)).toBe(true);
+    expect(can.markMagic(player)).toBe(false);
+  });
+});
+
 describe("adding from the price list (WW p. 17)", () => {
   const thief = { cls: "thief" as const, race: "human" as const, int: 10 };
   const mu = { cls: "magic-user" as const, race: "human" as const, int: 10 };

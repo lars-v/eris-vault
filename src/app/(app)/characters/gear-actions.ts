@@ -154,7 +154,7 @@ async function addCustomItemImpl(formData: FormData) {
         units: unitsRaw === "" ? null : Number(unitsRaw),
         isMagic: formData.get("magic") === "on",
       },
-      can.approve(viewer),
+      can.markMagic(viewer),
     );
     if (typeof checked === "string") throw new Error(checked);
     const row = {
@@ -193,6 +193,25 @@ async function setItemQuantityImpl(formData: FormData) {
   done(id);
 }
 
+/** Jay or an admin marks an item magic or plain again (`magic` = "on" or "off"). */
+async function setItemMagicImpl(formData: FormData) {
+  const viewer = await requireUser();
+  const id = str(formData, "id");
+  const magic = str(formData, "magic");
+  if (magic !== "on" && magic !== "off") throw new Error("Choose magic or not magic.");
+  const isMagic = magic === "on";
+  const result = await db.transaction(async (tx) => {
+    await lockForGear(tx, viewer, id);
+    if (!can.markMagic(viewer)) throw new Error("Only Jay can mark an item as magic.");
+    const item = await findItem(tx, id, str(formData, "itemId"));
+    if (item.isMagic === isMagic) return null;
+    await tx.update(inventory).set({ isMagic }).where(eq(inventory.id, item.id));
+    return { before: snapshot(item), after: snapshot({ ...item, isMagic }) };
+  });
+  if (result) await audit(viewer, "gear.magic", id, result.before, result.after);
+  done(id);
+}
+
 async function deleteItemImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
@@ -216,6 +235,10 @@ export async function addCustomItem(_prev: GearResult, formData: FormData): Prom
 
 export async function setItemQuantity(_prev: GearResult, formData: FormData): Promise<GearResult> {
   return guard(formData, setItemQuantityImpl);
+}
+
+export async function setItemMagic(_prev: GearResult, formData: FormData): Promise<GearResult> {
+  return guard(formData, setItemMagicImpl);
 }
 
 export async function deleteItem(_prev: GearResult, formData: FormData): Promise<GearResult> {
