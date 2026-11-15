@@ -145,7 +145,7 @@ async function overrideStatsImpl(formData: FormData) {
     const rolled = await tx
       .select({ class: hitDice.class, top: max(hitDice.level) })
       .from(hitDice)
-      .where(eq(hitDice.characterId, id))
+      .where(and(eq(hitDice.characterId, id), isNull(hitDice.lostAt)))
       .groupBy(hitDice.class);
     const xpInput: Record<string, number> = {};
     for (const k of classRows) xpInput[k.id] = num(formData, `xp-${k.id}`);

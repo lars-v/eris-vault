@@ -42,6 +42,9 @@ const RULINGS = [
   ["cleric-l1-scroll-spells", "Who picks the spells on a 1st-level cleric's limited prayer scroll: the player, or Jay?", "WW p. 25", null, "pending"],
   ["mu-combat-rows", "The Character Combat Matrix lists magic-user levels 4-6 in one row and 5-9 in the next. Does a 5th or 6th level magic-user use the second row or the third? WW p. 19 says magic-users improve every 3 levels. Until then, the sheet shows both rows.", "WW pp. 19-20", null, "pending"],
   ["neutral-cleric-fourth", "A neutral cleric must choose Law or Chaos before advancing to 4th level 'under most circumstances'. Should the vault stop a neutral cleric's 4th-level hit die roll until the alignment changes? Until then, the sheet warns but does not stop it.", "WW p. 8", null, "pending"],
+  ["drain-xp", "When a Wight, Wraith, Spectre or Vampire drains a level, what XP does the character keep? Until then, Jay enters the new XP each time.", "M&T p. 9 says a hit removes the level and its hit die, not what XP is left; WW silent", null, "pending"],
+  ["drain-hp-current", "When a level drain lowers maximum hit points, do current hit points drop too? Until then, current hit points stay as they are.", "M&T p. 9 silent", null, "pending"],
+  ["regain-drained-level", "When a drained character earns a lost level back, is a new hit die rolled for it? Until then, yes, like any new level.", "M&T p. 9 silent; WW p. 6", null, "pending"],
   ["one-level-per-adventure", "Men & Magic recommends that no single adventure awards more XP than it takes to gain one level. Does the table use this? Until then, the award form warns when an award gains more than one level, but allows it.", "M&M p. 18", null, "pending"],
 ];
 

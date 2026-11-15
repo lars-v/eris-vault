@@ -66,11 +66,11 @@ export async function getCharacter(id: string) {
     listRolls({ characterId: id }),
     openGrants(id),
     db
-      .select({ class: hitDice.class, level: hitDice.level, gain: hitDice.gain, dice: rolls.dice, total: rolls.totals, formula: rolls.formula })
+      .select({ id: hitDice.id, class: hitDice.class, level: hitDice.level, gain: hitDice.gain, lostAt: hitDice.lostAt, dice: rolls.dice, total: rolls.totals, formula: rolls.formula })
       .from(hitDice)
       .innerJoin(rolls, eq(rolls.id, hitDice.rollId))
       .where(eq(hitDice.characterId, id))
-      .orderBy(asc(hitDice.level)),
+      .orderBy(asc(hitDice.level), asc(hitDice.createdAt)),
   ]);
   const abilityRoll = c.abilityRollId ? characterRolls.find((r) => r.id === c.abilityRollId) ?? null : null;
   return { ...c, ownerName: owner?.name ?? null, classes, items, rolls: characterRolls, grants, abilityRoll, levelDice };
@@ -204,7 +204,7 @@ export async function levelUpsWaiting(): Promise<WaitingLevelUp[]> {
       .innerJoin(users, eq(users.id, characters.ownerId))
       .where(and(inArray(characters.status, ["submitted", "approved"]), isNull(characters.deletedAt)))
       .orderBy(asc(characters.name)),
-    db.select({ characterId: hitDice.characterId, cls: hitDice.class, level: hitDice.level }).from(hitDice),
+    db.select({ characterId: hitDice.characterId, cls: hitDice.class, level: hitDice.level }).from(hitDice).where(isNull(hitDice.lostAt)),
   ]);
   const out: WaitingLevelUp[] = [];
   for (const k of classRows) {

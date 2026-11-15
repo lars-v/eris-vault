@@ -199,8 +199,12 @@ export const hitDice = pgTable(
       .references(() => rolls.id),
     gain: smallint("gain"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    // Set when a level drain takes this die's level away (Monsters & Treasure p. 9).
+    // The row stays as the record; only dice with no lost_at count.
+    lostAt: timestamp("lost_at", { mode: "date" }),
   },
-  (t) => [uniqueIndex("hit_dice_level").on(t.characterId, t.class, t.level)],
+  // One counted die per level; a level lost and earned back gets a new row.
+  (t) => [uniqueIndex("hit_dice_level").on(t.characterId, t.class, t.level).where(sql`${t.lostAt} is null`)],
 );
 
 /** A GM or admin lets a player roll one purpose again for one character. */

@@ -7,10 +7,11 @@ import { HIT_DIE_ADJUST } from "@/lib/rules/dice";
 import { levelUp, ordinal, type LevelUp } from "@/lib/rules/levelup";
 import { rollLevelHitPoints } from "../actions";
 import { AwardXpForm } from "./AwardXpForm";
+import { DrainForm } from "./DrainForm";
 import { SubmitButton } from "./build/forms";
 
 type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean; baseHpLevel: number };
-type LevelDie = { class: CharacterClass; level: number; gain: number | null; dice: number[][]; total: number[] };
+type LevelDie = { id: string; class: CharacterClass; level: number; gain: number | null; lostAt: Date | null; dice: number[][]; total: number[] };
 
 /** What a level-up changed, each line with its page; open questions name their ruling. */
 function LevelChanges({ up }: { up: LevelUp }) {
@@ -55,6 +56,7 @@ export function LevelPanel({
   recordedSpells,
   classes,
   firstLevelCounted,
+  hpMax,
   conModifier,
   levelDice,
   canRoll,
@@ -67,6 +69,7 @@ export function LevelPanel({
   recordedSpells: string[];
   classes: ClassRow[];
   firstLevelCounted: boolean;
+  hpMax: number | null;
   conModifier: number;
   levelDice: LevelDie[];
   canRoll: boolean;
@@ -76,7 +79,8 @@ export function LevelPanel({
     <Panel title="Levels and hit points" aside="Woundwort's Warren pp. 6-11">
       {classes.map((k) => {
         const dice = levelDice.filter((d) => d.class === k.class);
-        const counted = countedHpLevel(firstLevelCounted, k.baseHpLevel, dice.map((d) => d.level));
+        // Dice lost to a level drain stay listed but no longer count (Monsters & Treasure p. 9).
+        const counted = countedHpLevel(firstLevelCounted, k.baseHpLevel, dice.filter((d) => !d.lostAt).map((d) => d.level));
         const toRoll = levelsToRoll(race, k.class, k.xp, counted);
         const cap = maxLevel(race, k.class);
         const reached = Math.min(levelFor(k.class, k.xp).level, cap);
@@ -134,10 +138,15 @@ export function LevelPanel({
             {dice.length > 0 && (
               <ul className="flex flex-col divide-y divide-[#262920]">
                 {dice.map((d) => (
-                  <li key={d.level} className="flex flex-wrap items-center gap-3 py-2 text-sm">
+                  <li key={d.id} className={`flex flex-wrap items-center gap-3 py-2 text-sm ${d.lostAt ? "opacity-60" : ""}`}>
                     <span className="w-24 text-muted">{ordinal(d.level)} level</span>
                     <DiceFaces faces={d.dice[0]} size="sm" />
-                    {d.gain !== null ? (
+                    {d.lostAt ? (
+                      <span className="text-ember">
+                        <s className="font-mono">{d.gain === null ? "+0" : `+${d.gain}`} hp</s> lost to a level drain on{" "}
+                        {d.lostAt.toISOString().slice(0, 10)}
+                      </span>
+                    ) : d.gain !== null ? (
                       <span className="font-mono">+{d.gain} hp</span>
                     ) : (
                       <span className="text-amber">
@@ -156,6 +165,17 @@ export function LevelPanel({
         (level-hp-current).
       </p>
       {canAward && <AwardXpForm characterId={characterId} race={race} classes={classes} />}
+      {canAward && hpMax !== null && firstLevelCounted && (
+        <DrainForm
+          characterId={characterId}
+          race={race}
+          hpMax={hpMax}
+          classes={classes.map((k) => ({
+            ...k,
+            dice: levelDice.filter((d) => d.class === k.class && !d.lostAt).map((d) => ({ id: d.id, level: d.level, gain: d.gain })),
+          }))}
+        />
+      )}
     </Panel>
   );
 }

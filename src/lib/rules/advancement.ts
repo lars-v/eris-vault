@@ -143,7 +143,7 @@ export function levelsToRoll(race: Race | null, cls: CharacterClass, xp: number,
  */
 export function xpBelowRolledLevel(cls: CharacterClass, xp: number, highestHitDie: number): string | null {
   if (levelFor(cls, xp).level >= highestHitDie) return null;
-  return `${CLASS_NAMES[cls]} has hit points rolled for level ${highestHitDie}, so its XP can't go below that level.`;
+  return `${CLASS_NAMES[cls]} has hit points rolled for level ${highestHitDie}, so its XP can't go below that level. To take levels away, use Level loss on the sheet.`;
 }
 
 /** Title, XP and save for one level, 1 to 9 (WW pp. 7-9). */

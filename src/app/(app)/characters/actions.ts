@@ -25,6 +25,7 @@ import { assignScores, isValidIdentity } from "@/lib/rules/creation";
 import { countedHpLevel, levelFor, levelsToRoll, xpBelowRolledLevel } from "@/lib/rules/advancement";
 import { rollAbilitySets, rollFirstLevelHp, rollLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
 import { catalogItem, checkKit, classAllows, kindFor, randomKitKeys } from "@/lib/rules/equipment";
+import { planDrain } from "@/lib/rules/drain";
 import { changedFromSheet, importFlags } from "@/lib/rules/import";
 import { draftFromFields, matchCatalog, readPdfFields, SHEET_MAX_BYTES, sniffSheetType } from "@/lib/sheets";
 import { requireStaff, requireUser, type CurrentUser } from "@/lib/session";
@@ -658,7 +659,7 @@ async function awardXpImpl(formData: FormData) {
       const [top] = await tx
         .select({ level: max(hitDice.level) })
         .from(hitDice)
-        .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class)));
+        .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class), isNull(hitDice.lostAt)));
       const below = xpBelowRolledLevel(k.class, xp, top?.level ?? 0);
       if (below) throw new Error(below);
     }
@@ -702,7 +703,7 @@ async function rollLevelHpImpl(formData: FormData) {
     const done = await tx
       .select({ level: hitDice.level })
       .from(hitDice)
-      .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class)));
+      .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class), isNull(hitDice.lostAt)));
     const counted = countedHpLevel(c.source !== "app" || Boolean(c.hpRollId), k.baseHpLevel, done.map((d) => d.level));
     const [level] = levelsToRoll(c.race, k.class, k.xp, counted);
     if (!level) throw new Error("There is no new level to roll hit points for.");
@@ -723,6 +724,83 @@ async function rollLevelHpImpl(formData: FormData) {
     });
   }
   refresh(id);
+}
+
+/**
+ * Level loss (Monsters & Treasure p. 9): Jay sets a lower XP for one class.
+ * Every level above the new one loses its hit die: the die is marked lost
+ * (the roll stays in the log) and its gain comes off maximum hit points.
+ * Levels an imported sheet brought in have no die on record, so Jay enters
+ * the hit points they gave. Current hit points stay as they are
+ * ("drain-hp-current" is pending).
+ */
+async function drainLevelsImpl(formData: FormData) {
+  const viewer = await requireUser();
+  if (!can.awardXp(viewer)) throw new Error("Only Jay or an admin can take levels away.");
+  const id = str(formData, "id");
+  const classId = str(formData, "classId");
+  if (!/^[0-9a-f-]{36}$/i.test(id) || !/^[0-9a-f-]{36}$/i.test(classId)) throw new Error("Unknown character");
+  const newXp = wholeNumber(formData, "xp", "New XP", 0, 10_000_000);
+  const hpRaw = str(formData, "hpLost");
+  const untrackedHpLost = hpRaw === "" ? null : wholeNumber(formData, "hpLost", "Hit points lost", 0, 999);
+  const reason = str(formData, "reason").slice(0, 200);
+  if (!reason) throw new Error("Give a reason, for example the monster and the session. It goes in the audit log.");
+
+  const change = await db.transaction(async (tx) => {
+    const [c] = await tx
+      .select()
+      .from(characters)
+      .where(and(eq(characters.id, id), isNull(characters.deletedAt)))
+      .for("update");
+    if (!c) throw new Error("Unknown character");
+    if (!XP_STATUSES.has(c.status)) throw new Error("Levels are taken away from submitted or approved characters.");
+    if (c.hpMax === null) throw new Error("This character has no hit points yet.");
+    const [k] = await tx
+      .select()
+      .from(characterClasses)
+      .where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
+    if (!k) throw new Error("Unknown class");
+    const dice = await tx
+      .select({ id: hitDice.id, level: hitDice.level, gain: hitDice.gain })
+      .from(hitDice)
+      .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class), isNull(hitDice.lostAt)));
+    const plan = planDrain({
+      race: c.race,
+      cls: k.class,
+      xp: k.xp,
+      baseHpLevel: k.baseHpLevel,
+      dice,
+      hpMax: c.hpMax,
+      newXp,
+      untrackedHpLost,
+    });
+    if (typeof plan === "string") throw new Error(plan);
+    const now = new Date();
+    for (const d of plan.lostDice) await tx.update(hitDice).set({ lostAt: now }).where(eq(hitDice.id, d.id));
+    await tx.update(characterClasses).set({ xp: newXp, baseHpLevel: plan.newBaseHpLevel }).where(eq(characterClasses.id, k.id));
+    await tx.update(characters).set({ hpMax: plan.newHpMax, updatedAt: now }).where(eq(characters.id, id));
+    return { cls: k.class, xp: k.xp, hpMax: c.hpMax, plan };
+  });
+  await writeAudit(viewer, {
+    action: "character.levels_lost",
+    characterId: id,
+    before: { class: change.cls, xp: change.xp, level: change.plan.fromLevel, hpMax: change.hpMax },
+    after: {
+      class: change.cls,
+      xp: newXp,
+      level: change.plan.toLevel,
+      hpMax: change.plan.newHpMax,
+      diceLost: change.plan.lostDice.map((d) => ({ level: d.level, gain: d.gain })),
+      sheetLevelsLost: change.plan.untrackedLevels,
+      sheetHpLost: change.plan.untrackedLevels.length > 0 ? untrackedHpLost : null,
+      reason,
+    },
+  });
+  refresh(id);
+}
+
+export async function drainLevels(formData: FormData) {
+  return guard(formData, drainLevelsImpl, sheetPath(formData));
 }
 
 const sheetPath = (fd: FormData) => `/characters/${encodeURIComponent(str(fd, "id"))}`;

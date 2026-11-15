@@ -210,7 +210,7 @@ export default async function CharacterPage({
                   id: k.id,
                   class: k.class,
                   xp: k.xp,
-                  highestHitDie: Math.max(0, ...c.levelDice.filter((d) => d.class === k.class).map((d) => d.level)),
+                  highestHitDie: Math.max(0, ...c.levelDice.filter((d) => d.class === k.class && !d.lostAt).map((d) => d.level)),
                 }))}
                 activeClass={active?.class ?? null}
               />
@@ -334,6 +334,7 @@ export default async function CharacterPage({
             recordedSpells={c.spellsKnown}
             classes={c.classes}
             firstLevelCounted={imported || Boolean(c.hpRollId)}
+            hpMax={c.hpMax}
             conModifier={c.con === null ? 0 : abilityModifier(c.con)}
             levelDice={c.levelDice}
             canRoll={can.editPlayState(viewer, c)}
