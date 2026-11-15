@@ -1,24 +1,58 @@
 import { DiceFaces } from "@/components/Dice";
 import { Panel } from "@/components/ui";
-import type { CharacterClass, Race } from "@/db/schema";
+import type { Alignment, CharacterClass, Race } from "@/db/schema";
 import { formatModifier } from "@/lib/rules/abilities";
 import { CLASS_NAMES, countedHpLevel, levelFor, levelsToRoll, maxLevel } from "@/lib/rules/advancement";
 import { HIT_DIE_ADJUST } from "@/lib/rules/dice";
-import { awardXp, rollLevelHitPoints } from "../actions";
+import { levelUp, ordinal, type LevelUp } from "@/lib/rules/levelup";
+import { rollLevelHitPoints } from "../actions";
+import { AwardXpForm } from "./AwardXpForm";
 import { SubmitButton } from "./build/forms";
 
 type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean; baseHpLevel: number };
 type LevelDie = { class: CharacterClass; level: number; gain: number | null; dice: number[][]; total: number[] };
 
-const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
+/** What a level-up changed, each line with its page; open questions name their ruling. */
+function LevelChanges({ up }: { up: LevelUp }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <ul className="grid max-w-md grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 text-sm">
+        {up.changes.map((c) => (
+          <li key={c.label} className="contents">
+            <span className="text-muted">
+              {c.label} <span className="text-xs text-subtle">{c.source}</span>
+            </span>
+            <span className="text-right font-mono">
+              {c.before} <span className="text-subtle">→</span> {c.after}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {up.notes.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {up.notes.map((n) => (
+            <li key={n.text} className={`text-sm ${n.ruling ? "text-amber" : "text-[#d6d2c2]"}`}>
+              {n.text}
+              {n.ruling && ` Jay rules (${n.ruling}).`}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /**
- * XP and hit points for new levels. Jay awards XP; when it reaches a new
- * level, the player (or Jay) rolls that level's hit die (WW p. 6).
+ * XP and new levels. Jay awards XP; when it reaches a new level the sheet
+ * lists what changed, and the player (or Jay) rolls that level's hit die
+ * (WW p. 6).
  */
 export function LevelPanel({
   characterId,
   race,
+  alignment,
+  wis,
+  recordedSpells,
   classes,
   firstLevelCounted,
   conModifier,
@@ -28,6 +62,9 @@ export function LevelPanel({
 }: {
   characterId: string;
   race: Race | null;
+  alignment: Alignment | null;
+  wis: number | null;
+  recordedSpells: string[];
   classes: ClassRow[];
   firstLevelCounted: boolean;
   conModifier: number;
@@ -42,26 +79,41 @@ export function LevelPanel({
         const counted = countedHpLevel(firstLevelCounted, k.baseHpLevel, dice.map((d) => d.level));
         const toRoll = levelsToRoll(race, k.class, k.xp, counted);
         const cap = maxLevel(race, k.class);
+        const reached = Math.min(levelFor(k.class, k.xp).level, cap);
         const capped = levelFor(k.class, k.xp).level > cap;
         const adj = HIT_DIE_ADJUST[k.class] + conModifier;
+        const input = { race, cls: k.class, alignment, wis, recordedSpells };
+        const fresh = toRoll.length > 0 ? levelUp(input, counted, reached) : null;
+        const last = !fresh && firstLevelCounted && reached > 1 ? levelUp(input, reached - 1, reached) : null;
         return (
           <div key={k.id} className="flex flex-col gap-3">
             {classes.length > 1 && <h3 className="text-sm font-semibold">{CLASS_NAMES[k.class]}</h3>}
-            {toRoll.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#4b5e2a] bg-[#1b2113] px-4 py-3">
-                <span className="text-sm">
-                  {ordinal(toRoll[0])} level reached. Its hit die is 1d6 {formatModifier(HIT_DIE_ADJUST[k.class])} for the class
-                  {conModifier ? `, ${formatModifier(conModifier)} for Constitution` : ""} (WW pp. 5-6), so {1 + adj} to {6 + adj}.{toRoll.length > 1 ? ` ${toRoll.length - 1} more level${toRoll.length > 2 ? "s" : ""} after this one.` : ""}
-                </span>
-                {canRoll ? (
-                  <form action={rollLevelHitPoints}>
-                    <input type="hidden" name="id" value={characterId} />
-                    <input type="hidden" name="classId" value={k.id} />
-                    <SubmitButton pendingText="Rolling…">Roll hit points for {ordinal(toRoll[0])} level</SubmitButton>
-                  </form>
-                ) : (
-                  <span className="text-xs text-subtle">The player rolls this.</span>
-                )}
+            {fresh ? (
+              <div className="flex flex-col gap-3 rounded-xl border border-[#4b5e2a] bg-[#1b2113] px-4 py-3">
+                <h4 className="font-display text-2xl text-lime">
+                  {toRoll.length === 1
+                    ? `${ordinal(reached)} level reached`
+                    : `${ordinal(toRoll[0])} to ${ordinal(reached)} level reached`}
+                </h4>
+                <LevelChanges up={fresh} />
+                <div className="flex flex-wrap items-center gap-3 border-t border-[#4b5e2a] pt-3">
+                  <span className="text-sm">
+                    {ordinal(toRoll[0])} level&apos;s hit die is 1d6
+                    {HIT_DIE_ADJUST[k.class] ? ` ${formatModifier(HIT_DIE_ADJUST[k.class])} for the class` : ""}
+                    {conModifier ? `${HIT_DIE_ADJUST[k.class] ? "," : ""} ${formatModifier(conModifier)} for Constitution` : ""} (WW pp.
+                    5-6), so {1 + adj} to {6 + adj}.
+                    {toRoll.length > 1 ? ` ${toRoll.length - 1} more level${toRoll.length > 2 ? "s" : ""} to roll after this one.` : ""}
+                  </span>
+                  {canRoll ? (
+                    <form action={rollLevelHitPoints}>
+                      <input type="hidden" name="id" value={characterId} />
+                      <input type="hidden" name="classId" value={k.id} />
+                      <SubmitButton pendingText="Rolling…">Roll hit points for {ordinal(toRoll[0])} level</SubmitButton>
+                    </form>
+                  ) : (
+                    <span className="text-xs text-subtle">The player rolls this.</span>
+                  )}
+                </div>
               </div>
             ) : !firstLevelCounted ? (
               <p className="text-sm text-subtle">Roll 1st-level hit points in the build steps first.</p>
@@ -70,6 +122,14 @@ export function LevelPanel({
                 No new level to roll for.
                 {capped ? ` ${ordinal(cap)} level is as high as this race goes in this class (WW pp. 7-10).` : ""}
               </p>
+            )}
+            {last && (
+              <details className="rounded-xl border border-line px-4 py-2.5">
+                <summary className="min-h-8 cursor-pointer text-sm text-muted">What changed at {ordinal(reached)} level</summary>
+                <div className="pt-2">
+                  <LevelChanges up={last} />
+                </div>
+              </details>
             )}
             {dice.length > 0 && (
               <ul className="flex flex-col divide-y divide-[#262920]">
@@ -95,39 +155,7 @@ export function LevelPanel({
         A new level&apos;s hit die adds to maximum hit points. Current hit points stay as they are until Jay rules on that
         (level-hp-current).
       </p>
-      {canAward && (
-        <form action={awardXp} className="flex flex-wrap items-end gap-2 border-t border-line pt-3">
-          <input type="hidden" name="id" value={characterId} />
-          {classes.length > 1 && (
-            <label className="flex flex-col gap-1.5 text-[13px] text-muted">
-              Class
-              <select name="classId" defaultValue={classes.find((k) => k.active)?.id} className="min-h-11 rounded-xl border border-line-2 bg-ink px-2 text-sm text-parchment">
-                {classes.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    {CLASS_NAMES[k.class]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {classes.length === 1 && <input type="hidden" name="classId" value={classes[0].id} />}
-          <label className="flex w-32 flex-col gap-1.5 text-[13px] text-muted">
-            XP
-            <input name="amount" type="number" required step={1} className="min-h-11 rounded-xl border border-line-2 bg-ink px-3 font-mono text-[15px] text-parchment" />
-          </label>
-          <label className="flex min-w-50 flex-1 flex-col gap-1.5 text-[13px] text-muted">
-            Note (optional)
-            <input name="note" maxLength={200} placeholder="What it was for" className="min-h-11 rounded-xl border border-line-2 bg-ink px-3 text-sm text-parchment" />
-          </label>
-          <SubmitButton tone="amber" pendingText="Awarding…">
-            Award XP
-          </SubmitButton>
-          <span className="basis-full text-xs text-subtle">
-            Use a negative number to correct a mistake. High or low scores give no XP bonus or penalty (WW p. 11). Every award
-            goes in the audit log.
-          </span>
-        </form>
-      )}
+      {canAward && <AwardXpForm characterId={characterId} race={race} classes={classes} />}
     </Panel>
   );
 }

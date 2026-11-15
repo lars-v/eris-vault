@@ -136,6 +136,23 @@ export function levelsToRoll(race: Race | null, cls: CharacterClass, xp: number,
   return out;
 }
 
+/**
+ * XP may not drop below a level whose hit die was already rolled (WW p. 6):
+ * that die would stay in maximum hit points for a level the XP no longer
+ * reaches. Returns the message to show, or null when the XP is fine.
+ */
+export function xpBelowRolledLevel(cls: CharacterClass, xp: number, highestHitDie: number): string | null {
+  if (levelFor(cls, xp).level >= highestHitDie) return null;
+  return `${CLASS_NAMES[cls]} has hit points rolled for level ${highestHitDie}, so its XP can't go below that level.`;
+}
+
+/** Title, XP and save for one level, 1 to 9 (WW pp. 7-9). */
+export function levelRow(cls: CharacterClass, level: number): Row {
+  const row = TABLES[cls].find((r) => r.level === level);
+  if (!row) throw new RangeError(`No ${cls} row for level ${level}`);
+  return row;
+}
+
 export function levelFor(cls: CharacterClass, xp: number): LevelInfo {
   if (!Number.isInteger(xp) || xp < 0) throw new RangeError(`XP must be a whole number, got ${xp}`);
   const table = TABLES[cls];

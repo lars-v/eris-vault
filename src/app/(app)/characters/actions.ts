@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, max } from "drizzle-orm";
 import { db } from "@/db";
 import {
   characterClasses,
@@ -22,7 +22,7 @@ import { NOTES_MAX } from "@/lib/limits";
 import { can } from "@/lib/roles";
 import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities";
 import { assignScores, isValidIdentity } from "@/lib/rules/creation";
-import { countedHpLevel, levelFor, levelsToRoll } from "@/lib/rules/advancement";
+import { countedHpLevel, levelFor, levelsToRoll, xpBelowRolledLevel } from "@/lib/rules/advancement";
 import { rollAbilitySets, rollFirstLevelHp, rollLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
 import { catalogItem, checkKit, classAllows, kindFor, randomKitKeys } from "@/lib/rules/equipment";
 import { changedFromSheet, importFlags } from "@/lib/rules/import";
@@ -654,6 +654,14 @@ async function awardXpImpl(formData: FormData) {
     if (!k) throw new Error("Unknown class");
     const xp = k.xp + amount;
     if (xp < 0) throw new Error(`That would leave ${k.xp + amount} XP. A correction can take XP down to 0 at most.`);
+    if (amount < 0) {
+      const [top] = await tx
+        .select({ level: max(hitDice.level) })
+        .from(hitDice)
+        .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class)));
+      const below = xpBelowRolledLevel(k.class, xp, top?.level ?? 0);
+      if (below) throw new Error(below);
+    }
     await tx.update(characterClasses).set({ xp }).where(eq(characterClasses.id, k.id));
     await tx.update(characters).set({ updatedAt: new Date() }).where(eq(characters.id, id));
     return { cls: k.class, from: k.xp, to: xp };

@@ -1,6 +1,6 @@
 import type { Alignment, CharacterClass, CharacterStatus } from "@/db/schema";
 import { ABILITIES, ABILITY_NAMES, type Ability } from "./abilities";
-import { CLASS_NAMES, levelFor } from "./advancement";
+import { CLASS_NAMES, xpBelowRolledLevel } from "./advancement";
 import { alignmentsFor, ALIGNMENTS } from "./creation";
 
 /**
@@ -182,10 +182,8 @@ export function planOverride(cur: OverrideCurrent, input: OverrideInput, activeC
     if (v === undefined) return `Enter XP for ${CLASS_NAMES[k.class]}.`;
     if (!isWhole(v) || v < 0 || v > XP_LIMIT) return `XP for ${CLASS_NAMES[k.class]} must be a whole number from 0 to ${XP_LIMIT.toLocaleString("en-US")}.`;
     // Hit dice already rolled for higher levels would be left hanging (WW p. 6).
-    const level = levelFor(k.class, v).level;
-    if (level < k.highestHitDie) {
-      return `${CLASS_NAMES[k.class]} has hit points rolled for level ${k.highestHitDie}, so its XP can't go below that level.`;
-    }
+    const below = xpBelowRolledLevel(k.class, v, k.highestHitDie);
+    if (below) return below;
     if (v !== k.xp) {
       changes.push({ field: `xp:${k.class}`, label: `XP (${CLASS_NAMES[k.class]})`, from: k.xp, to: v });
       xp[k.id] = v;

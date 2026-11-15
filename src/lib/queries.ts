@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   accounts,
@@ -14,8 +14,10 @@ import {
   rulings,
   sheetUploads,
   users,
+  type CharacterClass,
 } from "@/db/schema";
 import { parseAdminIds } from "@/lib/roles";
+import { countedHpLevel, levelsToRoll } from "@/lib/rules/advancement";
 
 export async function listCharacters() {
   const rows = await db
@@ -168,6 +170,50 @@ export async function reviewQueue() {
     .from(characters)
     .innerJoin(users, eq(users.id, characters.ownerId))
     .where(and(eq(characters.status, "submitted"), isNull(characters.deletedAt)));
+}
+
+export type WaitingLevelUp = {
+  characterId: string;
+  name: string;
+  ownerName: string | null;
+  cls: CharacterClass;
+  /** Levels whose hit die still has to be rolled (WW p. 6), lowest first. */
+  levels: number[];
+};
+
+/**
+ * Submitted or approved characters whose XP reached a level that has no hit
+ * die rolled yet, worked out the same way the sheet's level panel does.
+ */
+export async function levelUpsWaiting(): Promise<WaitingLevelUp[]> {
+  const [classRows, dice] = await Promise.all([
+    db
+      .select({
+        characterId: characters.id,
+        name: characters.name,
+        ownerName: users.name,
+        race: characters.race,
+        source: characters.source,
+        hpRollId: characters.hpRollId,
+        cls: characterClasses.class,
+        xp: characterClasses.xp,
+        baseHpLevel: characterClasses.baseHpLevel,
+      })
+      .from(characterClasses)
+      .innerJoin(characters, eq(characters.id, characterClasses.characterId))
+      .innerJoin(users, eq(users.id, characters.ownerId))
+      .where(and(inArray(characters.status, ["submitted", "approved"]), isNull(characters.deletedAt)))
+      .orderBy(asc(characters.name)),
+    db.select({ characterId: hitDice.characterId, cls: hitDice.class, level: hitDice.level }).from(hitDice),
+  ]);
+  const out: WaitingLevelUp[] = [];
+  for (const k of classRows) {
+    const rolled = dice.filter((d) => d.characterId === k.characterId && d.cls === k.cls).map((d) => d.level);
+    const counted = countedHpLevel(k.source !== "app" || Boolean(k.hpRollId), k.baseHpLevel, rolled);
+    const levels = levelsToRoll(k.race, k.cls, k.xp, counted);
+    if (levels.length > 0) out.push({ characterId: k.characterId, name: k.name, ownerName: k.ownerName, cls: k.cls, levels });
+  }
+  return out;
 }
 
 /** Upload details without the file itself; the file is served by /api/sheets/[id]. */

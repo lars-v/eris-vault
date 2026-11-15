@@ -3,10 +3,10 @@ import { enabledProviders } from "@/auth";
 import { Guide } from "@/components/Guide";
 import { Nav } from "@/components/Nav";
 import { Chip, PageHeader } from "@/components/ui";
-import { listCharacters } from "@/lib/queries";
+import { levelUpsWaiting, listCharacters } from "@/lib/queries";
 import { welcomeSteps } from "@/lib/guide";
 import { can } from "@/lib/roles";
-import { CLASS_NAMES, levelFor } from "@/lib/rules/advancement";
+import { cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { requireUser } from "@/lib/session";
 import { DeleteCharacterButton } from "./DeleteCharacterButton";
 
@@ -17,7 +17,8 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export default async function PartyPage({ searchParams }: { searchParams: Promise<{ error?: string; guide?: string }> }) {
   const viewer = await requireUser();
   const { error, guide } = await searchParams;
-  const party = await listCharacters();
+  const [party, waiting] = await Promise.all([listCharacters(), levelUpsWaiting()]);
+  const levelUp = new Set(waiting.map((w) => w.characterId));
 
   return (
     <>
@@ -60,7 +61,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
         ) : (
           <div data-guide="party" className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-4">
             {party.map((c) => {
-              const lvl = c.cls ? levelFor(c.cls, c.xp ?? 0) : null;
+              const lvl = c.cls ? cappedLevelFor(c.race, c.cls, c.xp ?? 0) : null;
               const pct = c.hpMax && c.hpCurrent !== null ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;
               return (
                 <div
@@ -95,6 +96,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
                             {lvl.pastNine ? "+" : ""} · {lvl.title}
                           </Chip>
                         )}
+                        {levelUp.has(c.id) && <Chip tone="amber">Level up</Chip>}
                         {c.deity && <Chip>{c.deity}</Chip>}
                       </div>
                     </div>

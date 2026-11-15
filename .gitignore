@@ -42,3 +42,6 @@ next-env.d.ts
 
 # generated at boot
 .auth-secret
+
+# rule books dropped in for reference (copyrighted, large); never commit
+/*.pdf

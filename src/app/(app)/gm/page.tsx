@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Chip, PageHeader, Panel } from "@/components/ui";
-import { listAudit, listRulings, reviewQueue } from "@/lib/queries";
+import { levelUpsWaiting, listAudit, listRulings, reviewQueue } from "@/lib/queries";
+import { CLASS_NAMES } from "@/lib/rules/advancement";
+import { ordinal } from "@/lib/rules/levelup";
 import { requireStaff } from "@/lib/session";
 
 export const metadata = { title: "GM tools" };
 
 export default async function GmPage() {
   const viewer = await requireStaff();
-  const [queue, rulings, audit] = await Promise.all([reviewQueue(), listRulings(), listAudit(30)]);
+  const [queue, rulings, audit, waiting] = await Promise.all([reviewQueue(), listRulings(), listAudit(30), levelUpsWaiting()]);
   const pending = rulings.filter((r) => r.status === "pending");
   const decided = rulings.filter((r) => r.status === "decided");
 
@@ -59,6 +61,31 @@ export default async function GmPage() {
             </ul>
           </Panel>
         </div>
+
+        <Panel title={`Level-ups waiting · ${waiting.length}`} aside="Woundwort's Warren p. 6">
+          {waiting.length === 0 ? (
+            <p className="text-sm text-muted">No character has a new level waiting for its hit die.</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-[#262920]">
+              {waiting.map((w) => (
+                <li key={`${w.characterId}-${w.cls}`} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <span className="flex flex-col">
+                    <Link href={`/characters/${w.characterId}`} className="font-display text-2xl hover:text-lime">
+                      {w.name}
+                    </Link>
+                    <span className="text-sm text-muted">Player: {w.ownerName ?? "unknown"}</span>
+                  </span>
+                  <Chip tone="amber">
+                    {CLASS_NAMES[w.cls]} {w.levels.map(ordinal).join(", ")} level
+                  </Chip>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-subtle">
+            XP reached a new level and its hit die isn&apos;t rolled yet. The player rolls it on the character&apos;s sheet; you can roll it there too.
+          </p>
+        </Panel>
 
         <Panel title="Audit log" aside="Includes every admin action">
           {audit.length === 0 ? (

@@ -14,6 +14,7 @@ import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
 import { SubmitButton } from "./build/forms";
 import { GearPanel, type GearCatalogRow, type GearItem } from "./GearPanel";
+import { CombatPanel } from "./CombatPanel";
 import { LevelPanel } from "./LevelPanel";
 import { NotesPanel } from "./NotesPanel";
 import { CoinsPanel, HitPointsPanel } from "./PlayStatePanels";
@@ -328,6 +329,9 @@ export default async function CharacterPage({
           <LevelPanel
             characterId={c.id}
             race={c.race}
+            alignment={c.alignment}
+            wis={c.wis}
+            recordedSpells={c.spellsKnown}
             classes={c.classes}
             firstLevelCounted={imported || Boolean(c.hpRollId)}
             conModifier={c.con === null ? 0 : abilityModifier(c.con)}
@@ -336,6 +340,8 @@ export default async function CharacterPage({
             canAward={can.awardXp(viewer)}
           />
         )}
+
+        {active && <CombatPanel race={c.race} alignment={c.alignment} str={c.str} dex={c.dex} classes={c.classes} />}
 
         {active && lvl && castsSpells(active.class) && (
           <SpellsPanel

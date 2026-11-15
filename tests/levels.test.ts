@@ -43,3 +43,12 @@ describe("levels to roll (WW pp. 6-10)", () => {
     expect(levelFor("fighting-man", 10_000_000).level).toBe(9);
   });
 });
+
+describe("XP can't drop below a rolled hit die (WW p. 6)", () => {
+  it("refuses XP whose level is below the highest hit die rolled", async () => {
+    const { xpBelowRolledLevel } = await import("@/lib/rules/advancement");
+    expect(xpBelowRolledLevel("fighting-man", 4000, 3)).toBeNull();
+    expect(xpBelowRolledLevel("fighting-man", 3999, 3)).toContain("hit points rolled for level 3");
+    expect(xpBelowRolledLevel("thief", 0, 0)).toBeNull();
+  });
+});
