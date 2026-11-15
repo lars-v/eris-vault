@@ -351,8 +351,8 @@ export default async function CharacterPage({
             wis={c.wis}
             recorded={c.spellsKnown}
             prepared={c.spellsPrepared}
-            canPrepare={can.editPlayState(viewer, c)}
-            staff={staff}
+            canPrepare={can.editSpells(viewer, c)}
+            canEditBook={can.editSpells(viewer, c)}
           />
         )}
         <Panel title={`Rolls · ${c.rolls.length}`} aside="Insert-only; see the full roll log">

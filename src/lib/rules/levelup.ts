@@ -54,18 +54,18 @@ export function levelUp(input: LevelUpInput, from: number, to: number): LevelUp 
       if (cls === "cleric" && i === 0) return;
       const cost = SPELLBOOK_COST_GP[i].toLocaleString("en-US");
       if (cls === "cleric") {
-        notes.push({ text: `The cleric can now pray for ${ordinal(i + 1)}-level spells. The prayer scroll comes from the church or temple for an offering of ${cost} gp (WW p. 25). Jay records it.` });
+        notes.push({ text: `The cleric can now pray for ${ordinal(i + 1)}-level spells. The prayer scroll comes from the church or temple for an offering of ${cost} gp (WW p. 25). Record it on the sheet once bought.` });
       } else if (race === "elf") {
-        notes.push({ text: `The elf can now cast ${ordinal(i + 1)}-level spells. An elf adds spells to the mental book by studying scrolls or tomes, or from another elf who shares them (WW p. 10). Jay records them.` });
+        notes.push({ text: `The elf can now cast ${ordinal(i + 1)}-level spells. An elf adds spells to the mental book by studying scrolls or tomes, or from another elf who shares them (WW p. 10). Record them on the sheet.` });
       } else {
-        notes.push({ text: `The magic-user can now cast ${ordinal(i + 1)}-level spells. A ${ordinal(i + 1)}-level spellbook costs ${cost} gp, usually bought from a higher-level magic-user (WW p. 25). Jay records it.` });
+        notes.push({ text: `The magic-user can now cast ${ordinal(i + 1)}-level spells. A ${ordinal(i + 1)}-level spellbook costs ${cost} gp, usually bought from a higher-level magic-user (WW p. 25). Record it on the sheet once bought.` });
       }
     });
   }
   // WW p. 25: at 2nd level the church gives the complete 1st-level scroll for an offering.
   if (cls === "cleric" && from < 2 && to >= 2) {
     notes.push({
-      text: `At 2nd level the church gives a complete prayer scroll of every 1st-level cleric spell, in exchange for an offering (${SPELLBOOK_COST_GP[0].toLocaleString("en-US")} gp on the WW p. 25 table). Jay records it.`,
+      text: `At 2nd level the church gives a complete prayer scroll of every 1st-level cleric spell, in exchange for an offering (${SPELLBOOK_COST_GP[0].toLocaleString("en-US")} gp on the WW p. 25 table). Record it on the sheet once given.`,
     });
   }
 

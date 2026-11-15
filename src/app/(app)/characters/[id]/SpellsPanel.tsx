@@ -26,7 +26,7 @@ export function SpellsPanel({
   recorded,
   prepared,
   canPrepare,
-  staff,
+  canEditBook,
 }: {
   id: string;
   cls: SpellClass;
@@ -35,7 +35,7 @@ export function SpellsPanel({
   recorded: string[];
   prepared: string[];
   canPrepare: boolean;
-  staff: boolean;
+  canEditBook: boolean;
 }) {
   const slots = spellSlots(cls, level, wis);
   const known = knownSpells(cls, recorded);
@@ -88,7 +88,7 @@ export function SpellsPanel({
                 {options.length === 0 ? (
                   <p className="text-sm text-subtle">
                     No {ordinal(l)}-level {book} yet. It costs {SPELLBOOK_COST_GP[l - 1].toLocaleString("en-US")} gp
-                    {cls === "cleric" ? " as an offering to the church" : ""} (WW p. 25). Jay records it here.
+                    {cls === "cleric" ? " as an offering to the church" : ""} (WW p. 25). Record it below once the character has it.
                   </p>
                 ) : (
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
@@ -149,7 +149,7 @@ export function SpellsPanel({
                           start
                         </span>
                       ) : (
-                        staff && (
+                        canEditBook && (
                           <form action={forgetSpell}>
                             <input type="hidden" name="id" value={id} />
                             <input type="hidden" name="key" value={s.key} />
@@ -167,11 +167,11 @@ export function SpellsPanel({
           })}
         </div>
       </details>
-      {staff && (
+      {canEditBook && (
         <form action={recordSpells} className="flex flex-wrap items-center gap-2 border-t border-[#262920] pt-3">
           <input type="hidden" name="id" value={id} />
           <label htmlFor="spell-add" className="text-sm text-muted">
-            Jay: record a {book}
+            Record a {book}
           </label>
           <select id="spell-add" name="add" defaultValue="" required className={selectCls}>
             <option value="" disabled>

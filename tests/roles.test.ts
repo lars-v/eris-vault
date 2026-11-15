@@ -34,6 +34,13 @@ describe("who can do what (plan: Who can do what)", () => {
     expect(can.editPlayState(gm, own)).toBe(true);
     expect(can.editPlayState(admin, own)).toBe(true);
   });
+  it("owners, Jay and admins edit spells; other players and blocked accounts can't", () => {
+    expect(can.editSpells(player, own)).toBe(true);
+    expect(can.editSpells(other, own)).toBe(false);
+    expect(can.editSpells(gm, own)).toBe(true);
+    expect(can.editSpells(admin, own)).toBe(true);
+    expect(can.editSpells(blocked, own)).toBe(false);
+  });
   it("players delete their own characters until Jay approves; GM and admin delete any", () => {
     expect(can.deleteCharacter(player, ownDraft)).toBe(true);
     expect(can.deleteCharacter(player, ownSubmitted)).toBe(true);

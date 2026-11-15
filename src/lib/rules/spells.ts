@@ -14,7 +14,7 @@ import { abilityModifier } from "./abilities";
  *   scroll of "one or two spells" (pending ruling "cleric-l1-scroll"), and the
  *   complete 1st-level scroll comes from the church at 2nd level for an
  *   offering. Every later book or scroll is bought or offered for (WW p. 25),
- *   so Jay records those on the character.
+ *   so the player or Jay records those on the character.
  *
  * Open questions left to Jay (rulings seed in scripts/migrate.mjs):
  * - "prepare-same-spell": may one spell fill two slots? Allowed here, and shown as a flag.

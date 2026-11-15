@@ -6,10 +6,10 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { characterClasses, characters } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
-import { can } from "@/lib/roles";
+import { can, type CharacterRef } from "@/lib/roles";
 import { levelFor } from "@/lib/rules/advancement";
 import { castsSpells, checkPrepared, knownSpells, spell, spellsFor, spellSlots, type SpellClass } from "@/lib/rules/spells";
-import { requireStaff, requireUser } from "@/lib/session";
+import { requireUser, type CurrentUser } from "@/lib/session";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -54,7 +54,7 @@ async function prepareSpellsImpl(formData: FormData) {
     .filter(Boolean);
   const before = await db.transaction(async (tx) => {
     const { c, cls, xp } = await lockCaster(tx, id);
-    if (!can.editPlayState(viewer, c)) throw new Error("Only the player or Jay can prepare this character's spells.");
+    if (!can.editSpells(viewer, c)) throw new Error("Only the player or Jay can prepare this character's spells.");
     const slots = spellSlots(cls, levelFor(cls, xp).level, c.wis);
     const problem = checkPrepared(cls, slots, knownSpells(cls, c.spellsKnown), prepared);
     if (problem) throw new Error(problem);
@@ -67,16 +67,21 @@ async function prepareSpellsImpl(formData: FormData) {
   revalidatePath(`/characters/${id}`);
 }
 
+function checkBookEditor(viewer: CurrentUser, c: CharacterRef) {
+  if (!can.editSpells(viewer, c)) throw new Error("Only the player or Jay can change this character's spells.");
+}
+
 /**
- * Jay records a book or scroll the character now holds (WW p. 25): a whole
- * spell level ("level:2") or one spell (a limited scroll, or a scroll an elf studied).
+ * The player or Jay records a book or scroll the character now holds (WW p. 25):
+ * a whole spell level ("level:2") or one spell (a limited scroll, or a scroll an elf studied).
  */
 async function recordSpellsImpl(formData: FormData) {
-  const viewer = await requireStaff();
+  const viewer = await requireUser();
   const id = str(formData, "id");
   const add = str(formData, "add");
   const result = await db.transaction(async (tx) => {
     const { c, cls } = await lockCaster(tx, id);
+    checkBookEditor(viewer, c);
     let keys: string[];
     const whole = add.match(/^level:(\d)$/);
     if (whole) {
@@ -95,13 +100,14 @@ async function recordSpellsImpl(formData: FormData) {
   revalidatePath(`/characters/${id}`);
 }
 
-/** Jay takes back a recorded spell; it also leaves any slot it was prepared in. */
+/** The player or Jay removes a recorded spell; it also leaves any slot it was prepared in. */
 async function forgetSpellImpl(formData: FormData) {
-  const viewer = await requireStaff();
+  const viewer = await requireUser();
   const id = str(formData, "id");
   const key = str(formData, "key");
   const result = await db.transaction(async (tx) => {
     const { c } = await lockCaster(tx, id);
+    checkBookEditor(viewer, c);
     if (!c.spellsKnown.includes(key)) throw new Error("That spell wasn't recorded on this character.");
     const known = c.spellsKnown.filter((k) => k !== key);
     const prepared = c.spellsPrepared.filter((k) => k !== key);
