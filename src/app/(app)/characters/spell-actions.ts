@@ -118,8 +118,17 @@ async function forgetSpellImpl(formData: FormData) {
   revalidatePath(`/characters/${id}`);
 }
 
-export async function prepareSpells(formData: FormData) {
-  return guard(formData, prepareSpellsImpl);
+export type PrepareResult = { error: string | null; at: number };
+
+/** The prepare picker on the sheet: reports a problem back instead of redirecting. */
+export async function savePreparedSpells(_prev: PrepareResult, formData: FormData): Promise<PrepareResult> {
+  try {
+    await prepareSpellsImpl(formData);
+    return { error: null, at: Date.now() };
+  } catch (e) {
+    unstable_rethrow(e);
+    return { error: e instanceof Error ? e.message.slice(0, 200) : "Something went wrong.", at: Date.now() };
+  }
 }
 
 export async function recordSpells(formData: FormData) {

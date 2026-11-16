@@ -14,7 +14,8 @@ import {
   type SpellClass,
 } from "@/lib/rules/spells";
 import { SubmitButton } from "./build/forms";
-import { forgetSpell, prepareSpells, recordSpells } from "../spell-actions";
+import { forgetSpell, recordSpells } from "../spell-actions";
+import { PreparedSpells, type PrepareLevel } from "./PreparedSpells";
 
 const selectCls = "min-h-11 min-w-0 rounded-xl border border-line-2 bg-ink px-2 text-sm";
 
@@ -45,6 +46,16 @@ export function SpellsPanel({
   const book = cls === "cleric" ? "prayer scroll" : "spellbook";
   const levels = Array.from({ length: maxSpellLevel(cls) }, (_, i) => i + 1);
   const castable = levels.filter((l) => (slots[l - 1] ?? 0) > 0);
+  const prepareLevels: PrepareLevel[] = castable.map((l) => ({
+    level: l,
+    label: ordinal(l),
+    slots: slots[l - 1],
+    options: known.filter((s) => s.level === l).map((s) => ({ key: s.key, name: s.name })),
+    current: prepared.filter((k) => spell(k)?.level === l),
+    emptyNote: `No ${ordinal(l)}-level ${book} yet. It costs ${SPELLBOOK_COST_GP[l - 1].toLocaleString("en-US")} gp${
+      cls === "cleric" ? " as an offering to the church" : ""
+    } (WW p. 25). Record it below once the character has it.`,
+  }));
 
   return (
     <Panel title="Spells" aside="Woundwort's Warren pp. 5, 7-8, 25-26">
@@ -76,51 +87,7 @@ export function SpellsPanel({
         </p>
       )}
 
-      {castable.length > 0 && canPrepare ? (
-        <form action={prepareSpells} className="flex flex-col gap-4">
-          <input type="hidden" name="id" value={id} />
-          {castable.map((l) => {
-            const options = known.filter((s) => s.level === l);
-            const current = prepared.filter((k) => spell(k)?.level === l);
-            return (
-              <fieldset key={l} className="flex flex-col gap-2">
-                <legend className="mb-1 text-sm font-semibold">{ordinal(l)}-level spells</legend>
-                {options.length === 0 ? (
-                  <p className="text-sm text-subtle">
-                    No {ordinal(l)}-level {book} yet. It costs {SPELLBOOK_COST_GP[l - 1].toLocaleString("en-US")} gp
-                    {cls === "cleric" ? " as an offering to the church" : ""} (WW p. 25). Record it below once the character has it.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
-                    {Array.from({ length: slots[l - 1] }, (_, i) => (
-                      <select key={i} name="slot" defaultValue={current[i] ?? ""} aria-label={`${ordinal(l)}-level slot ${i + 1}`} className={selectCls}>
-                        <option value="">Open slot</option>
-                        {options.map((s) => (
-                          <option key={s.key} value={s.key}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    ))}
-                  </div>
-                )}
-              </fieldset>
-            );
-          })}
-          {known.some((s) => castable.includes(s.level)) && (
-            <div>
-              <SubmitButton pendingText="Saving…">Save prepared spells</SubmitButton>
-            </div>
-          )}
-        </form>
-      ) : (
-        castable.length > 0 && (
-          <div className="text-sm">
-            <span className="text-muted">Prepared: </span>
-            {prepared.length === 0 ? <span className="text-subtle">nothing yet</span> : prepared.map((k) => spell(k)?.name ?? k).join(", ")}
-          </div>
-        )
-      )}
+      {castable.length > 0 && <PreparedSpells id={id} levels={prepareLevels} canEdit={canPrepare} />}
 
       <details className="border-t border-[#262920] pt-3">
         <summary className="cursor-pointer text-sm font-semibold">
