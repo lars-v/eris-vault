@@ -288,9 +288,6 @@ export default async function CharacterPage({
 
           <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
             <GearPanel id={c.id} items={gearItems} catalog={gearCatalog} canEdit={can.editGear(viewer, c)} staff={staff} />
-            {(c.notes || can.editPlayState(viewer, c)) && (
-              <NotesPanel id={c.id} notes={c.notes} canEdit={can.editPlayState(viewer, c)} />
-            )}
           </div>
         </div>
         {active && (c.status === "submitted" || c.status === "approved") && (
@@ -355,6 +352,10 @@ export default async function CharacterPage({
             </ul>
           )}
         </Panel>
+
+        {(c.notes || can.editPlayState(viewer, c)) && (
+          <NotesPanel id={c.id} notes={c.notes} canEdit={can.editPlayState(viewer, c)} />
+        )}
 
         {sheets.length > 0 && (
           <Panel title="Uploaded sheet" aside="Seen by the player, Jay and admins">
