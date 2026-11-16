@@ -219,38 +219,6 @@ export default async function CharacterPage({
           </div>
         )}
 
-        {sheets.length > 0 && (
-          <Panel title="Uploaded sheet" aside="Seen by the player, Jay and admins">
-            <ul className="flex flex-col gap-1.5">
-              {sheets.map((s) => (
-                <li key={s.id} className="text-sm">
-                  <a href={`/api/sheets/${s.id}`} target="_blank" rel="noopener" className="text-moon underline-offset-4 hover:underline">
-                    {s.filename}
-                  </a>{" "}
-                  <span className="text-subtle">
-                    · uploaded {s.createdAt.toISOString().slice(0, 10)} ·{" "}
-                    {Object.keys(s.fields).length > 0 ? `${Object.keys(s.fields).length} fields read` : "typed in by hand"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Panel>
-        )}
-
-        {c.importFlags.length > 0 && (
-          <Panel title={`Import flags for Jay · ${c.importFlags.length}`} className="border-[#5e4720]">
-            <ul className="flex flex-col divide-y divide-[#262920]">
-              {c.importFlags.map((f) => (
-                <li key={f.title} className="flex flex-col gap-1 py-3">
-                  <span className="font-semibold">{f.title}</span>
-                  <span className="text-sm text-muted">{f.body}</span>
-                  <span className="font-mono text-xs text-subtle">{f.source}</span>
-                </li>
-              ))}
-            </ul>
-          </Panel>
-        )}
-
         <div className="flex flex-wrap items-start gap-5">
           <Panel title="Abilities" aside={ABILITY_SOURCE} className="min-w-0 flex-[1_1_360px]">
             {ABILITIES.map((a) => {
@@ -387,6 +355,38 @@ export default async function CharacterPage({
             </ul>
           )}
         </Panel>
+
+        {sheets.length > 0 && (
+          <Panel title="Uploaded sheet" aside="Seen by the player, Jay and admins">
+            <ul className="flex flex-col gap-1.5">
+              {sheets.map((s) => (
+                <li key={s.id} className="text-sm">
+                  <a href={`/api/sheets/${s.id}`} target="_blank" rel="noopener" className="text-moon underline-offset-4 hover:underline">
+                    {s.filename}
+                  </a>{" "}
+                  <span className="text-subtle">
+                    · uploaded {s.createdAt.toISOString().slice(0, 10)} ·{" "}
+                    {Object.keys(s.fields).length > 0 ? `${Object.keys(s.fields).length} fields read` : "typed in by hand"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
+
+        {c.importFlags.length > 0 && (
+          <Panel title={`Import flags for Jay · ${c.importFlags.length}`} className="border-[#5e4720]">
+            <ul className="flex flex-col divide-y divide-[#262920]">
+              {c.importFlags.map((f) => (
+                <li key={f.title} className="flex flex-col gap-1 py-3">
+                  <span className="font-semibold">{f.title}</span>
+                  <span className="text-sm text-muted">{f.body}</span>
+                  <span className="font-mono text-xs text-subtle">{f.source}</span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
       </main>
     </>
   );
