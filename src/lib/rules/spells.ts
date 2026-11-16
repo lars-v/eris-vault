@@ -9,12 +9,13 @@ import { abilityModifier } from "./abilities";
  * - Extra 1st-level cleric spells from a Wisdom bonus: WW p. 5.
  * - Spell lists: WW p. 26 ("Magic-User Spellbooks", "Cleric Prayer Scrolls").
  * - What a character starts with: WW p. 25. A 1st-level magic-user's book holds
- *   every 1st-level spell; an elf holds the same in a "mental" book. Clerics
- *   start with nothing: a 1st-level cleric with Wis 15+ gets a limited prayer
- *   scroll of "one or two spells" (pending ruling "cleric-l1-scroll"), and the
- *   complete 1st-level scroll comes from the church at 2nd level for an
- *   offering. Every later book or scroll is bought or offered for (WW p. 25),
- *   so the player or Jay records those on the character.
+ *   every 1st-level spell; an elf holds the same in a "mental" book. Every later
+ *   book is bought (WW p. 25), so the player or Jay records those on the character.
+ * - Clerics: table ruling "cleric-all-spells" (Lars, 16 Nov 2026) gives every
+ *   cleric every spell on the cleric list. It overrides WW p. 25, where clerics
+ *   get prayer scrolls from the church one spell level at a time. Spells per day
+ *   (WW pp. 5, 8) are unchanged, so a cleric still prays only for spell levels
+ *   they have slots for.
  *
  * Open questions left to Jay (rulings seed in scripts/migrate.mjs):
  * - "prepare-same-spell": may one spell fill two slots? Allowed here, and shown as a flag.
@@ -27,6 +28,7 @@ export const SPELL_SLOTS_SOURCE: Record<SpellClass, string> = {
 };
 export const SPELL_LIST_SOURCE = "Woundwort's Warren p. 26";
 export const SPELLBOOK_SOURCE = "Woundwort's Warren p. 25";
+export const CLERIC_ALL_SPELLS_SOURCE = "Table ruling (Lars), 16 Nov 2026";
 
 /** Cost of a book or prayer scroll of one spell level, index 0 = 1st level (WW p. 25). */
 export const SPELLBOOK_COST_GP = [2000, 4000, 8000, 16000, 32000, 64000];
@@ -158,11 +160,18 @@ export function maxSpellLevel(cls: SpellClass): number {
 }
 
 /**
- * Spells every member of the class holds without Jay recording anything (WW p. 25):
- * all 1st-level magic-user spells for magic-users and elves, nothing for clerics.
+ * Spells every member of the class holds without anyone recording them:
+ * all 1st-level magic-user spells for magic-users and elves (WW p. 25), and
+ * every spell on the cleric list for clerics (ruling "cleric-all-spells").
  */
 export function startingSpells(cls: SpellClass): string[] {
-  return cls === "magic-user" ? spellsFor("magic-user", 1).map((s) => s.key) : [];
+  if (cls === "cleric") return SPELLS.filter((s) => s.cls === "cleric").map((s) => s.key);
+  return spellsFor("magic-user", 1).map((s) => s.key);
+}
+
+/** Whether the class keeps a book the player or Jay adds to. Clerics hold every spell already. */
+export function recordsSpells(cls: SpellClass): boolean {
+  return cls === "magic-user";
 }
 
 /** Starting spells plus what Jay recorded, in list order. Unknown keys are dropped. */

@@ -8,7 +8,7 @@ import { characterClasses, characters } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { can, type CharacterRef } from "@/lib/roles";
 import { levelFor } from "@/lib/rules/advancement";
-import { castsSpells, checkPrepared, knownSpells, spell, spellsFor, spellSlots, type SpellClass } from "@/lib/rules/spells";
+import { castsSpells, checkPrepared, knownSpells, recordsSpells, spell, spellsFor, spellSlots, type SpellClass } from "@/lib/rules/spells";
 import { requireUser, type CurrentUser } from "@/lib/session";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -82,6 +82,7 @@ async function recordSpellsImpl(formData: FormData) {
   const result = await db.transaction(async (tx) => {
     const { c, cls } = await lockCaster(tx, id);
     checkBookEditor(viewer, c);
+    if (!recordsSpells(cls)) throw new Error("A cleric already has every spell on the cleric list (table ruling).");
     let keys: string[];
     const whole = add.match(/^level:(\d)$/);
     if (whole) {

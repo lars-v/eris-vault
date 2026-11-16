@@ -5,6 +5,7 @@ import {
   knownSpells,
   maxSpellLevel,
   ordinal,
+  recordsSpells,
   repeatedSpells,
   spell,
   SPELLBOOK_COST_GP,
@@ -41,6 +42,7 @@ export function SpellsPanel({
   const slots = spellSlots(cls, level, wis);
   const known = knownSpells(cls, recorded);
   const starting = new Set(startingSpells(cls));
+  const keepsBook = recordsSpells(cls);
   const problem = checkPrepared(cls, slots, known, prepared);
   const twice = repeatedSpells(prepared);
   const book = cls === "cleric" ? "prayer scroll" : "spellbook";
@@ -71,6 +73,9 @@ export function SpellsPanel({
           ))
         )}
       </div>
+      {cls === "cleric" && (
+        <p className="text-sm text-muted">A cleric has every spell on the cleric list (table ruling, 16 Nov 2026). Spells per day still follow WW pp. 5 and 8.</p>
+      )}
       {cls === "cleric" && level === 1 && castable.length === 0 && (
         <p className="text-sm text-muted">A 1st-level cleric casts no spells unless Wisdom is 15 or more (WW p. 25).</p>
       )}
@@ -91,13 +96,13 @@ export function SpellsPanel({
 
       <details className="border-t border-[#262920] pt-3">
         <summary className="cursor-pointer text-sm font-semibold">
-          In the {book} · {known.length}
+          {keepsBook ? `In the ${book}` : "Cleric spells"} · {known.length}
         </summary>
         <div className="mt-3 flex flex-col gap-3">
           {known.length === 0 && (
             <p className="text-sm text-subtle">
               {cls === "cleric"
-                ? "No prayer scrolls yet. A cleric gets the full 1st-level scroll from the church at 2nd level for an offering, or a limited scroll at 1st level with Wisdom 15+ (WW p. 25)."
+                ? "No cleric spells found."
                 : "Nothing recorded."}
             </p>
           )}
@@ -112,9 +117,11 @@ export function SpellsPanel({
                     <li key={s.key} className="flex items-center gap-1 rounded-full border border-line-2 py-0.5 pl-2.5 pr-1 text-sm">
                       {s.name}
                       {starting.has(s.key) ? (
-                        <span className="px-1.5 text-xs text-subtle" title="Every magic-user starts with all 1st-level spells (WW p. 25)">
-                          start
-                        </span>
+                        cls === "cleric" ? null : (
+                          <span className="px-1.5 text-xs text-subtle" title="Every magic-user starts with all 1st-level spells (WW p. 25)">
+                            start
+                          </span>
+                        )
                       ) : (
                         canEditBook && (
                           <form action={forgetSpell}>
@@ -134,7 +141,7 @@ export function SpellsPanel({
           })}
         </div>
       </details>
-      {canEditBook && (
+      {canEditBook && keepsBook && (
         <form action={recordSpells} className="flex flex-wrap items-center gap-2 border-t border-[#262920] pt-3">
           <input type="hidden" name="id" value={id} />
           <label htmlFor="spell-add" className="text-sm text-muted">

@@ -8,6 +8,7 @@ import {
   SPELLS,
   spellSlots,
   spellsFor,
+  recordsSpells,
   startingSpells,
 } from "@/lib/rules/spells";
 
@@ -69,9 +70,17 @@ describe("spell lists (Woundwort's Warren p. 26)", () => {
 });
 
 describe("starting and known spells (Woundwort's Warren p. 25)", () => {
-  it("magic-users start with every 1st-level spell; clerics with none", () => {
+  it("magic-users start with every 1st-level spell (WW p. 25)", () => {
     expect(startingSpells("magic-user")).toHaveLength(10);
-    expect(startingSpells("cleric")).toEqual([]);
+    expect(recordsSpells("magic-user")).toBe(true);
+  });
+
+  it("clerics hold every spell on the cleric list (ruling cleric-all-spells)", () => {
+    const all = [1, 2, 3, 4, 5].flatMap((l) => spellsFor("cleric", l)).map((s) => s.key);
+    expect(startingSpells("cleric")).toEqual(all);
+    expect(knownSpells("cleric", []).map((s) => s.key)).toEqual(all);
+    expect(knownSpells("cleric", []).some((s) => s.cls !== "cleric")).toBe(false);
+    expect(recordsSpells("cleric")).toBe(false);
   });
 
   it("adds what Jay recorded, ignores other classes' keys and unknown keys", () => {
@@ -101,8 +110,13 @@ describe("checking prepared spells", () => {
     expect(checkPrepared("cleric", slots, withCd, ["cl:cure-disease"])).toMatch(/3rd-level/);
   });
 
+  it("lets a cleric prepare any cleric spell at a level with slots", () => {
+    expect(checkPrepared("cleric", slots, known, ["cl:detect-magic", "cl:light", "cl:hold-person"])).toBeNull();
+  });
+
   it("rejects spells the character doesn't hold or from the other class", () => {
-    expect(checkPrepared("cleric", slots, known, ["cl:detect-magic"])).toMatch(/isn't in this character's prayer scrolls/);
+    const mu = knownSpells("magic-user", []);
+    expect(checkPrepared("magic-user", spellSlots("magic-user", 3, 10), mu, ["mu:web"])).toMatch(/isn't in this character's spellbook/);
     expect(checkPrepared("cleric", slots, known, ["mu:sleep"])).toMatch(/class's list/);
   });
 

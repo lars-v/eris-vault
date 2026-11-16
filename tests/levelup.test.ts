@@ -120,12 +120,12 @@ describe("levelUp", () => {
     const u = levelUp({ ...human("magic-user"), race: "elf" }, 2, 3);
     expect(u.notes.some((n) => n.text.includes("mental book"))).toBe(true);
   });
-  it("gives a cleric the church's 1st-level scroll at 2nd level, once", () => {
+  it("gives a cleric new spells per day but no scroll to fetch (ruling cleric-all-spells)", () => {
     const u = levelUp(human("cleric"), 1, 2);
-    const scroll = u.notes.filter((n) => n.text.includes("prayer scroll"));
-    expect(scroll).toHaveLength(1);
-    expect(scroll[0].text).toContain("At 2nd level the church");
+    expect(u.notes.some((n) => n.text.includes("prayer scroll"))).toBe(false);
     expect(find(u, "1st-level spells per day")).toMatchObject({ before: "0", after: "1" });
+    const v = levelUp(human("cleric"), 3, 4);
+    expect(v.notes.some((n) => n.text.includes("prayer scroll"))).toBe(false);
   });
   it("lists turning changes for a lawful cleric", () => {
     const u = levelUp(human("cleric"), 3, 4);
