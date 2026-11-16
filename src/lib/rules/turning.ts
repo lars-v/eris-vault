@@ -47,6 +47,27 @@ export function turningRow(level: number): { name: string; hd: number; result: T
   return UNDEAD.map((u) => ({ name: u.name, hd: u.hd, result: u.row[col] }));
 }
 
+/**
+ * The same row sorted by result, for display: undead the cleric dispels (D),
+ * turns (T), needs a 2d6 roll against, or can't affect (a dash). Each group
+ * keeps the table's order, weakest first.
+ */
+export function turningGroups(level: number): {
+  dispel: { name: string; hd: number }[];
+  turn: { name: string; hd: number }[];
+  roll: { name: string; hd: number; needed: number }[];
+  none: { name: string; hd: number }[];
+} {
+  const groups: ReturnType<typeof turningGroups> = { dispel: [], turn: [], roll: [], none: [] };
+  for (const { name, hd, result } of turningRow(level)) {
+    if (result === "D") groups.dispel.push({ name, hd });
+    else if (result === "T") groups.turn.push({ name, hd });
+    else if (result === null) groups.none.push({ name, hd });
+    else groups.roll.push({ name, hd, needed: result });
+  }
+  return groups;
+}
+
 /** WW p. 8: neutral clerics can't affect undead. Unknown alignment says nothing either way. */
 export function canAffectUndead(alignment: Alignment | null): boolean | null {
   if (alignment === null) return null;

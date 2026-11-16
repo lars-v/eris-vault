@@ -5,7 +5,7 @@ import { cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { ARMOR_CLASSES, combatRows } from "@/lib/rules/combat";
 import { ordinal } from "@/lib/rules/levelup";
 import { thiefSkills } from "@/lib/rules/thief";
-import { canAffectUndead, formatTurn, turningRow } from "@/lib/rules/turning";
+import { canAffectUndead, turningGroups } from "@/lib/rules/turning";
 
 type ClassRow = { id: string; class: CharacterClass; xp: number };
 
@@ -120,24 +120,7 @@ export function CombatPanel({
                     Neutral clerics can&apos;t affect undead or demon-types. Declaring for Law or Chaos gives the power at once.
                   </p>
                 ) : (
-                  <>
-                    <ul className="grid max-w-md grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 text-sm">
-                      {turningRow(level).map((u) => (
-                        <li key={u.name} className="contents">
-                          <span className="text-muted">
-                            {u.name} <span className="text-xs text-subtle">({u.hd})</span>
-                          </span>
-                          <span className="text-right font-mono">{formatTurn(u.result)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-xs text-subtle">
-                      A number is the roll needed. T = turn, D = dispel, a dash = no effect.
-                      {alignment === "chaotic" ? " A chaotic priest neutralizes or commands undead instead of turning or dispelling." : ""}{" "}
-                      Demon-types of 9 HD or less are treated as 3 levels higher than their undead equivalent, and only 1-3 are
-                      affected; demons of 10 HD or more can&apos;t be affected.
-                    </p>
-                  </>
+                  <TurningGroups level={level} chaotic={alignment === "chaotic"} />
                 )}
               </section>
             )}
@@ -145,5 +128,57 @@ export function CombatPanel({
         );
       })}
     </Panel>
+  );
+}
+
+/**
+ * The cleric's row of the Affecting Undead Table (WW p. 8), grouped by result
+ * so the player reads what happens instead of decoding T, D and dashes.
+ */
+function TurningGroups({ level, chaotic }: { level: number; chaotic: boolean }) {
+  const g = turningGroups(level);
+  type Item = { name: string; hd: number; needed?: number };
+  const groups: { key: string; label: string; items: Item[]; tone: string }[] = [
+    { key: "dispel", label: "Dispelled (D)", items: g.dispel, tone: "text-lime" },
+    { key: "turn", label: "Turned (T)", items: g.turn, tone: "text-lime" },
+    { key: "roll", label: "Roll 2d6", items: g.roll, tone: "" },
+    { key: "none", label: "No effect", items: g.none, tone: "text-subtle" },
+  ].filter((x) => x.items.length > 0);
+  return (
+    <>
+      <dl className="flex max-w-xl flex-col divide-y divide-[#262920] text-sm">
+        {groups.map((grp) => (
+          <div key={grp.key} className="flex flex-col gap-1.5 py-2.5 sm:flex-row sm:gap-4">
+            <dt className={`flex-none font-semibold sm:w-40 ${grp.tone}`}>{grp.label}</dt>
+            <dd className="flex flex-wrap gap-1.5">
+              {grp.items.map((u) => (
+                <span
+                  key={u.name}
+                  className={`inline-flex items-baseline gap-1.5 rounded-lg border border-line px-2 py-0.5 ${
+                    grp.key === "none" ? "text-subtle" : ""
+                  }`}
+                >
+                  {u.name}
+                  <span className="text-xs text-subtle">{u.hd} HD</span>
+                  {u.needed !== undefined && (
+                    <span className="text-amber">
+                      needs <span className="font-mono font-semibold">{u.needed}</span>
+                    </span>
+                  )}
+                </span>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-subtle">
+        {chaotic && <li>As a chaotic priest you neutralize or command undead instead of turning or dispelling them.</li>}
+        <li>
+          Demon-types of 9 HD or less count as 3 levels higher than their undead equivalent, so a 2 HD demon uses the Wight
+          line. Only 1-3 demons are affected.
+        </li>
+        <li>Demons of 10 HD or more can&apos;t be affected.</li>
+      </ul>
+    </>
   );
 }
