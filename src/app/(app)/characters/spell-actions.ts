@@ -1,30 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect, unstable_rethrow } from "next/navigation";
+import { unstable_rethrow } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { characterClasses, characters } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
-import { can, type CharacterRef } from "@/lib/roles";
+import { can } from "@/lib/roles";
 import { levelFor } from "@/lib/rules/advancement";
-import { castsSpells, checkPrepared, knownSpells, recordsSpells, spell, spellsFor, spellSlots, type SpellClass } from "@/lib/rules/spells";
-import { requireUser, type CurrentUser } from "@/lib/session";
+import { castsSpells, checkPrepared, knownSpells, spellSlots, type SpellClass } from "@/lib/rules/spells";
+import { requireUser } from "@/lib/session";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
-
-/** Rule problems come back to the character page as `?error=`. */
-async function guard(formData: FormData, impl: (fd: FormData) => Promise<void>) {
-  try {
-    await impl(formData);
-  } catch (e) {
-    unstable_rethrow(e);
-    const msg = e instanceof Error ? e.message : "Something went wrong.";
-    redirect(`/characters/${encodeURIComponent(str(formData, "id"))}?error=${encodeURIComponent(msg.slice(0, 200))}`);
-  }
-}
 
 /** Locks the character and finds its active spell-casting class. */
 async function lockCaster(tx: Tx, id: string) {
@@ -56,7 +45,7 @@ async function prepareSpellsImpl(formData: FormData) {
     const { c, cls, xp } = await lockCaster(tx, id);
     if (!can.editSpells(viewer, c)) throw new Error("Only the player or Jay can prepare this character's spells.");
     const slots = spellSlots(cls, levelFor(cls, xp).level, c.wis);
-    const problem = checkPrepared(cls, slots, knownSpells(cls, c.spellsKnown), prepared);
+    const problem = checkPrepared(cls, slots, knownSpells(cls), prepared);
     if (problem) throw new Error(problem);
     await tx.update(characters).set({ spellsPrepared: prepared, updatedAt: new Date() }).where(eq(characters.id, id));
     return c.spellsPrepared;
@@ -64,58 +53,6 @@ async function prepareSpellsImpl(formData: FormData) {
   if (viewer.role !== "player") {
     await writeAudit(viewer, { action: "spells.prepared", characterId: id, before: { prepared: before }, after: { prepared } });
   }
-  revalidatePath(`/characters/${id}`);
-}
-
-function checkBookEditor(viewer: CurrentUser, c: CharacterRef) {
-  if (!can.editSpells(viewer, c)) throw new Error("Only the player or Jay can change this character's spells.");
-}
-
-/**
- * The player or Jay records a book or scroll the character now holds (WW p. 25):
- * a whole spell level ("level:2") or one spell (a limited scroll, or a scroll an elf studied).
- */
-async function recordSpellsImpl(formData: FormData) {
-  const viewer = await requireUser();
-  const id = str(formData, "id");
-  const add = str(formData, "add");
-  const result = await db.transaction(async (tx) => {
-    const { c, cls } = await lockCaster(tx, id);
-    checkBookEditor(viewer, c);
-    if (!recordsSpells(cls)) throw new Error("A cleric already has every spell on the cleric list (table ruling).");
-    let keys: string[];
-    const whole = add.match(/^level:(\d)$/);
-    if (whole) {
-      keys = spellsFor(cls, Number(whole[1])).map((s) => s.key);
-      if (keys.length === 0) throw new Error("No spells at that level for this class.");
-    } else {
-      const s = spell(add);
-      if (!s || s.cls !== cls) throw new Error("Choose a spell from this class's list.");
-      keys = [s.key];
-    }
-    const next = [...new Set([...c.spellsKnown, ...keys])];
-    await tx.update(characters).set({ spellsKnown: next, updatedAt: new Date() }).where(eq(characters.id, id));
-    return { before: c.spellsKnown, after: next };
-  });
-  await writeAudit(viewer, { action: "spells.recorded", characterId: id, before: { known: result.before }, after: { known: result.after, added: add } });
-  revalidatePath(`/characters/${id}`);
-}
-
-/** The player or Jay removes a recorded spell; it also leaves any slot it was prepared in. */
-async function forgetSpellImpl(formData: FormData) {
-  const viewer = await requireUser();
-  const id = str(formData, "id");
-  const key = str(formData, "key");
-  const result = await db.transaction(async (tx) => {
-    const { c } = await lockCaster(tx, id);
-    checkBookEditor(viewer, c);
-    if (!c.spellsKnown.includes(key)) throw new Error("That spell wasn't recorded on this character.");
-    const known = c.spellsKnown.filter((k) => k !== key);
-    const prepared = c.spellsPrepared.filter((k) => k !== key);
-    await tx.update(characters).set({ spellsKnown: known, spellsPrepared: prepared, updatedAt: new Date() }).where(eq(characters.id, id));
-    return { before: { known: c.spellsKnown, prepared: c.spellsPrepared }, after: { known, prepared } };
-  });
-  await writeAudit(viewer, { action: "spells.forgotten", characterId: id, ...result });
   revalidatePath(`/characters/${id}`);
 }
 
@@ -130,12 +67,4 @@ export async function savePreparedSpells(_prev: PrepareResult, formData: FormDat
     unstable_rethrow(e);
     return { error: e instanceof Error ? e.message.slice(0, 200) : "Something went wrong.", at: Date.now() };
   }
-}
-
-export async function recordSpells(formData: FormData) {
-  return guard(formData, recordSpellsImpl);
-}
-
-export async function forgetSpell(formData: FormData) {
-  return guard(formData, forgetSpellImpl);
 }

@@ -1,51 +1,28 @@
 import { Chip, Panel } from "@/components/ui";
 import { abilityModifier } from "@/lib/rules/abilities";
-import {
-  checkPrepared,
-  knownSpells,
-  maxSpellLevel,
-  ordinal,
-  recordsSpells,
-  repeatedSpells,
-  spell,
-  SPELLBOOK_COST_GP,
-  spellsFor,
-  spellSlots,
-  startingSpells,
-  type SpellClass,
-} from "@/lib/rules/spells";
-import { SubmitButton } from "./build/forms";
-import { forgetSpell, recordSpells } from "../spell-actions";
+import { checkPrepared, knownSpells, maxSpellLevel, ordinal, repeatedSpells, spell, spellSlots, type SpellClass } from "@/lib/rules/spells";
 import { PreparedSpells, type PrepareLevel } from "./PreparedSpells";
-
-const selectCls = "min-h-11 min-w-0 rounded-xl border border-line-2 bg-ink px-2 text-sm";
 
 export function SpellsPanel({
   id,
   cls,
   level,
   wis,
-  recorded,
   prepared,
   canPrepare,
-  canEditBook,
 }: {
   id: string;
   cls: SpellClass;
   level: number;
   wis: number | null;
-  recorded: string[];
   prepared: string[];
   canPrepare: boolean;
-  canEditBook: boolean;
 }) {
   const slots = spellSlots(cls, level, wis);
-  const known = knownSpells(cls, recorded);
-  const starting = new Set(startingSpells(cls));
-  const keepsBook = recordsSpells(cls);
+  const known = knownSpells(cls);
+  const list = cls === "cleric" ? "cleric" : "magic-user";
   const problem = checkPrepared(cls, slots, known, prepared);
   const twice = repeatedSpells(prepared);
-  const book = cls === "cleric" ? "prayer scroll" : "spellbook";
   const levels = Array.from({ length: maxSpellLevel(cls) }, (_, i) => i + 1);
   const castable = levels.filter((l) => (slots[l - 1] ?? 0) > 0);
   const prepareLevels: PrepareLevel[] = castable.map((l) => ({
@@ -54,13 +31,10 @@ export function SpellsPanel({
     slots: slots[l - 1],
     options: known.filter((s) => s.level === l).map((s) => ({ key: s.key, name: s.name })),
     current: prepared.filter((k) => spell(k)?.level === l),
-    emptyNote: `No ${ordinal(l)}-level ${book} yet. It costs ${SPELLBOOK_COST_GP[l - 1].toLocaleString("en-US")} gp${
-      cls === "cleric" ? " as an offering to the church" : ""
-    } (WW p. 25). Record it below once the character has it.`,
   }));
 
   return (
-    <Panel title="Spells" aside="Woundwort's Warren pp. 5, 7-8, 25-26">
+    <Panel title="Spells" aside="Woundwort's Warren pp. 5, 7-8, 26">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted">Per day:</span>
         {castable.length === 0 ? (
@@ -73,9 +47,9 @@ export function SpellsPanel({
           ))
         )}
       </div>
-      {cls === "cleric" && (
-        <p className="text-sm text-muted">A cleric has every spell on the cleric list (table ruling, 16 Nov 2026). Spells per day still follow WW pp. 5 and 8.</p>
-      )}
+      <p className="text-sm text-muted">
+        Every {list} has every spell on the {list} list (table ruling, 16 Nov 2026). Spells per day still follow WW {cls === "cleric" ? "pp. 5 and 8" : "p. 7"}.
+      </p>
       {cls === "cleric" && level === 1 && castable.length === 0 && (
         <p className="text-sm text-muted">A 1st-level cleric casts no spells unless Wisdom is 15 or more (WW p. 25).</p>
       )}
@@ -96,87 +70,25 @@ export function SpellsPanel({
 
       <details className="border-t border-[#262920] pt-3">
         <summary className="cursor-pointer text-sm font-semibold">
-          {keepsBook ? `In the ${book}` : "Cleric spells"} · {known.length}
+          {cls === "cleric" ? "Cleric" : "Magic-user"} spells · {known.length}
         </summary>
         <div className="mt-3 flex flex-col gap-3">
-          {known.length === 0 && (
-            <p className="text-sm text-subtle">
-              {cls === "cleric"
-                ? "No cleric spells found."
-                : "Nothing recorded."}
-            </p>
-          )}
-          {levels.map((l) => {
-            const atLevel = known.filter((s) => s.level === l);
-            if (atLevel.length === 0) return null;
-            return (
-              <div key={l} className="flex flex-col gap-1.5">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-subtle">{ordinal(l)} level</span>
-                <ul className="flex flex-wrap gap-1.5">
-                  {atLevel.map((s) => (
-                    <li key={s.key} className="flex items-center gap-1 rounded-full border border-line-2 py-0.5 pl-2.5 pr-1 text-sm">
+          {levels.map((l) => (
+            <div key={l} className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-subtle">{ordinal(l)} level</span>
+              <ul className="flex flex-wrap gap-1.5">
+                {known
+                  .filter((s) => s.level === l)
+                  .map((s) => (
+                    <li key={s.key} className="rounded-full border border-line-2 px-2.5 py-0.5 text-sm">
                       {s.name}
-                      {starting.has(s.key) ? (
-                        cls === "cleric" ? null : (
-                          <span className="px-1.5 text-xs text-subtle" title="Every magic-user starts with all 1st-level spells (WW p. 25)">
-                            start
-                          </span>
-                        )
-                      ) : (
-                        canEditBook && (
-                          <form action={forgetSpell}>
-                            <input type="hidden" name="id" value={id} />
-                            <input type="hidden" name="key" value={s.key} />
-                            <button type="submit" aria-label={`Remove ${s.name}`} className="flex h-6 w-6 items-center justify-center rounded-full text-subtle hover:bg-[#2e1a15] hover:text-ember">
-                              ×
-                            </button>
-                          </form>
-                        )
-                      )}
                     </li>
                   ))}
-                </ul>
-              </div>
-            );
-          })}
+              </ul>
+            </div>
+          ))}
         </div>
       </details>
-      {canEditBook && keepsBook && (
-        <form action={recordSpells} className="flex flex-wrap items-center gap-2 border-t border-[#262920] pt-3">
-          <input type="hidden" name="id" value={id} />
-          <label htmlFor="spell-add" className="text-sm text-muted">
-            Record a {book}
-          </label>
-          <select id="spell-add" name="add" defaultValue="" required className={selectCls}>
-            <option value="" disabled>
-              Choose…
-            </option>
-            <optgroup label="A whole level">
-              {levels.map((l) => (
-                <option key={l} value={`level:${l}`}>
-                  All {ordinal(l)}-level spells ({SPELLBOOK_COST_GP[l - 1].toLocaleString("en-US")} gp)
-                </option>
-              ))}
-            </optgroup>
-            {levels.map((l) => {
-              const missing = spellsFor(cls, l).filter((s) => !known.some((k) => k.key === s.key));
-              if (missing.length === 0) return null;
-              return (
-                <optgroup key={l} label={`One ${ordinal(l)}-level spell`}>
-                  {missing.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.name}
-                    </option>
-                  ))}
-                </optgroup>
-              );
-            })}
-          </select>
-          <SubmitButton tone="plain" pendingText="Recording…">
-            Record
-          </SubmitButton>
-        </form>
-      )}
     </Panel>
   );
 }

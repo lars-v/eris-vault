@@ -14,8 +14,6 @@ export type PrepareLevel = {
   options: { key: string; name: string }[];
   /** Spell keys prepared at this level now, in slot order. */
   current: string[];
-  /** Shown when the book has nothing at this level yet. */
-  emptyNote: string;
 };
 
 const selectCls = "min-h-11 w-full min-w-0 rounded-xl border border-line-2 bg-ink px-2 text-sm";
@@ -37,13 +35,12 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
 
   const nameOf = (lvl: PrepareLevel, key: string) => lvl.options.find((o) => o.key === key)?.name ?? key;
   const anyPrepared = levels.some((l) => l.current.length > 0);
-  const anyOptions = levels.some((l) => l.options.length > 0);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Prepared spells</h3>
-        {canEdit && !editing && anyOptions && (
+        {canEdit && !editing && (
           <button
             type="button"
             onClick={() => setEditing(true)}
@@ -61,10 +58,7 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
           {levels.map((l) => (
             <fieldset key={l.level} className="flex flex-col gap-2">
               <legend className="mb-1 text-sm font-semibold">{l.label}-level slots</legend>
-              {l.options.length === 0 ? (
-                <p className="text-sm text-subtle">{l.emptyNote}</p>
-              ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
                   {Array.from({ length: l.slots }, (_, i) => (
                     <label key={i} className="flex flex-col gap-1">
                       <span className="text-xs text-subtle">Slot {i + 1}</span>
@@ -78,8 +72,7 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
                       </select>
                     </label>
                   ))}
-                </div>
-              )}
+              </div>
             </fieldset>
           ))}
           {state.error && (
@@ -110,10 +103,7 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
           {levels.map((l) => (
             <div key={l.level} className="flex flex-col gap-1.5">
               <span className="text-xs font-semibold uppercase tracking-[0.12em] text-subtle">{l.label} level</span>
-              {l.options.length === 0 ? (
-                <p className="text-sm text-subtle">{l.emptyNote}</p>
-              ) : (
-                <ul className="flex flex-wrap gap-1.5">
+              <ul className="flex flex-wrap gap-1.5">
                   {Array.from({ length: l.slots }, (_, i) => {
                     const key = l.current[i];
                     return key ? (
@@ -126,8 +116,7 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
                       </li>
                     );
                   })}
-                </ul>
-              )}
+              </ul>
             </div>
           ))}
         </div>

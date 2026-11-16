@@ -53,7 +53,6 @@ export function LevelPanel({
   race,
   alignment,
   wis,
-  recordedSpells,
   classes,
   firstLevelCounted,
   hpMax,
@@ -66,7 +65,6 @@ export function LevelPanel({
   race: Race | null;
   alignment: Alignment | null;
   wis: number | null;
-  recordedSpells: string[];
   classes: ClassRow[];
   firstLevelCounted: boolean;
   hpMax: number | null;
@@ -86,7 +84,7 @@ export function LevelPanel({
         const reached = Math.min(levelFor(k.class, k.xp).level, cap);
         const capped = levelFor(k.class, k.xp).level > cap;
         const adj = HIT_DIE_ADJUST[k.class] + conModifier;
-        const input = { race, cls: k.class, alignment, wis, recordedSpells };
+        const input = { race, cls: k.class, alignment, wis };
         const fresh = toRoll.length > 0 ? levelUp(input, counted, reached) : null;
         const last = !fresh && firstLevelCounted && reached > 1 ? levelUp(input, reached - 1, reached) : null;
         return (

@@ -20,6 +20,7 @@ const RULINGS = [
   ["magic-gear-encumbrance", "Does magic gear count toward encumbrance?", "Campaign ruling (overrides Woundwort's Warren p. 16)", "No. Magic gear counts as 0 units.", "decided"],
   ["one-ability-set", "Can a player throw away a set of ability rolls and roll again?", "WW p. 5 silent; table decision (Lars), 1 Nov 2026", "No. One set per character, kept in the public roll log. Only the GM or admin can grant a re-roll.", "decided"],
   ["cleric-all-spells", "Which cleric spells does a cleric have?", "Table decision (Lars), 16 Nov 2026; overrides WW p. 25 (prayer scrolls from the church one level at a time)", "Every spell on the cleric list. Spells per day still follow WW pp. 5 and 8.", "decided"],
+  ["magic-user-all-spells", "Which magic-user spells does a magic-user (or an elf casting as one) have?", "Table decision (Lars), 16 Nov 2026; overrides WW p. 25 (spellbooks bought one level at a time) and WW p. 10 (an elf's mental book grown by study)", "Every spell on the magic-user list. Spells per day still follow WW p. 7.", "decided"],
   ["starting-gold", "Is 3d6 x 10 gp a shopping budget or what is left after gear?", "Men & Magic p. 10; campaign ruling", "It is what remains after buying starting gear.", "decided"],
   // Open questions where the books are silent, optional or ambiguous.
   ["hit-die-floor", "Can a hit die total fall below 1 after 1st level?", "WW p. 6 silent; M&M p. 11 sets 1 for its own Con rule", null, "pending"],

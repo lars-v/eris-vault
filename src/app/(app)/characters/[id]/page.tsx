@@ -296,7 +296,6 @@ export default async function CharacterPage({
             race={c.race}
             alignment={c.alignment}
             wis={c.wis}
-            recordedSpells={c.spellsKnown}
             classes={c.classes}
             firstLevelCounted={imported || Boolean(c.hpRollId)}
             hpMax={c.hpMax}
@@ -315,10 +314,8 @@ export default async function CharacterPage({
             cls={active.class}
             level={lvl.level}
             wis={c.wis}
-            recorded={c.spellsKnown}
             prepared={c.spellsPrepared}
             canPrepare={can.editSpells(viewer, c)}
-            canEditBook={can.editSpells(viewer, c)}
           />
         )}
         <Panel title={`Rolls · ${c.rolls.length}`} aside="Insert-only; see the full roll log">

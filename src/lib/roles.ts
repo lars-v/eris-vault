@@ -38,8 +38,7 @@ export const can = {
   // Gear changes in play: the player who owns the character, or Jay and admins on any character.
   editGear: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
-  // The spellbook (recording and removing spells) and the day's prepared spells:
-  // the player who owns the character, or Jay and admins. Every book change is audited.
+  // The day's prepared spells: the player who owns the character, or Jay and admins.
   editSpells: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
   // Magic gear counts 0 units (campaign ruling), so only Jay and admins mark or unmark it.

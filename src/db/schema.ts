@@ -114,9 +114,10 @@ export const characters = pgTable("characters", {
   coinsSp: integer("coins_sp").notNull().default(0),
   coinsCp: integer("coins_cp").notNull().default(0),
   deity: text("deity"),
-  // Spell keys from src/lib/rules/spells.ts. `spellsKnown` holds only what Jay
-  // recorded (books and scrolls bought or found, WW p. 25); starting spells are
-  // derived. `spellsPrepared` has one entry per filled slot.
+  // Spell keys from src/lib/rules/spells.ts. `spellsKnown` held books and scrolls
+  // recorded on the character (WW p. 25). Since the all-spells rulings (16 Nov 2026)
+  // every caster has the whole list, so nothing reads or writes it; old rows are
+  // kept. `spellsPrepared` has one entry per filled slot.
   spellsKnown: text("spells_known").array().notNull().default(sql`'{}'::text[]`),
   spellsPrepared: text("spells_prepared").array().notNull().default(sql`'{}'::text[]`),
   notes: text("notes"),

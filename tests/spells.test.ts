@@ -8,8 +8,6 @@ import {
   SPELLS,
   spellSlots,
   spellsFor,
-  recordsSpells,
-  startingSpells,
 } from "@/lib/rules/spells";
 
 describe("spells per day (Woundwort's Warren pp. 7-8)", () => {
@@ -69,31 +67,20 @@ describe("spell lists (Woundwort's Warren p. 26)", () => {
   });
 });
 
-describe("starting and known spells (Woundwort's Warren p. 25)", () => {
-  it("magic-users start with every 1st-level spell (WW p. 25)", () => {
-    expect(startingSpells("magic-user")).toHaveLength(10);
-    expect(recordsSpells("magic-user")).toBe(true);
-  });
-
-  it("clerics hold every spell on the cleric list (ruling cleric-all-spells)", () => {
-    const all = [1, 2, 3, 4, 5].flatMap((l) => spellsFor("cleric", l)).map((s) => s.key);
-    expect(startingSpells("cleric")).toEqual(all);
-    expect(knownSpells("cleric", []).map((s) => s.key)).toEqual(all);
-    expect(knownSpells("cleric", []).some((s) => s.cls !== "cleric")).toBe(false);
-    expect(recordsSpells("cleric")).toBe(false);
-  });
-
-  it("adds what Jay recorded, ignores other classes' keys and unknown keys", () => {
-    const known = knownSpells("magic-user", ["mu:web", "cl:bless", "mu:nope"]).map((s) => s.key);
-    expect(known).toContain("mu:sleep");
-    expect(known).toContain("mu:web");
-    expect(known).not.toContain("cl:bless");
-    expect(known).toHaveLength(11);
+describe("known spells (rulings cleric-all-spells, magic-user-all-spells)", () => {
+  it("every caster has every spell on their own class's list, in list order", () => {
+    for (const cls of ["magic-user", "cleric"] as const) {
+      const all = Array.from({ length: maxSpellLevel(cls) }, (_, i) => spellsFor(cls, i + 1)).flat();
+      expect(knownSpells(cls)).toEqual(all);
+      expect(knownSpells(cls).every((s) => s.cls === cls)).toBe(true);
+    }
+    expect(knownSpells("magic-user").map((s) => s.key)).toContain("mu:fireball");
+    expect(knownSpells("cleric").map((s) => s.key)).not.toContain("mu:sleep");
   });
 });
 
 describe("checking prepared spells", () => {
-  const known = knownSpells("cleric", ["cl:cure-light-wounds", "cl:light", "cl:bless"]);
+  const known = knownSpells("cleric");
   const slots = spellSlots("cleric", 4, 16);
 
   it("accepts spells that fit the slots", () => {
@@ -106,8 +93,7 @@ describe("checking prepared spells", () => {
   });
 
   it("rejects a spell level the character has no slots for (Liz's Cure Disease)", () => {
-    const withCd = knownSpells("cleric", ["cl:cure-disease"]);
-    expect(checkPrepared("cleric", slots, withCd, ["cl:cure-disease"])).toMatch(/3rd-level/);
+    expect(checkPrepared("cleric", slots, known, ["cl:cure-disease"])).toMatch(/3rd-level/);
   });
 
   it("lets a cleric prepare any cleric spell at a level with slots", () => {
@@ -115,8 +101,8 @@ describe("checking prepared spells", () => {
   });
 
   it("rejects spells the character doesn't hold or from the other class", () => {
-    const mu = knownSpells("magic-user", []);
-    expect(checkPrepared("magic-user", spellSlots("magic-user", 3, 10), mu, ["mu:web"])).toMatch(/isn't in this character's spellbook/);
+    const firstOnly = spellsFor("magic-user", 1);
+    expect(checkPrepared("magic-user", spellSlots("magic-user", 3, 10), firstOnly, ["mu:web"])).toMatch(/isn't in this character's spellbook/);
     expect(checkPrepared("cleric", slots, known, ["mu:sleep"])).toMatch(/class's list/);
   });
 

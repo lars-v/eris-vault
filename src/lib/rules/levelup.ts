@@ -1,7 +1,7 @@
 import type { Alignment, CharacterClass, Race } from "@/db/schema";
 import { CLASS_NAMES, levelFor, levelRow, maxLevel } from "./advancement";
 import { combatRows } from "./combat";
-import { castsSpells, knownSpells, SPELLBOOK_COST_GP, spellSlots } from "./spells";
+import { castsSpells, spellSlots } from "./spells";
 import { thiefSkills } from "./thief";
 import { canAffectUndead, formatTurn, turningRow } from "./turning";
 
@@ -18,8 +18,6 @@ export type LevelUpInput = {
   cls: CharacterClass;
   alignment: Alignment | null;
   wis: number | null;
-  /** Spell keys Jay recorded on the character (characters.spells_known). */
-  recordedSpells: string[];
 };
 
 export const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
@@ -27,7 +25,7 @@ export const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n
 const toHitAc9 = (cls: CharacterClass, level: number) => combatRows(cls, level).map((r) => r.toHit[0]).join(" or ");
 
 export function levelUp(input: LevelUpInput, from: number, to: number): LevelUp {
-  const { race, cls, alignment, wis, recordedSpells } = input;
+  const { race, cls, alignment, wis } = input;
   if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to <= from) {
     throw new RangeError(`A level-up goes up: ${from} to ${to}`);
   }
@@ -45,17 +43,11 @@ export function levelUp(input: LevelUpInput, from: number, to: number): LevelUp 
   if (castsSpells(cls)) {
     const was = spellSlots(cls, from, wis);
     const now = spellSlots(cls, to, wis);
-    const known = knownSpells(cls, recordedSpells);
+    // Every caster already has every spell on the list (rulings cleric-all-spells,
+    // magic-user-all-spells), so a new spell level needs no book or scroll.
     now.forEach((n, i) => {
       if (n === was[i]) return;
       changes.push({ label: `${ordinal(i + 1)}-level spells per day`, before: String(was[i]), after: String(n), source: book });
-      if (was[i] > 0 || known.some((s) => s.level === i + 1)) return;
-      const cost = SPELLBOOK_COST_GP[i].toLocaleString("en-US");
-      if (race === "elf") {
-        notes.push({ text: `The elf can now cast ${ordinal(i + 1)}-level spells. An elf adds spells to the mental book by studying scrolls or tomes, or from another elf who shares them (WW p. 10). Record them on the sheet.` });
-      } else {
-        notes.push({ text: `The magic-user can now cast ${ordinal(i + 1)}-level spells. A ${ordinal(i + 1)}-level spellbook costs ${cost} gp, usually bought from a higher-level magic-user (WW p. 25). Record it on the sheet once bought.` });
-      }
     });
   }
 

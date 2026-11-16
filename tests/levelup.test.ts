@@ -9,7 +9,6 @@ const human = (cls: LevelUpInput["cls"], extra: Partial<LevelUpInput> = {}): Lev
   cls,
   alignment: "lawful",
   wis: 10,
-  recordedSpells: [],
   ...extra,
 });
 
@@ -106,19 +105,15 @@ describe("levelUp", () => {
   it("leaves out to-hit when the row doesn't move", () => {
     expect(find(levelUp(human("cleric"), 1, 2), "Roll to hit AC 9")).toBeUndefined();
   });
-  it("names a new spell level and its book cost for a magic-user", () => {
+  it("names a new spell level for a magic-user, with no book to buy (ruling magic-user-all-spells)", () => {
     const u = levelUp(human("magic-user"), 2, 3);
     expect(find(u, "2nd-level spells per day")).toMatchObject({ before: "0", after: "1" });
     expect(find(u, "1st-level spells per day")).toMatchObject({ before: "2", after: "3" });
-    expect(u.notes.some((n) => n.text.includes("2nd-level spellbook costs 4,000 gp"))).toBe(true);
-  });
-  it("skips the book note when Jay already recorded a spell of that level", () => {
-    const u = levelUp(human("magic-user", { recordedSpells: ["mu:invisibility"] }), 2, 3);
     expect(u.notes.some((n) => n.text.includes("spellbook"))).toBe(false);
   });
-  it("points an elf at the mental book instead (WW p. 10)", () => {
+  it("sends an elf to no mental book study either", () => {
     const u = levelUp({ ...human("magic-user"), race: "elf" }, 2, 3);
-    expect(u.notes.some((n) => n.text.includes("mental book"))).toBe(true);
+    expect(u.notes.some((n) => n.text.includes("mental book"))).toBe(false);
   });
   it("gives a cleric new spells per day but no scroll to fetch (ruling cleric-all-spells)", () => {
     const u = levelUp(human("cleric"), 1, 2);

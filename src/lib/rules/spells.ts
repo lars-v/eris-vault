@@ -8,14 +8,12 @@ import { abilityModifier } from "./abilities";
  *   Table) and p. 8 (Cleric Advancement Table).
  * - Extra 1st-level cleric spells from a Wisdom bonus: WW p. 5.
  * - Spell lists: WW p. 26 ("Magic-User Spellbooks", "Cleric Prayer Scrolls").
- * - What a character starts with: WW p. 25. A 1st-level magic-user's book holds
- *   every 1st-level spell; an elf holds the same in a "mental" book. Every later
- *   book is bought (WW p. 25), so the player or Jay records those on the character.
- * - Clerics: table ruling "cleric-all-spells" (Lars, 16 Nov 2026) gives every
- *   cleric every spell on the cleric list. It overrides WW p. 25, where clerics
- *   get prayer scrolls from the church one spell level at a time. Spells per day
- *   (WW pp. 5, 8) are unchanged, so a cleric still prays only for spell levels
- *   they have slots for.
+ * - Which spells a caster has: table rulings "cleric-all-spells" and
+ *   "magic-user-all-spells" (Lars, 16 Nov 2026). Every caster has every spell on
+ *   their class's list. They override WW p. 25 (spellbooks and prayer scrolls
+ *   bought or offered for one spell level at a time) and WW p. 10 (an elf's
+ *   "mental" book grown by study). Spells per day (WW pp. 5, 7, 8) are unchanged,
+ *   so a caster still prepares only at spell levels they have slots for.
  *
  * Open questions left to Jay (rulings seed in scripts/migrate.mjs):
  * - "prepare-same-spell": may one spell fill two slots? Allowed here, and shown as a flag.
@@ -27,11 +25,7 @@ export const SPELL_SLOTS_SOURCE: Record<SpellClass, string> = {
   cleric: "Woundwort's Warren p. 8",
 };
 export const SPELL_LIST_SOURCE = "Woundwort's Warren p. 26";
-export const SPELLBOOK_SOURCE = "Woundwort's Warren p. 25";
-export const CLERIC_ALL_SPELLS_SOURCE = "Table ruling (Lars), 16 Nov 2026";
-
-/** Cost of a book or prayer scroll of one spell level, index 0 = 1st level (WW p. 25). */
-export const SPELLBOOK_COST_GP = [2000, 4000, 8000, 16000, 32000, 64000];
+export const ALL_SPELLS_SOURCE = "Table rulings cleric-all-spells and magic-user-all-spells (Lars), 16 Nov 2026";
 
 export type SpellClass =Extract<CharacterClass, "magic-user" | "cleric">;
 export type Spell = { key: string; name: string; cls: SpellClass; level: number };
@@ -159,25 +153,9 @@ export function maxSpellLevel(cls: SpellClass): number {
   return cls === "magic-user" ? MU.length : CLERIC.length;
 }
 
-/**
- * Spells every member of the class holds without anyone recording them:
- * all 1st-level magic-user spells for magic-users and elves (WW p. 25), and
- * every spell on the cleric list for clerics (ruling "cleric-all-spells").
- */
-export function startingSpells(cls: SpellClass): string[] {
-  if (cls === "cleric") return SPELLS.filter((s) => s.cls === "cleric").map((s) => s.key);
-  return spellsFor("magic-user", 1).map((s) => s.key);
-}
-
-/** Whether the class keeps a book the player or Jay adds to. Clerics hold every spell already. */
-export function recordsSpells(cls: SpellClass): boolean {
-  return cls === "magic-user";
-}
-
-/** Starting spells plus what Jay recorded, in list order. Unknown keys are dropped. */
-export function knownSpells(cls: SpellClass, recorded: string[]): Spell[] {
-  const keys = new Set([...startingSpells(cls), ...recorded]);
-  return SPELLS.filter((s) => s.cls === cls && keys.has(s.key));
+/** Every spell on the class's list, in list order (rulings cleric-all-spells, magic-user-all-spells). */
+export function knownSpells(cls: SpellClass): Spell[] {
+  return SPELLS.filter((s) => s.cls === cls);
 }
 
 /**
