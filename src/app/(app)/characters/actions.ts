@@ -644,12 +644,13 @@ export async function grantReroll(formData: FormData) {
 const XP_STATUSES = new Set(["submitted", "approved"]);
 
 /**
- * Staff add (or, with a negative amount, correct) XP for one class.
+ * Adds (or, with a negative amount, corrects) XP for one class. Jay and admins
+ * on submitted or approved characters, the owner on an approved one
+ * (can.editXp). Every change is audited, the player's too, so Jay sees it.
  * WW p. 11: no bonus or penalty to earned XP for high or low scores.
  */
 async function awardXpImpl(formData: FormData) {
-  const viewer = await requireStaff();
-  if (!can.awardXp(viewer)) throw new Error("Only Jay or an admin can award XP.");
+  const viewer = await requireUser();
   const id = str(formData, "id");
   const classId = str(formData, "classId");
   const amount = wholeNumber(formData, "amount", "XP", -10_000_000, 10_000_000);
@@ -662,6 +663,9 @@ async function awardXpImpl(formData: FormData) {
       .where(and(eq(characters.id, id), isNull(characters.deletedAt)))
       .for("update");
     if (!c) throw new Error("Unknown character");
+    if (!can.editXp(viewer, c)) {
+      throw new Error(c.ownerId === viewer.userId ? "You can add XP once Jay approves the character." : "Only the player or Jay can change this character's XP.");
+    }
     if (!XP_STATUSES.has(c.status)) throw new Error("XP goes to submitted or approved characters.");
     const [k] = await tx
       .select()
@@ -751,7 +755,7 @@ async function rollLevelHpImpl(formData: FormData) {
  */
 async function drainLevelsImpl(formData: FormData) {
   const viewer = await requireUser();
-  if (!can.awardXp(viewer)) throw new Error("Only Jay or an admin can take levels away.");
+  if (!can.drainLevels(viewer)) throw new Error("Only Jay or an admin can take levels away.");
   const id = str(formData, "id");
   const classId = str(formData, "classId");
   if (!/^[0-9a-f-]{36}$/i.test(id) || !/^[0-9a-f-]{36}$/i.test(classId)) throw new Error("Unknown character");

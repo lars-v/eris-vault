@@ -66,8 +66,17 @@ describe("who can do what (plan: Who can do what)", () => {
     expect(can.editCoreStats(gm, own)).toBe(true);
     expect(can.editCoreStats(admin, own)).toBe(true);
   });
-  it("XP, approvals, rulings and blocking are GM or admin only", () => {
-    for (const fn of [can.awardXp, can.approve, can.editRulings, can.blockAccounts, can.readAuditLog]) {
+  it("owners change XP on an approved character; Jay and admins on submitted ones too", () => {
+    expect(can.editXp(player, own)).toBe(true);
+    expect(can.editXp(player, ownSubmitted)).toBe(false);
+    expect(can.editXp(player, ownDraft)).toBe(false);
+    expect(can.editXp(other, own)).toBe(false);
+    expect(can.editXp(gm, ownSubmitted)).toBe(true);
+    expect(can.editXp(admin, own)).toBe(true);
+    expect(can.editXp(blocked, { ownerId: "x", status: "approved" })).toBe(false);
+  });
+  it("level drain, approvals, rulings and blocking are GM or admin only", () => {
+    for (const fn of [can.drainLevels, can.approve, can.editRulings, can.blockAccounts, can.readAuditLog]) {
       expect(fn(player)).toBe(false);
       expect(fn(gm)).toBe(true);
       expect(fn(admin)).toBe(true);

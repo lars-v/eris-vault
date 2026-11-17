@@ -59,7 +59,9 @@ export function LevelPanel({
   conModifier,
   levelDice,
   canRoll,
-  canAward,
+  canEditXp,
+  canDrain,
+  staff,
 }: {
   characterId: string;
   race: Race | null;
@@ -71,7 +73,9 @@ export function LevelPanel({
   conModifier: number;
   levelDice: LevelDie[];
   canRoll: boolean;
-  canAward: boolean;
+  canEditXp: boolean;
+  canDrain: boolean;
+  staff: boolean;
 }) {
   return (
     <Panel title="Levels and hit points" aside="Woundwort's Warren pp. 6-11">
@@ -162,8 +166,8 @@ export function LevelPanel({
         A new level&apos;s hit die adds to maximum hit points. Current hit points stay as they are until Jay rules on that
         (level-hp-current).
       </p>
-      {canAward && <AwardXpForm characterId={characterId} race={race} classes={classes} />}
-      {canAward && hpMax !== null && firstLevelCounted && (
+      {canEditXp && <AwardXpForm characterId={characterId} race={race} classes={classes} staff={staff} />}
+      {canDrain && hpMax !== null && firstLevelCounted && (
         <DrainForm
           characterId={characterId}
           race={race}
