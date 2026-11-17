@@ -1,6 +1,8 @@
 import {
   boolean,
+  check,
   customType,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -163,7 +165,10 @@ export const inventory = pgTable("inventory", {
   magicBonus: smallint("magic_bonus"),
   location: text("location").$type<ItemLocation>().notNull().default("carried"),
   notes: text("notes"),
-});
+  // The staff or wand that stores spells (WW p. 7). True on at most one item per
+  // character; null or false otherwise.
+  isSpellFocus: boolean("is_spell_focus"),
+}, (t) => [uniqueIndex("inventory_one_spell_focus").on(t.characterId).where(sql`${t.isSpellFocus}`)]);
 
 export type RollPurpose = "abilities" | "hp" | "gold" | "level-hp" | "play";
 
@@ -180,6 +185,40 @@ export const rolls = pgTable("rolls", {
   totals: jsonb("totals").$type<number[]>().notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+/**
+ * Spells stored in a magic-user's staff or wand (WW pp. 5, 7). Insert-only
+ * (trigger in drizzle/0013_spell_staff.sql): a slot's state is its latest event.
+ * `inventory_id` has no foreign key on purpose: removing the item deletes its
+ * row, and the trigger would refuse the change a foreign key needs. The card
+ * warns when the item is gone instead. `created_at` uses clock_timestamp() so
+ * events written after waiting on the character's row lock sort after the
+ * event that held it.
+ */
+export const storedSpellEvents = pgTable(
+  "stored_spell_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    characterId: uuid("character_id")
+      .notNull()
+      .references(() => characters.id),
+    inventoryId: uuid("inventory_id"),
+    slot: smallint("slot").notNull(),
+    // The spell loaded, released or voided (a key from src/lib/rules/spells.ts).
+    spell: text("spell").notNull(),
+    action: text("action").$type<"load" | "release" | "void">().notNull(),
+    actorId: text("actor_id")
+      .notNull()
+      .references(() => users.id),
+    note: text("note"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`clock_timestamp()`),
+  },
+  (t) => [
+    index("stored_spell_events_slot").on(t.characterId, t.slot, t.createdAt),
+    check("stored_spell_events_slot_check", sql`${t.slot} in (1, 2)`),
+    check("stored_spell_events_action_check", sql`${t.action} in ('load', 'release', 'void')`),
+  ],
+);
 
 /**
  * The hit die rolled for one new level of one class (WW p. 6). `gain` is what

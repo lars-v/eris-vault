@@ -92,6 +92,13 @@
       "when": 1794878614514,
       "tag": "0012_character_portraits",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794885742105,
+      "tag": "0013_spell_staff",
+      "breakpoints": true
     }
   ]
 }

@@ -137,6 +137,27 @@ export const RULING_EXAMPLES: Record<string, RulingExample[]> = {
     { answer: "No. New characters start at 0 XP.", basis: NOW },
     { answer: "Yes. A new character starts with as much XP as the lowest character in the party." },
   ],
+  "staff-carry-over-rest": [
+    { answer: "Yes. A stored spell stays until it is used, through any amount of rest.", basis: NOW },
+    { answer: "No. Stored spells fade when the magic-user rests and prepares the next day's spells." },
+  ],
+  "staff-same-spell-twice": [
+    { answer: "Yes. Both slots may hold the same spell.", basis: NOW },
+    { answer: "No. Each slot must hold a different spell." },
+  ],
+  "staff-loss": [
+    { answer: "Yes. If the staff or wand is broken, stolen or dropped, the stored spells are lost." },
+    { answer: "Only if it is broken. A stolen or dropped staff keeps its spells until found." },
+    { answer: "Jay decides each time and voids the slot when a spell is lost.", basis: NOW },
+  ],
+  "elf-wand-int": [
+    { answer: "Yes. Elves need an Intelligence bonus (15+) like any magic-user.", basis: NOW },
+    { answer: "No. Every elf may store one spell in a staff or wand." },
+  ],
+  "staff-int-drop": [
+    { answer: "The extra stored spell is lost at once." },
+    { answer: "The stored spell stays until it is released, but no new spell can be loaded past the limit.", basis: NOW },
+  ],
 };
 
 /** Trims Jay's answer and checks it fits. Throws a message the form shows. */

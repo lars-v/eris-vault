@@ -53,6 +53,11 @@ const RULINGS = [
   ["one-level-per-adventure", "Men & Magic recommends that no single adventure awards more XP than it takes to gain one level. Does the table use this? Until then, the award form warns when an award gains more than one level, but allows it.", "M&M p. 18", null, "pending"],
   ["starting-magic-items", "Does a new character start with magic items (for example two)? If so, how many, and does the player choose them or does Jay? Until then, new characters start with none and only Jay can add one.", "WW silent (p. 33 covers random treasure found in play); M&M p. 10 gives only 3d6 x 10 gp", null, "pending"],
   ["starting-xp", "Does a new character start with a minimum number of experience points? If so, how many? Until then, new characters start at 0 XP and Jay can set XP by hand.", "WW silent (p. 6 sets a minimum of 3 starting hit points, not XP; p. 11 covers XP earned in play)", null, "pending"],
+  ["staff-carry-over-rest", "Does a spell stored in a magic-user's staff or wand stay stored through rest, so the magic-user has an extra spell the next day? Until then, a stored spell stays until it is released.", "WW p. 7 says a stored spell may be loosed 'at any time' and is silent on rest", null, "pending"],
+  ["staff-same-spell-twice", "With Int 18, may both staff slots hold the same spell? Until then, it is allowed and the sheet flags it.", "WW p. 7 silent", null, "pending"],
+  ["staff-loss", "Is a stored spell lost if the staff or wand is broken, stolen or dropped? Until then, nothing is cleared: the sheet warns and Jay can void the slot.", "WW p. 7 silent", null, "pending"],
+  ["elf-wand-int", "Does an elf using a staff or wand also need an Intelligence bonus to store spells? Until then, elves follow the same Intelligence rule as magic-users.", "WW p. 7 names magic-users and elves for the wand; the Intelligence rule (WW pp. 5, 7) names magic-users", null, "pending"],
+  ["staff-int-drop", "If Intelligence drops after spells are stored (for example after a re-roll grant), what happens to a stored spell past the new limit? Until then, nothing is cleared: the sheet warns and Jay can void the slot.", "WW pp. 5, 7 silent", null, "pending"],
 ];
 
 try {
