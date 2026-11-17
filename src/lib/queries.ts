@@ -14,6 +14,7 @@ import {
   rolls,
   rulings,
   sheetUploads,
+  storedSpellEvents,
   users,
   type CharacterClass,
 } from "@/db/schema";
@@ -64,15 +65,32 @@ export async function listCharacters() {
           location: inventory.location,
           isMagic: inventory.isMagic,
           magicBonus: inventory.magicBonus,
+          isSpellFocus: inventory.isSpellFocus,
         })
         .from(inventory)
         .where(inArray(inventory.characterId, rows.map((r) => r.id)))
+    : [];
+  // The latest stored-spell event per character and slot, for the staff badge (WW p. 7).
+  const staffEvents = rows.length
+    ? await db
+        .selectDistinctOn([storedSpellEvents.characterId, storedSpellEvents.slot], {
+          characterId: storedSpellEvents.characterId,
+          slot: storedSpellEvents.slot,
+          spell: storedSpellEvents.spell,
+          action: storedSpellEvents.action,
+          inventoryId: storedSpellEvents.inventoryId,
+          createdAt: storedSpellEvents.createdAt,
+        })
+        .from(storedSpellEvents)
+        .where(inArray(storedSpellEvents.characterId, rows.map((r) => r.id)))
+        .orderBy(storedSpellEvents.characterId, storedSpellEvents.slot, desc(storedSpellEvents.createdAt))
     : [];
   return rows.map((r) => ({
     ...r,
     importFlagCount: r.importFlagCount.length,
     portrait: portraitUrl(r.id, r.portraitAt),
     items: gear.filter((g) => g.characterId === r.id),
+    staffEvents: staffEvents.filter((e) => e.characterId === r.id),
   }));
 }
 
@@ -95,7 +113,7 @@ export async function getCharacter(id: string) {
     .from(inventory)
     .where(eq(inventory.characterId, id))
     .orderBy(asc(inventory.name));
-  const [characterRolls, grants, levelDice] = await Promise.all([
+  const [characterRolls, grants, levelDice, staffEvents] = await Promise.all([
     listRolls({ characterId: id }),
     openGrants(id),
     db
@@ -104,9 +122,23 @@ export async function getCharacter(id: string) {
       .innerJoin(rolls, eq(rolls.id, hitDice.rollId))
       .where(eq(hitDice.characterId, id))
       .orderBy(asc(hitDice.level), asc(hitDice.createdAt)),
+    db
+      .select({
+        slot: storedSpellEvents.slot,
+        spell: storedSpellEvents.spell,
+        action: storedSpellEvents.action,
+        inventoryId: storedSpellEvents.inventoryId,
+        note: storedSpellEvents.note,
+        createdAt: storedSpellEvents.createdAt,
+        actorName: users.name,
+      })
+      .from(storedSpellEvents)
+      .leftJoin(users, eq(users.id, storedSpellEvents.actorId))
+      .where(eq(storedSpellEvents.characterId, id))
+      .orderBy(desc(storedSpellEvents.createdAt)),
   ]);
   const abilityRoll = c.abilityRollId ? characterRolls.find((r) => r.id === c.abilityRollId) ?? null : null;
-  return { ...c, ownerName: owner?.name ?? null, portrait: portraitUrl(id, pic?.updatedAt ?? null), classes, items, rolls: characterRolls, grants, abilityRoll, levelDice };
+  return { ...c, ownerName: owner?.name ?? null, portrait: portraitUrl(id, pic?.updatedAt ?? null), classes, items, rolls: characterRolls, grants, abilityRoll, levelDice, staffEvents };
 }
 
 /** Every roll, newest first. Rolls are insert-only, so this is the full record. */
@@ -174,6 +206,15 @@ export async function listPeople() {
       characters: chars.filter((c) => c.ownerId === p.userId).map((c) => c.name),
     };
   });
+}
+
+/** A few rulings by key, for screens that point at them. */
+export async function rulingsByKey(keys: string[]) {
+  if (keys.length === 0) return [];
+  return db
+    .select({ key: rulings.key, question: rulings.question, answer: rulings.answer, status: rulings.status })
+    .from(rulings)
+    .where(inArray(rulings.key, keys));
 }
 
 export async function listRulings() {
