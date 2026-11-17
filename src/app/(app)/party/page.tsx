@@ -2,6 +2,7 @@ import Link from "next/link";
 import { enabledProviders } from "@/auth";
 import { Guide } from "@/components/Guide";
 import { Nav } from "@/components/Nav";
+import { Portrait } from "@/components/Portrait";
 import { Chip, PageHeader } from "@/components/ui";
 import { levelUpsWaiting, listCharacters } from "@/lib/queries";
 import { welcomeSteps } from "@/lib/guide";
@@ -99,14 +100,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
                   className="relative flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 hover:border-line-2"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex h-20 w-16 flex-none items-center justify-center rounded-[50%] border-[1.5px] border-lime font-display text-2xl text-lime">
-                      {c.name
-                        .split(" ")
-                        .filter((w) => /^[A-Z]/.test(w))
-                        .map((w) => w[0])
-                        .join("")
-                        .slice(0, 2)}
-                    </div>
+                    <Portrait name={c.name} src={c.portrait} size="card" />
                     <div className="flex min-w-0 flex-col gap-1">
                       {/* The link stretches over the whole card; the delete control sits above it. */}
                       <Link

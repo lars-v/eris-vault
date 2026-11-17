@@ -34,6 +34,14 @@ describe("who can do what (plan: Who can do what)", () => {
     expect(can.editPlayState(gm, own)).toBe(true);
     expect(can.editPlayState(admin, own)).toBe(true);
   });
+  it("owners, Jay and admins change a character's picture at any status; others can't", () => {
+    expect(can.editPortrait(player, ownDraft)).toBe(true);
+    expect(can.editPortrait(player, own)).toBe(true);
+    expect(can.editPortrait(other, own)).toBe(false);
+    expect(can.editPortrait(gm, ownSubmitted)).toBe(true);
+    expect(can.editPortrait(admin, own)).toBe(true);
+    expect(can.editPortrait(blocked, own)).toBe(false);
+  });
   it("owners, Jay and admins edit spells; other players and blocked accounts can't", () => {
     expect(can.editSpells(player, own)).toBe(true);
     expect(can.editSpells(other, own)).toBe(false);

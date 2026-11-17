@@ -19,7 +19,7 @@ export default function Privacy() {
             From GitHub or Google sign-in: your name, email address and profile picture, plus the sign-in record those
             services return. Nothing else is requested from your account.
           </li>
-          <li>Your characters, their gear, and every dice roll made in the app.</li>
+          <li>Your characters, their gear and pictures, and every dice roll made in the app. Pictures are resized and saved without their photo details, such as where they were taken.</li>
           <li>A log of changes made by the game master and the admin.</li>
         </ul>
       </section>

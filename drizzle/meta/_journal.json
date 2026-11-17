@@ -85,6 +85,13 @@
       "when": 1794784042912,
       "tag": "0011_level_drain",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794878614514,
+      "tag": "0012_character_portraits",
+      "breakpoints": true
     }
   ]
 }

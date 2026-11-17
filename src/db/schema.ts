@@ -281,6 +281,23 @@ export const sheetUploads = pgTable("sheet_uploads", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+/**
+ * One picture per character, shown on the sheet and party cards. The server
+ * re-encodes every upload (src/lib/portraits.ts), so the stored bytes are never
+ * the file the player sent. Replacing or removing it overwrites or drops this row.
+ */
+export const characterPortraits = pgTable("character_portraits", {
+  characterId: uuid("character_id")
+    .primaryKey()
+    .references(() => characters.id, { onDelete: "cascade" }),
+  contentType: text("content_type").notNull(),
+  size: integer("size").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  data: bytea("data").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
 /** Server-owned settings, e.g. the Auth.js signing secret generated on first boot. */
 export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),

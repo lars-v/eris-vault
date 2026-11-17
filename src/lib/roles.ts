@@ -41,6 +41,9 @@ export const can = {
   // The day's prepared spells: the player who owns the character, or Jay and admins.
   editSpells: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
+  // The character's picture: the player who owns it, or Jay and admins, at any status.
+  editPortrait: (v: Viewer, c: CharacterRef) =>
+    v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
   // Magic gear counts 0 units (campaign ruling), so only Jay and admins mark or unmark it.
   markMagic: (v: Viewer) => v.status === "active" && isStaff(v),
   editCoreStats: (v: Viewer, c: CharacterRef) =>

@@ -5,6 +5,7 @@ import {
   accounts,
   auditLog,
   characterClasses,
+  characterPortraits,
   characters,
   hitDice,
   inventory,
@@ -18,6 +19,11 @@ import {
 } from "@/db/schema";
 import { parseAdminIds } from "@/lib/roles";
 import { countedHpLevel, levelsToRoll } from "@/lib/rules/advancement";
+
+/** The picture's link, versioned by upload time so browsers can cache it (src/app/api/portraits). */
+function portraitUrl(characterId: string, updatedAt: Date | null) {
+  return updatedAt ? `/api/portraits/${characterId}?v=${updatedAt.getTime()}` : null;
+}
 
 export async function listCharacters() {
   const rows = await db
@@ -37,9 +43,11 @@ export async function listCharacters() {
       importFlagCount: characters.importFlags,
       cls: characterClasses.class,
       xp: characterClasses.xp,
+      portraitAt: characterPortraits.updatedAt,
     })
     .from(characters)
     .innerJoin(users, eq(users.id, characters.ownerId))
+    .leftJoin(characterPortraits, eq(characterPortraits.characterId, characters.id))
     .leftJoin(
       characterClasses,
       and(eq(characterClasses.characterId, characters.id), eq(characterClasses.active, true)),
@@ -63,6 +71,7 @@ export async function listCharacters() {
   return rows.map((r) => ({
     ...r,
     importFlagCount: r.importFlagCount.length,
+    portrait: portraitUrl(r.id, r.portraitAt),
     items: gear.filter((g) => g.characterId === r.id),
   }));
 }
@@ -76,6 +85,10 @@ export async function getCharacter(id: string) {
     .limit(1);
   if (!c) return null;
   const [owner] = await db.select({ name: users.name }).from(users).where(eq(users.id, c.ownerId));
+  const [pic] = await db
+    .select({ updatedAt: characterPortraits.updatedAt })
+    .from(characterPortraits)
+    .where(eq(characterPortraits.characterId, id));
   const classes = await db.select().from(characterClasses).where(eq(characterClasses.characterId, id));
   const items = await db
     .select()
@@ -93,7 +106,7 @@ export async function getCharacter(id: string) {
       .orderBy(asc(hitDice.level), asc(hitDice.createdAt)),
   ]);
   const abilityRoll = c.abilityRollId ? characterRolls.find((r) => r.id === c.abilityRollId) ?? null : null;
-  return { ...c, ownerName: owner?.name ?? null, classes, items, rolls: characterRolls, grants, abilityRoll, levelDice };
+  return { ...c, ownerName: owner?.name ?? null, portrait: portraitUrl(id, pic?.updatedAt ?? null), classes, items, rolls: characterRolls, grants, abilityRoll, levelDice };
 }
 
 /** Every roll, newest first. Rolls are insert-only, so this is the full record. */

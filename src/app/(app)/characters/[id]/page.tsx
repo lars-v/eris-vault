@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DiceFaces, PURPOSE_LABEL } from "@/components/Dice";
 import { Nav } from "@/components/Nav";
+import { Portrait } from "@/components/Portrait";
 import { Chip, Panel } from "@/components/ui";
 import { getCharacter, sheetsForCharacter, statOverrides } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
@@ -18,6 +19,7 @@ import { GearPanel, type GearCatalogRow, type GearItem } from "./GearPanel";
 import { CombatPanel } from "./CombatPanel";
 import { LevelPanel } from "./LevelPanel";
 import { NotesPanel } from "./NotesPanel";
+import { PortraitEditor } from "./PortraitEditor";
 import { CoinsPanel, HitPointsPanel } from "./PlayStatePanels";
 import { StatsEditor } from "./StatsEditor";
 import { SpellsPanel } from "./SpellsPanel";
@@ -100,14 +102,13 @@ export default async function CharacterPage({
       <Nav viewer={viewer} active="party" />
       <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
         <header className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-surface p-5 sm:gap-6 sm:p-6">
-          <div className="flex h-20 w-16 flex-none items-center justify-center rounded-[50%] border-2 border-lime font-display text-2xl text-lime sm:h-32 sm:w-26 sm:text-4xl">
-            {c.name
-              .split(" ")
-              .filter((w) => /^[A-Z]/.test(w))
-              .map((w) => w[0])
-              .join("")
-              .slice(0, 2)}
-          </div>
+          {c.portrait ? (
+            <a href={c.portrait} target="_blank" rel="noopener" title="Open the full picture" className="flex-none rounded-[50%]">
+              <Portrait name={c.name} src={c.portrait} size="sheet" />
+            </a>
+          ) : (
+            <Portrait name={c.name} src={null} size="sheet" />
+          )}
           <div className="flex min-w-0 flex-[999_1_12rem] flex-col gap-2 sm:basis-[380px]">
             <h1 className="font-display text-4xl leading-none text-parchment-2 sm:text-5xl">{c.name}</h1>
             <div className="text-[#c9c5b4]">
@@ -149,6 +150,7 @@ export default async function CharacterPage({
                 </div>
               </div>
             )}
+            {can.editPortrait(viewer, c) && <PortraitEditor id={c.id} name={c.name} hasPortrait={c.portrait !== null} />}
           </div>
         </header>
 
