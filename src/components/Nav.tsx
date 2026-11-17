@@ -80,6 +80,21 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: Tab }) {
           <div className="ml-auto flex items-center gap-2">
             <GuideButton />
             <Link
+              href="/account#colors"
+              title="Change the color scheme"
+              aria-label="Colors"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-line px-2.5 text-sm text-muted hover:text-parchment"
+            >
+              {/* The current scheme's accents, so the link shows what it changes. */}
+              <span aria-hidden="true" className="grid grid-cols-2 gap-0.5">
+                <span className="size-2 rounded-full bg-lime" />
+                <span className="size-2 rounded-full bg-amber" />
+                <span className="size-2 rounded-full bg-ember" />
+                <span className="size-2 rounded-full bg-moon" />
+              </span>
+              <span className="hidden md:inline">Colors</span>
+            </Link>
+            <Link
               href="/account"
               data-guide="nav-account"
               title="Your account and linked sign-ins"

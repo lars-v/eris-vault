@@ -47,24 +47,27 @@ export function SchemePicker({ current }: { current: SchemeChoice }) {
     </button>
   );
 
+  // `id="colors"` is where the Colors link in the top bar (Nav) lands.
   return (
-    <Panel title="Colors" aside="Saved to your account">
-      <p className="text-sm leading-relaxed text-muted">
-        Pick how the vault looks for you. Everyone else keeps their own choice.
-      </p>
-      <form action={setColorScheme} className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        {SCHEME_KEYS.map((key) => card(key, SCHEMES[key].label, SCHEMES[key].blurb, <Swatch scheme={key} />))}
-        {card(
-          "strife",
-          STRIFE.label,
-          STRIFE.blurb,
-          <span aria-hidden="true" className="grid h-full min-h-[58px] grid-cols-7 overflow-hidden rounded-lg border border-line">
-            {SCHEME_KEYS.map((key) => (
-              <span key={key} style={{ background: `linear-gradient(${resolveScheme(key).ink}, ${resolveScheme(key).lime})` }} />
-            ))}
-          </span>,
-        )}
-      </form>
-    </Panel>
+    <div id="colors" className="scroll-mt-4">
+      <Panel title="Colors" aside="Saved to your account">
+        <p className="text-sm leading-relaxed text-muted">
+          Pick how the vault looks for you. Everyone else keeps their own choice.
+        </p>
+        <form action={setColorScheme} className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {SCHEME_KEYS.map((key) => card(key, SCHEMES[key].label, SCHEMES[key].blurb, <Swatch scheme={key} />))}
+          {card(
+            "strife",
+            STRIFE.label,
+            STRIFE.blurb,
+            <span aria-hidden="true" className="grid h-full min-h-[58px] grid-cols-7 overflow-hidden rounded-lg border border-line">
+              {SCHEME_KEYS.map((key) => (
+                <span key={key} style={{ background: `linear-gradient(${resolveScheme(key).ink}, ${resolveScheme(key).lime})` }} />
+              ))}
+            </span>,
+          )}
+        </form>
+      </Panel>
+    </div>
   );
 }
