@@ -12,6 +12,8 @@ export type GearItem = {
   encUnits: number | null;
   isMagic: boolean;
   location: string;
+  /** The staff or wand that stores spells (WW p. 7), set on the Spell staff card. */
+  isSpellFocus: boolean;
   /** Set when the price-list item is outside the class limits (classAllows). */
   warn: string | null;
 };
@@ -135,6 +137,7 @@ function ItemMeta({ item }: { item: GearItem }) {
   return (
     <>
       {item.isMagic && <span className="text-xs text-lime">Magic: counts 0</span>}
+      {item.isSpellFocus && <span className="text-xs text-lime">Spell focus: stores spells</span>}
       {item.location !== "carried" && <span className="text-xs text-subtle">{item.location === "mount" ? "On the mount" : "Stashed"}: not carried</span>}
       {item.warn && <span className="text-xs text-amber">{item.warn} Carrying it waits on Jay&apos;s ruling.</span>}
     </>

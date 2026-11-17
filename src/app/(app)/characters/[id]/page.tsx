@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { Nav } from "@/components/Nav";
-import { getCharacter, sheetsForCharacter, statOverrides } from "@/lib/queries";
+import { getCharacter, rulingsByKey, sheetsForCharacter, statOverrides } from "@/lib/queries";
 import { ABILITIES, abilityModifier } from "@/lib/rules/abilities";
 import { armorClass } from "@/lib/rules/armor";
 import { cappedLevelFor } from "@/lib/rules/advancement";
 import { CATALOG, catalogItem, classAllows, type Wielder } from "@/lib/rules/equipment";
 import { overrideOpen, playStateOpen } from "@/lib/rules/overrides";
 import { castsSpells } from "@/lib/rules/spells";
+import { staffCapacity } from "@/lib/rules/staff";
 import { weaponTable } from "@/lib/rules/weapons";
 import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
@@ -27,6 +28,7 @@ import {
   UploadedSheetsPanel,
 } from "./SheetPanels";
 import { SpellsPanel } from "./SpellsPanel";
+import { SpellStaffPanel, STAFF_RULINGS } from "./SpellStaffPanel";
 
 /**
  * The character sheet. Layout, top to bottom:
@@ -60,10 +62,16 @@ export default async function CharacterPage({
   const canNotes = can.editPlayState(viewer, c);
   const canOverride = can.overrideStats(viewer) && overrideOpen(c.status);
 
-  const [sheets, overrides] = await Promise.all([
+  // The spell staff or wand (WW pp. 5, 7): shown while the character can store
+  // spells, has a staff set, or has ever stored one.
+  const staffCap = staffCapacity(c.classes.map((k) => k.class), c.race, c.int);
+  const showStaff = staffCap > 0 || c.items.some((i) => i.isSpellFocus) || c.staffEvents.length > 0;
+
+  const [sheets, overrides, staffRulings] = await Promise.all([
     staff || isOwner ? sheetsForCharacter(c.id) : [],
     // Who set abilities or maximum hit points by hand. The reason shows to the player and staff.
     c.manualFields.length > 0 ? statOverrides(c.id) : [],
+    showStaff ? rulingsByKey(STAFF_RULINGS) : [],
   ]);
   const handSetNote = (fields: readonly string[]) => {
     const o = overrides.find((x) => x.fields.some((f) => fields.includes(f)));
@@ -91,6 +99,7 @@ export default async function CharacterPage({
     encUnits: i.encUnits,
     isMagic: i.isMagic,
     location: i.location,
+    isSpellFocus: i.isSpellFocus === true,
     warn: i.isMagic ? null : limitFor(i.catalogKey),
   }));
   const gearCatalog: GearCatalogRow[] = CATALOG.map((i) => ({
@@ -188,6 +197,21 @@ export default async function CharacterPage({
                   wis={c.wis}
                   prepared={c.spellsPrepared}
                   canPrepare={can.editSpells(viewer, c)}
+                />
+              )}
+              {showStaff && (
+                <SpellStaffPanel
+                  id={c.id}
+                  capacity={staffCap}
+                  int={c.int}
+                  isElf={c.race === "elf"}
+                  items={c.items}
+                  events={c.staffEvents}
+                  rulings={staffRulings}
+                  canUse={can.useSpellStaff(viewer, c) && playStateOpen(c.status, staff)}
+                  canVoid={can.voidStoredSpell(viewer)}
+                  canFocus={can.editGear(viewer, c)}
+                  staff={staff}
                 />
               )}
             </div>
