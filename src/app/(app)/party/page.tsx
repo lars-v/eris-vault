@@ -7,6 +7,7 @@ import { levelUpsWaiting, listCharacters } from "@/lib/queries";
 import { welcomeSteps } from "@/lib/guide";
 import { can } from "@/lib/roles";
 import { cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
+import { armorClass } from "@/lib/rules/armor";
 import { requireUser } from "@/lib/session";
 import { DeleteCharacterButton } from "./DeleteCharacterButton";
 
@@ -62,6 +63,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
           <div data-guide="party" className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-4">
             {party.map((c) => {
               const lvl = c.cls ? cappedLevelFor(c.race, c.cls, c.xp ?? 0) : null;
+              const ac = c.cls && c.dex !== null ? armorClass(c.items, c.dex, { cls: c.cls, race: c.race, int: c.int }).ac : null;
               const pct = c.hpMax && c.hpCurrent !== null ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;
               return (
                 <div
@@ -96,6 +98,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
                             {lvl.pastNine ? "+" : ""} · {lvl.title}
                           </Chip>
                         )}
+                        {ac !== null && <Chip>AC {ac}</Chip>}
                         {levelUp.has(c.id) && <Chip tone="amber">Level up</Chip>}
                         {c.deity && <Chip>{c.deity}</Chip>}
                       </div>

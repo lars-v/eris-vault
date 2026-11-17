@@ -29,6 +29,8 @@ export async function listCharacters() {
       status: characters.status,
       hpCurrent: characters.hpCurrent,
       hpMax: characters.hpMax,
+      dex: characters.dex,
+      int: characters.int,
       deity: characters.deity,
       ownerId: characters.ownerId,
       ownerName: users.name,
@@ -44,7 +46,25 @@ export async function listCharacters() {
     )
     .where(isNull(characters.deletedAt))
     .orderBy(asc(characters.name));
-  return rows.map((r) => ({ ...r, importFlagCount: r.importFlagCount.length }));
+  // What armor class needs from each character's gear (WW p. 17).
+  const gear = rows.length
+    ? await db
+        .select({
+          characterId: inventory.characterId,
+          name: inventory.name,
+          catalogKey: inventory.catalogKey,
+          location: inventory.location,
+          isMagic: inventory.isMagic,
+          magicBonus: inventory.magicBonus,
+        })
+        .from(inventory)
+        .where(inArray(inventory.characterId, rows.map((r) => r.id)))
+    : [];
+  return rows.map((r) => ({
+    ...r,
+    importFlagCount: r.importFlagCount.length,
+    items: gear.filter((g) => g.characterId === r.id),
+  }));
 }
 
 export async function getCharacter(id: string) {

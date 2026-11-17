@@ -5,6 +5,7 @@ import { Nav } from "@/components/Nav";
 import { Chip, Panel } from "@/components/ui";
 import { getCharacter, sheetsForCharacter, statOverrides } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
+import { armorClass, armorClassWorking, ARMOR_CLASS_SOURCE } from "@/lib/rules/armor";
 import { ADVANCEMENT_SOURCE, cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
 import { CATALOG, catalogItem, classAllows, type Wielder } from "@/lib/rules/equipment";
@@ -55,6 +56,7 @@ export default async function CharacterPage({
     const allowed = classAllows(wielder, entry);
     return allowed.ok ? null : allowed.why;
   };
+  const ac = armorClass(c.items, c.dex, wielder);
   const gearItems: GearItem[] = c.items.map((i) => ({
     id: i.id,
     name: i.name,
@@ -258,8 +260,22 @@ export default async function CharacterPage({
           </Panel>
 
           <div className="@container flex min-w-0 flex-[1_1_380px] flex-col gap-4">
-            <div className="grid gap-3 @xs:grid-cols-2">
-              <HitPointsPanel id={c.id} current={c.hpCurrent} max={c.hpMax} canEdit={canPlay} staff={staff} handSet={hpHandSet} />
+            <HitPointsPanel id={c.id} current={c.hpCurrent} max={c.hpMax} canEdit={canPlay} staff={staff} handSet={hpHandSet} />
+            <div className="grid gap-3 @sm:grid-cols-2">
+              <Panel title="Armor class" aside={ARMOR_CLASS_SOURCE}>
+                <div className="flex items-baseline gap-3">
+                  <span className="font-mono text-4xl">{ac.ac}</span>
+                  <span className="text-sm text-muted">{ac.wearing}</span>
+                </div>
+                <p className="text-xs text-subtle">
+                  {armorClassWorking(ac)} Lower is better.
+                </p>
+                {ac.notes.map((n) => (
+                  <p key={n.text} className={`text-xs ${n.tone === "amber" ? "text-amber" : "text-subtle"}`}>
+                    {n.text}
+                  </p>
+                ))}
+              </Panel>
               <Panel title="Saving throw" aside={active ? ADVANCEMENT_SOURCE[active.class] : undefined}>
                 <div className="font-mono text-4xl">{lvl?.save ?? "?"}</div>
                 <div className="text-xs text-subtle">Class and race bonuses arrive with the rules engine.</div>

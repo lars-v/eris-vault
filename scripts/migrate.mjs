@@ -47,6 +47,7 @@ const RULINGS = [
   ["drain-xp", "When a Wight, Wraith, Spectre or Vampire drains a level, what XP does the character keep? Until then, Jay enters the new XP each time.", "M&T p. 9 says a hit removes the level and its hit die, not what XP is left; WW silent", null, "pending"],
   ["drain-hp-current", "When a level drain lowers maximum hit points, do current hit points drop too? Until then, current hit points stay as they are.", "M&T p. 9 silent", null, "pending"],
   ["regain-drained-level", "When a drained character earns a lost level back, is a new hit die rolled for it? Until then, yes, like any new level.", "M&T p. 9 silent; WW p. 6", null, "pending"],
+  ["large-shield-ac", "WW p. 17 sells a large shield (15 gp) but the Armor Class Table names only 'Shield'. Is a large shield better than a shield? Until then, it counts as a shield.", "WW p. 17", null, "pending"],
   ["one-level-per-adventure", "Men & Magic recommends that no single adventure awards more XP than it takes to gain one level. Does the table use this? Until then, the award form warns when an award gains more than one level, but allows it.", "M&M p. 18", null, "pending"],
 ];
 
