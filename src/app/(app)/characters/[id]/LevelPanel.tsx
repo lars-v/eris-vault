@@ -6,9 +6,9 @@ import { CLASS_NAMES, countedHpLevel, levelFor, levelsToRoll, maxLevel } from "@
 import { HIT_DIE_ADJUST } from "@/lib/rules/dice";
 import { levelUp, ordinal, type LevelUp } from "@/lib/rules/levelup";
 import { rollLevelHitPoints } from "../actions";
-import { AwardXpForm } from "./AwardXpForm";
 import { DrainForm } from "./DrainForm";
 import { SubmitButton } from "./build/forms";
+import { XpField } from "./XpField";
 
 type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean; baseHpLevel: number };
 type LevelDie = { id: string; class: CharacterClass; level: number; gain: number | null; lostAt: Date | null; dice: number[][]; total: number[] };
@@ -44,7 +44,8 @@ function LevelChanges({ up }: { up: LevelUp }) {
 }
 
 /**
- * XP and new levels. Jay awards XP; when it reaches a new level the sheet
+ * XP and new levels. XP is typed straight in (the player on an approved
+ * character, Jay and admins on submitted ones too); when it reaches a new level the sheet
  * lists what changed, and the player (or Jay) rolls that level's hit die
  * (WW p. 6).
  */
@@ -61,7 +62,6 @@ export function LevelPanel({
   canRoll,
   canEditXp,
   canDrain,
-  staff,
 }: {
   characterId: string;
   race: Race | null;
@@ -75,7 +75,6 @@ export function LevelPanel({
   canRoll: boolean;
   canEditXp: boolean;
   canDrain: boolean;
-  staff: boolean;
 }) {
   return (
     <Panel title="Levels and hit points" aside="Woundwort's Warren pp. 6-11">
@@ -94,6 +93,7 @@ export function LevelPanel({
         return (
           <div key={k.id} className="flex flex-col gap-3">
             {classes.length > 1 && <h3 className="text-sm font-semibold">{CLASS_NAMES[k.class]}</h3>}
+            <XpField key={k.xp} characterId={characterId} classId={k.id} race={race} cls={k.class} xp={k.xp} canEdit={canEditXp} />
             {fresh ? (
               <div className="flex flex-col gap-3 rounded-xl border border-[#4b5e2a] bg-[#1b2113] px-4 py-3">
                 <h4 className="font-display text-2xl text-lime">
@@ -166,7 +166,6 @@ export function LevelPanel({
         A new level&apos;s hit die adds to maximum hit points. Current hit points stay as they are until Jay rules on that
         (level-hp-current).
       </p>
-      {canEditXp && <AwardXpForm characterId={characterId} race={race} classes={classes} staff={staff} />}
       {canDrain && hpMax !== null && firstLevelCounted && (
         <DrainForm
           characterId={characterId}
