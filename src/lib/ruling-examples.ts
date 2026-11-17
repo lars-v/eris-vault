@@ -128,6 +128,15 @@ export const RULING_EXAMPLES: Record<string, RulingExample[]> = {
     { answer: "Yes. No single award gains more than one level.", basis: "Men & Magic p. 18" },
     { answer: "No. The form warns, but any award goes through.", basis: NOW },
   ],
+  "starting-magic-items": [
+    { answer: "No. New characters start with no magic items. Jay adds any found in play.", basis: NOW },
+    { answer: "Yes. Each new character starts with two magic items, and Jay picks them." },
+    { answer: "Yes. Each new character starts with two magic items the player picks, and Jay approves them." },
+  ],
+  "starting-xp": [
+    { answer: "No. New characters start at 0 XP.", basis: NOW },
+    { answer: "Yes. A new character starts with as much XP as the lowest character in the party." },
+  ],
 };
 
 /** Trims Jay's answer and checks it fits. Throws a message the form shows. */

@@ -51,6 +51,8 @@ const RULINGS = [
   ["dart-long-range", "WW p. 19 prints dart ranges as short 1-15, medium 16-30, long 21-45, so long overlaps medium. Is long range 31-45? Until then, the sheet shows the ranges as printed.", "WW p. 19", null, "pending"],
   ["sling-long-range", "WW p. 19 prints sling ranges as short 1-40, medium 41-80, long 80-160, so 80 feet is in both medium and long. Is long range 81-160? Until then, the sheet shows the ranges as printed.", "WW p. 19", null, "pending"],
   ["one-level-per-adventure", "Men & Magic recommends that no single adventure awards more XP than it takes to gain one level. Does the table use this? Until then, the award form warns when an award gains more than one level, but allows it.", "M&M p. 18", null, "pending"],
+  ["starting-magic-items", "Does a new character start with magic items (for example two)? If so, how many, and does the player choose them or does Jay? Until then, new characters start with none and only Jay can add one.", "WW silent (p. 33 covers random treasure found in play); M&M p. 10 gives only 3d6 x 10 gp", null, "pending"],
+  ["starting-xp", "Does a new character start with a minimum number of experience points? If so, how many? Until then, new characters start at 0 XP and Jay can set XP by hand.", "WW silent (p. 6 sets a minimum of 3 starting hit points, not XP; p. 11 covers XP earned in play)", null, "pending"],
 ];
 
 try {
