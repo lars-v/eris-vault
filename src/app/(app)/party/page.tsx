@@ -9,6 +9,7 @@ import { welcomeSteps } from "@/lib/guide";
 import { can } from "@/lib/roles";
 import { cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { armorClass } from "@/lib/rules/armor";
+import { slotStates, staffBadge } from "@/lib/rules/staff";
 import { PARTY_SORTS, parsePartySort, sortParty, type PartySort } from "@/lib/party-sort";
 import { requireUser } from "@/lib/session";
 import { DeleteCharacterButton } from "./DeleteCharacterButton";
@@ -124,6 +125,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
             {party.map((c) => {
               const lvl = c.lvl;
               const ac = c.cls && c.dex !== null ? armorClass(c.items, c.dex, { cls: c.cls, race: c.race, int: c.int }).ac : null;
+              const staff = staffBadge(slotStates(c.staffEvents), c.items.some((i) => i.isSpellFocus));
               const pct = c.hpMax && c.hpCurrent !== null ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;
               return (
                 <div
@@ -153,6 +155,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
                         )}
                         {ac !== null && <Chip>AC {ac}</Chip>}
                         {levelUp.has(c.id) && <Chip tone="amber">Level up</Chip>}
+                        {staff && <Chip tone="moon">{staff}</Chip>}
                         {c.deity && <Chip>{c.deity}</Chip>}
                       </div>
                     </div>

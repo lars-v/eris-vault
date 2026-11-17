@@ -4,7 +4,7 @@ import { DiceFaces, PURPOSE_LABEL } from "@/components/Dice";
 import { Nav } from "@/components/Nav";
 import { Portrait } from "@/components/Portrait";
 import { Chip, Panel } from "@/components/ui";
-import { getCharacter, sheetsForCharacter, statOverrides } from "@/lib/queries";
+import { getCharacter, rulingsByKey, sheetsForCharacter, statOverrides } from "@/lib/queries";
 import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
 import { armorClass, armorClassWorking, ARMOR_CLASS_SOURCE } from "@/lib/rules/armor";
 import { ADVANCEMENT_SOURCE, cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
@@ -13,6 +13,7 @@ import { CATALOG, catalogItem, classAllows, type Wielder } from "@/lib/rules/equ
 import { overrideOpen, playStateOpen } from "@/lib/rules/overrides";
 import { againstText, CLASS_SAVE_BONUSES, overlappingForms, RACE_SAVE_BONUSES } from "@/lib/rules/saves";
 import { castsSpells } from "@/lib/rules/spells";
+import { staffCapacity } from "@/lib/rules/staff";
 import { weaponTable } from "@/lib/rules/weapons";
 import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
@@ -25,6 +26,7 @@ import { PortraitEditor } from "./PortraitEditor";
 import { CoinsPanel, HitPointsPanel } from "./PlayStatePanels";
 import { StatsEditor } from "./StatsEditor";
 import { SpellsPanel } from "./SpellsPanel";
+import { SpellStaffPanel, STAFF_RULINGS } from "./SpellStaffPanel";
 import { approveCharacter, grantReroll, returnToPlayer } from "../actions";
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -72,6 +74,7 @@ export default async function CharacterPage({
     encUnits: i.encUnits,
     isMagic: i.isMagic,
     location: i.location,
+    isSpellFocus: i.isSpellFocus === true,
     warn: i.isMagic ? null : limitFor(i.catalogKey),
   }));
   const gearCatalog: GearCatalogRow[] = CATALOG.map((i) => ({
@@ -101,6 +104,11 @@ export default async function CharacterPage({
     );
   };
   const hpHandSet = c.manualFields.includes("hpMax") ? handSetNote(["hpMax"]) : null;
+  // The spell staff or wand (WW pp. 5, 7): shown while the character can store
+  // spells, has a staff set, or has ever stored one.
+  const staffCap = staffCapacity(c.classes.map((k) => k.class), c.race, c.int);
+  const showStaff = staffCap > 0 || c.items.some((i) => i.isSpellFocus) || c.staffEvents.length > 0;
+  const staffRulings = showStaff ? await rulingsByKey(STAFF_RULINGS) : [];
   const xpPct =
     lvl && active && lvl.nextXp ? Math.round(((active.xp - lvl.startXp) / (lvl.nextXp - lvl.startXp)) * 100) : 100;
 
@@ -388,6 +396,21 @@ export default async function CharacterPage({
             wis={c.wis}
             prepared={c.spellsPrepared}
             canPrepare={can.editSpells(viewer, c)}
+          />
+        )}
+        {showStaff && (
+          <SpellStaffPanel
+            id={c.id}
+            capacity={staffCap}
+            int={c.int}
+            isElf={c.race === "elf"}
+            items={c.items}
+            events={c.staffEvents}
+            rulings={staffRulings}
+            canUse={can.useSpellStaff(viewer, c) && playStateOpen(c.status, staff)}
+            canVoid={can.voidStoredSpell(viewer)}
+            canFocus={can.editGear(viewer, c)}
+            staff={staff}
           />
         )}
         <Panel title={`Rolls · ${c.rolls.length}`} aside="Insert-only; see the full roll log">
