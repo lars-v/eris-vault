@@ -114,9 +114,18 @@ export default async function CharacterPage({
             <label
               htmlFor={`portrait-${c.id}`}
               title={c.portrait ? "Change picture" : "Add a picture"}
-              className="flex-none cursor-pointer rounded-[50%] transition hover:ring-2 hover:ring-lime/50 hover:brightness-110"
+              className="group relative flex-none cursor-pointer rounded-[50%] transition hover:ring-2 hover:ring-lime/50 hover:brightness-110"
             >
               <Portrait name={c.name} src={c.portrait} size="sheet" />
+              {/* No picture yet: a "+" over the initials on hover says one can be added. */}
+              {!c.portrait && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0.5 flex items-center justify-center rounded-[50%] bg-ink font-display text-4xl text-lime opacity-0 transition-opacity group-hover:opacity-100 sm:text-6xl"
+                >
+                  +
+                </span>
+              )}
             </label>
           ) : c.portrait ? (
             <a href={c.portrait} target="_blank" rel="noopener" title="Open the full picture" className="flex-none rounded-[50%]">
