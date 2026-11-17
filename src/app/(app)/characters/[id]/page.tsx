@@ -170,7 +170,6 @@ export default async function CharacterPage({
                   canRoll={can.editPlayState(viewer, c)}
                   canEditXp={can.editXp(viewer, c)}
                   canDrain={can.drainLevels(viewer)}
-                  staff={staff}
                 />
               )}
               <CombatPanel

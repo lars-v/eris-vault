@@ -214,7 +214,7 @@ export function StatsEditor({
                 ))}
               </div>
               <p className="text-xs text-subtle">
-                Current hit points and coins are changed on the sheet itself. To add XP for an adventure, use Award XP.
+                Current hit points and coins are changed on the sheet itself. So is XP after an adventure, under Levels and hit points.
               </p>
             </fieldset>
 
