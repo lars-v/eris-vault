@@ -15,6 +15,11 @@ import { CATALOG, catalogItem, classAllows, type CatalogItem, type Wielder } fro
  *   wearer. If the shield's bonus is greater than that of the armor there is a
  *   one-third chance that the blow will be caught by the shield, thus giving
  *   the additional subtraction." The sheet says this in words.
+ *   On the WW pp. 19-20 to-hit tables, 1 off the attacker's roll plays like 1
+ *   better armor class except where 20 is needed. Until Jay rules
+ *   (magic-armor-ac), the sheet shows the book number and, beside it, the
+ *   number with the armor's bonus in. A shield's bonus counts only one blow in
+ *   three, so it is never folded in.
  * - WW p. 17 sells "Shield (large)" but the table names only "Shield". Until
  *   Jay rules (large-shield-ac), a large shield counts as a shield.
  * Only armor on the character ("carried") counts. An item is armor when it has
@@ -55,6 +60,10 @@ export type ArmorClass = {
   dexMod: number | null;
   /** "Plate mail and shield", "Leather armor", "Shield only", "No armor". */
   wearing: string;
+  /** The worn armor's magic bonus, when one is entered. */
+  armorBonus: number | null;
+  /** `ac` less the armor's magic bonus; null without one (magic-armor-ac). */
+  withMagic: number | null;
   notes: ArmorNote[];
 };
 
@@ -140,7 +149,7 @@ export function armorClass(items: ArmorItem[], dex: number | null, wielder: Wiel
     notes.push(
       armorBonus
         ? {
-            text: `Magic armor +${armorBonus}: attackers take ${armorBonus} off their hit dice when they roll to hit you (Monsters & Treasure p. 30).`,
+            text: `Magic armor +${armorBonus}: attackers take ${armorBonus} off their hit dice when they roll to hit you (Monsters & Treasure p. 30). On the to-hit tables that plays like AC ${ac - armorBonus}, except where 20 is needed. Jay will rule which number the table uses (magic-armor-ac).`,
             tone: "plain",
           }
         : { text: "The armor is magic but its bonus isn't entered.", tone: "amber" },
@@ -179,7 +188,15 @@ export function armorClass(items: ArmorItem[], dex: number | null, wielder: Wiel
   const wearing =
     armor && shield ? `${sentence(armor.entry)} and shield` : armor ? sentence(armor.entry) : shield ? "Shield only" : "No armor";
   const seen = new Set<string>();
-  return { ac, table, dexMod, wearing, notes: notes.filter((n) => !seen.has(n.text) && seen.add(n.text)) };
+  return {
+    ac,
+    table,
+    dexMod,
+    wearing,
+    armorBonus: armorBonus || null,
+    withMagic: armorBonus ? ac - armorBonus : null,
+    notes: notes.filter((n) => !seen.has(n.text) && seen.add(n.text)),
+  };
 }
 
 /** How the number was reached, in one or two plain sentences. */

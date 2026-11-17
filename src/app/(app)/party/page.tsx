@@ -124,7 +124,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
           <div data-guide="party" className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-4">
             {party.map((c) => {
               const lvl = c.lvl;
-              const ac = c.cls && c.dex !== null ? armorClass(c.items, c.dex, { cls: c.cls, race: c.race, int: c.int }).ac : null;
+              const ac = c.cls && c.dex !== null ? armorClass(c.items, c.dex, { cls: c.cls, race: c.race, int: c.int }) : null;
               const staff = staffBadge(slotStates(c.staffEvents), c.items.some((i) => i.isSpellFocus));
               const pct = c.hpMax && c.hpCurrent !== null ? Math.max(0, Math.min(100, Math.round((c.hpCurrent / c.hpMax) * 100))) : 0;
               return (
@@ -153,7 +153,8 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
                             {lvl.pastNine ? "+" : ""} · {lvl.title}
                           </Chip>
                         )}
-                        {ac !== null && <Chip>AC {ac}</Chip>}
+                        {/* With magic armor, the number with its bonus in (M&T p. 30, until Jay rules magic-armor-ac). */}
+                        {ac !== null && <Chip>AC {ac.withMagic ?? ac.ac}</Chip>}
                         {levelUp.has(c.id) && <Chip tone="amber">Level up</Chip>}
                         {staff && <Chip tone="moon">{staff}</Chip>}
                         {c.deity && <Chip>{c.deity}</Chip>}

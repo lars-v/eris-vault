@@ -302,6 +302,12 @@ export default async function CharacterPage({
                   <span className="font-mono text-4xl">{ac.ac}</span>
                   <span className="text-sm text-muted">{ac.wearing}</span>
                 </div>
+                {ac.withMagic !== null && (
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono text-2xl">{ac.withMagic}</span>
+                    <span className="text-sm text-muted">with the armor&apos;s +{ac.armorBonus} against attack rolls</span>
+                  </div>
+                )}
                 <p className="text-xs text-subtle">
                   {armorClassWorking(ac)} Lower is better.
                 </p>
