@@ -57,9 +57,12 @@ describe("who can do what (plan: Who can do what)", () => {
     expect(can.deleteCharacter(gm, own)).toBe(true);
     expect(can.deleteCharacter(admin, own)).toBe(true);
   });
-  it("core stats lock once a character leaves draft, except for GM and admin", () => {
+  it("players build their own characters until Jay approves; GM and admin build any", () => {
     expect(can.editCoreStats(player, ownDraft)).toBe(true);
+    expect(can.editCoreStats(player, ownSubmitted)).toBe(true);
     expect(can.editCoreStats(player, own)).toBe(false);
+    expect(can.editCoreStats(other, ownSubmitted)).toBe(false);
+    expect(can.editCoreStats(blocked, ownSubmitted)).toBe(false);
     expect(can.editCoreStats(gm, own)).toBe(true);
     expect(can.editCoreStats(admin, own)).toBe(true);
   });

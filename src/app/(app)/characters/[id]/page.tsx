@@ -189,7 +189,7 @@ export default async function CharacterPage({
           <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-4">
             {canBuild && (
               <Link href={`/characters/${c.id}/build`} className="inline-flex min-h-11 items-center rounded-xl bg-lime px-4 text-sm font-semibold text-lime-ink">
-                {c.status === "draft" ? "Continue building" : "Edit as GM"}
+                {c.status === "draft" ? "Continue building" : staff ? "Edit as GM" : "Make changes"}
               </Link>
             )}
             {staff && c.status === "submitted" && (

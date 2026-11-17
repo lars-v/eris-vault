@@ -12,8 +12,10 @@ export async function writeAudit(
     before?: unknown;
     after?: unknown;
   },
+  /** Pass the open transaction to write the entry with the change it records. */
+  tx: Pick<typeof db, "insert"> = db,
 ) {
-  await db.insert(auditLog).values({
+  await tx.insert(auditLog).values({
     actorId: actor.userId,
     actorRole: actor.role,
     action: entry.action,

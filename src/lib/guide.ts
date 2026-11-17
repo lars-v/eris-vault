@@ -116,7 +116,7 @@ export function buildSteps(): GuideStep[] {
     {
       target: "send",
       title: "Send to Jay",
-      body: "When steps 1 to 4 are done, send the character to Jay. Until Jay approves it, you can still delete it from the party page.",
+      body: "When steps 1 to 4 are done, send the character to Jay. Until Jay approves it, you can still come back here to change it, or delete it.",
     },
   ];
 }
