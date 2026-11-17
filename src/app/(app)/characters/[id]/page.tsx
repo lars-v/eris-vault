@@ -122,7 +122,7 @@ export default async function CharacterPage({
         />
 
         {error && (
-          <div role="alert" className="rounded-xl border border-[#5c3328] bg-[#2e1a15] px-4 py-3 text-sm text-ember">
+          <div role="alert" className="rounded-xl border border-ember-edge bg-ember-wash px-4 py-3 text-sm text-ember">
             {error}
           </div>
         )}

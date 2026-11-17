@@ -64,7 +64,7 @@ export function PortraitEditor({ id, name, hasPortrait }: { id: string; name: st
           type="button"
           disabled={pending}
           onClick={() => input.current?.click()}
-          className={`${button} border-line-2 text-[#d6d2c2] hover:border-lime`}
+          className={`${button} border-line-2 text-soft hover:border-lime`}
         >
           {pending && mode === "upload" ? "Uploading…" : hasPortrait ? "Change picture" : "Add a picture"}
         </button>
@@ -79,7 +79,7 @@ export function PortraitEditor({ id, name, hasPortrait }: { id: string; name: st
                 send(fd, "remove");
               }
             }}
-            className={`${button} border-[#5c3328] text-ember hover:bg-[#2e1a15]`}
+            className={`${button} border-ember-edge text-ember hover:bg-ember-wash`}
           >
             {pending && mode === "remove" ? "Removing…" : "Remove picture"}
           </button>
@@ -87,7 +87,7 @@ export function PortraitEditor({ id, name, hasPortrait }: { id: string; name: st
         {!hasPortrait && !pending && <span className="text-xs text-subtle">PNG, JPEG, WebP or GIF, up to 8 MB.</span>}
       </div>
       {error && (
-        <p role="alert" className="rounded-lg border border-[#5c3328] bg-[#2e1a15] px-3 py-2 text-sm text-ember">
+        <p role="alert" className="rounded-lg border border-ember-edge bg-ember-wash px-3 py-2 text-sm text-ember">
           {error}
         </p>
       )}

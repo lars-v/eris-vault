@@ -201,7 +201,7 @@ export function Guide({
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         tabIndex={-1}
-        className={`fixed z-[101] flex w-[min(380px,calc(100vw-32px))] flex-col gap-3 rounded-2xl border border-[#4b5e2a] bg-surface p-5 shadow-2xl outline-none ${
+        className={`fixed z-[101] flex w-[min(380px,calc(100vw-32px))] flex-col gap-3 rounded-2xl border border-lime-edge bg-surface p-5 shadow-2xl outline-none ${
           layout ? "" : "invisible"
         }`}
         style={layout?.card ?? { top: 0, left: 0 }}
@@ -217,13 +217,13 @@ export function Guide({
         <h2 id={titleId} className="font-display text-[28px] leading-tight text-parchment-2">
           {step.title}
         </h2>
-        <p id={bodyId} className="text-[15px] leading-relaxed text-[#d6d2c2]">
+        <p id={bodyId} className="text-[15px] leading-relaxed text-soft">
           {step.body}
           {step.source && <span className="mt-1.5 block text-xs text-subtle">{step.source}</span>}
         </p>
         <div aria-hidden="true" className="flex gap-1.5">
           {steps.map((_, i) => (
-            <span key={i} className={`h-1.5 flex-1 rounded-full ${i <= index ? "bg-lime" : "bg-[#2b3122]"}`} />
+            <span key={i} className={`h-1.5 flex-1 rounded-full ${i <= index ? "bg-lime" : "bg-lime-dim"}`} />
           ))}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -231,7 +231,7 @@ export function Guide({
             <button
               type="button"
               onClick={() => go(index - 1)}
-              className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime"
+              className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-soft hover:border-lime"
             >
               Back
             </button>
@@ -243,7 +243,7 @@ export function Guide({
               <button
                 type="button"
                 onClick={close}
-                className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime"
+                className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-soft hover:border-lime"
               >
                 Later
               </button>

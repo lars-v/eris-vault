@@ -12,7 +12,7 @@ import { againstText, CLASS_SAVE_BONUSES, overlappingForms, RACE_SAVE_BONUSES } 
 /** Everything the sheet page loads for one character. */
 export type CharacterSheet = NonNullable<Awaited<ReturnType<typeof getCharacter>>>;
 
-const divider = "divide-y divide-[#262920]";
+const divider = "divide-y divide-rule";
 
 /** The six scores and their modifiers (WW p. 5). */
 export function AbilitiesPanel({ c, handSet }: { c: CharacterSheet; handSet: ReactNode }) {
@@ -32,7 +32,7 @@ export function AbilitiesPanel({ c, handSet }: { c: CharacterSheet; handSet: Rea
         return (
           <div key={a} className="flex items-center gap-4 rounded-xl border border-line px-4 py-2">
             <div className="relative h-12 w-14 flex-none">
-              <div className="absolute inset-0 bg-[#6c7f3a] [clip-path:polygon(25%_3%,75%_3%,100%_50%,75%_97%,25%_97%,0_50%)]" />
+              <div className="absolute inset-0 bg-lime-deep [clip-path:polygon(25%_3%,75%_3%,100%_50%,75%_97%,25%_97%,0_50%)]" />
               <div className="absolute inset-0.5 flex items-center justify-center bg-surface font-mono text-xl [clip-path:polygon(25%_3%,75%_3%,100%_50%,75%_97%,25%_97%,0_50%)]">
                 {score}
               </div>
@@ -43,7 +43,7 @@ export function AbilitiesPanel({ c, handSet }: { c: CharacterSheet; handSet: Rea
             </div>
             <div
               className={`min-w-11 rounded-lg px-2 py-1.5 text-center font-mono ${
-                mod > 0 ? "bg-[#222c17] text-lime" : mod < 0 ? "bg-[#2e1a15] text-ember" : "bg-surface-2 text-muted"
+                mod > 0 ? "bg-lime-wash text-lime" : mod < 0 ? "bg-ember-wash text-ember" : "bg-surface-2 text-muted"
               }`}
             >
               {formatModifier(mod)}
@@ -220,7 +220,7 @@ export function UploadedSheetsPanel({ sheets }: { sheets: Awaited<ReturnType<typ
 /** Conflicts found when a sheet was imported (importFlags), left for Jay to settle. */
 export function ImportFlagsPanel({ flags }: { flags: CharacterSheet["importFlags"] }) {
   return (
-    <Panel title={`Import flags for Jay · ${flags.length}`} className="border-[#5e4720]">
+    <Panel title={`Import flags for Jay · ${flags.length}`} className="border-amber-edge">
       <ul className={`flex flex-col ${divider}`}>
         {flags.map((f) => (
           <li key={f.title} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">

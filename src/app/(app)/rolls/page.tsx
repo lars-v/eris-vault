@@ -22,7 +22,7 @@ export default async function RollsPage() {
           {rolls.length === 0 ? (
             <p className="text-sm text-muted">No rolls yet.</p>
           ) : (
-            <ul className="flex flex-col divide-y divide-[#262920]">
+            <ul className="flex flex-col divide-y divide-rule">
               {rolls.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <span className="flex min-w-0 flex-col gap-1">

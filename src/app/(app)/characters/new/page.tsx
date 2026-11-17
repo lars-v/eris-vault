@@ -15,7 +15,7 @@ export default async function NewCharacterPage() {
       <main className="mx-auto flex max-w-[760px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow="Woundwort's Warren · Men & Magic" title="New character" />
         <Panel title="How it works">
-          <ol className="list-decimal space-y-2 pl-5 text-[15px] leading-relaxed text-[#d6d2c2]">
+          <ol className="list-decimal space-y-2 pl-5 text-[15px] leading-relaxed text-soft">
             <li>Roll 3d6 six times and arrange the results across your abilities.</li>
             <li>Choose race, class, alignment and a name.</li>
             <li>Roll hit points: 1d6 adjusted by class and Constitution, at least 3.</li>

@@ -7,7 +7,7 @@ export default function Privacy() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-[720px] flex-col gap-6 px-4 py-16 sm:px-8">
       <h1 className="font-display text-5xl text-parchment-2">Privacy</h1>
-      <p className="text-lg leading-relaxed text-[#c9c5b4]">
+      <p className="text-lg leading-relaxed text-lede">
         Eris Vault is a character keeper for one private OD&amp;D table. It is run by Lars von Sneidern, not by a
         company, and it has no ads or tracking.
       </p>

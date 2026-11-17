@@ -5,6 +5,7 @@ import { accounts, users } from "@/db/schema";
 import { Nav, SignOutButton } from "@/components/Nav";
 import { Chip, PageHeader, Panel } from "@/components/ui";
 import { requireUser } from "@/lib/session";
+import { SchemePicker } from "./SchemePicker";
 
 export const metadata = { title: "Your account" };
 
@@ -33,7 +34,7 @@ export default async function AccountPage() {
             {viewer.role === "admin" ? " and admin rights" : viewer.role === "gm" ? " and GM rights" : ""}.
           </p>
           {enabledProviders.map((provider) => (
-            <div key={provider} className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[#262920] py-3">
+            <div key={provider} className="flex flex-wrap items-center justify-between gap-2.5 border-t border-rule py-3">
               <span className="text-[15px]">{LABEL[provider] ?? provider}</span>
               {linked.has(provider) ? (
                 <Chip tone="lime">Linked</Chip>
@@ -46,7 +47,7 @@ export default async function AccountPage() {
                 >
                   <button
                     type="submit"
-                    className="min-h-11 rounded-lg border border-line-2 px-3.5 text-sm text-[#d6d2c2] hover:border-lime"
+                    className="min-h-11 rounded-lg border border-line-2 px-3.5 text-sm text-soft hover:border-lime"
                   >
                     Link {LABEL[provider] ?? provider}
                   </button>
@@ -54,11 +55,13 @@ export default async function AccountPage() {
               )}
             </div>
           ))}
-          <p className="border-t border-[#262920] pt-3 text-xs leading-relaxed text-subtle">
+          <p className="border-t border-rule pt-3 text-xs leading-relaxed text-subtle">
             If that {enabledProviders.length > 1 ? "sign-in" : "account"} already made its own Eris Vault account, linking
             is refused. Ask the admin to merge the two first.
           </p>
         </Panel>
+
+        <SchemePicker current={viewer.colorScheme} />
       </main>
     </>
   );

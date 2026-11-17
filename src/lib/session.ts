@@ -5,12 +5,14 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { accounts, profiles, users } from "@/db/schema";
 import { can, effectiveRole, parseAdminIds, type Viewer } from "@/lib/roles";
+import { parseSchemeChoice, type SchemeChoice } from "@/lib/schemes";
 
 export type CurrentUser = Viewer & {
   name: string | null;
   image: string | null;
   githubLogin: string | null;
   guidesSeen: string[];
+  colorScheme: SchemeChoice;
 };
 
 /** True when this user has a linked GitHub account whose ID is listed in ADMIN_GITHUB_IDS. */
@@ -44,6 +46,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       role: profiles.role,
       status: profiles.status,
       guidesSeen: profiles.guidesSeen,
+      colorScheme: profiles.colorScheme,
     })
     .from(users)
     .leftJoin(profiles, eq(profiles.userId, users.id))
@@ -65,6 +68,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     status: row.status ?? "active",
     railwayAdmin,
     guidesSeen: row.guidesSeen ?? [],
+    colorScheme: parseSchemeChoice(row.colorScheme),
   };
 }
 

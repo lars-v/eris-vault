@@ -68,7 +68,7 @@ export function CombatPanel({
                   </thead>
                   <tbody>
                     {rows.map((r) => (
-                      <tr key={r.row} className="border-t border-[#262920]">
+                      <tr key={r.row} className="border-t border-rule">
                         <th className="px-1.5 py-1 text-left text-xs font-normal whitespace-nowrap text-subtle">
                           {rows.length > 1 ? `Row ${r.row}` : "Need"}
                         </th>
@@ -122,7 +122,7 @@ export function CombatPanel({
               <section className="flex min-w-0 flex-col gap-1.5">
                 <h4 className="text-[13px] font-semibold tracking-wide text-muted">Affecting undead on 2d6 (WW p. 8)</h4>
                 {undeadOk === false ? (
-                  <p className="text-sm text-[#d6d2c2]">
+                  <p className="text-sm text-soft">
                     Neutral clerics can&apos;t affect undead or demon-types. Declaring for Law or Chaos gives the power at once.
                   </p>
                 ) : (
@@ -192,7 +192,7 @@ function WeaponRowView({ row: r }: { row: WeaponTable["rows"][number] }) {
   const td = "px-2 py-1 whitespace-nowrap";
   return (
     <>
-      <tr className="border-t border-[#262920]">
+      <tr className="border-t border-rule">
         <td className={`${td} max-w-48 truncate`}>{r.name}</td>
         <td className={`${td} font-mono`}>{r.size ?? "-"}</td>
         <td className={`${td} font-mono`}>
@@ -237,7 +237,7 @@ function TurningGroups({ level, chaotic }: { level: number; chaotic: boolean }) 
   ].filter((x) => x.items.length > 0);
   return (
     <>
-      <dl className="flex max-w-xl flex-col divide-y divide-[#262920] text-sm">
+      <dl className="flex max-w-xl flex-col divide-y divide-rule text-sm">
         {groups.map((grp) => (
           <div key={grp.key} className="flex flex-col gap-1.5 py-2.5 sm:flex-row sm:gap-4">
             <dt className={`flex-none font-semibold sm:w-40 ${grp.tone}`}>{grp.label}</dt>

@@ -65,9 +65,9 @@ export function SubmitButton({
   }
   const cls = {
     lime: "bg-lime text-lime-ink hover:brightness-110",
-    amber: "bg-amber text-[#1a1408] hover:brightness-110",
-    plain: "border border-line-2 text-[#d6d2c2] hover:border-lime",
-    ember: "border border-[#5c3328] text-ember hover:bg-[#2e1a15]",
+    amber: "bg-amber text-on-amber hover:brightness-110",
+    plain: "border border-line-2 text-soft hover:border-lime",
+    ember: "border border-ember-edge text-ember hover:bg-ember-wash",
   }[tone];
   return (
     <button
@@ -319,7 +319,7 @@ export function IdentityForm({
           <button
             type="button"
             onClick={randomAll}
-            className="min-h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold text-[#d6d2c2] hover:border-lime"
+            className="min-h-11 rounded-xl border border-line-2 px-4 text-sm font-semibold text-soft hover:border-lime"
           >
             Randomize all
           </button>

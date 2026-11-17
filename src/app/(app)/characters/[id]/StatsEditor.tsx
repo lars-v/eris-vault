@@ -92,7 +92,7 @@ export function StatsEditor({
       <button
         type="button"
         onClick={open}
-        className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm font-semibold text-[#d6d2c2] hover:border-lime"
+        className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm font-semibold text-soft hover:border-lime"
       >
         Set stats by hand
       </button>
@@ -233,7 +233,7 @@ export function StatsEditor({
             </label>
 
             {state.error && (
-              <p role="alert" className="rounded-lg border border-[#5c3328] bg-[#2e1a15] px-3 py-2 text-sm text-ember">
+              <p role="alert" className="rounded-lg border border-ember-edge bg-ember-wash px-3 py-2 text-sm text-ember">
                 {state.error}
               </p>
             )}
@@ -244,7 +244,7 @@ export function StatsEditor({
             <button
               type="submit"
               disabled={pending || changed.length === 0 || !reason.trim()}
-              className="min-h-11 rounded-xl bg-amber px-4 text-sm font-semibold text-[#1a1408] hover:brightness-110 disabled:opacity-50"
+              className="min-h-11 rounded-xl bg-amber px-4 text-sm font-semibold text-on-amber hover:brightness-110 disabled:opacity-50"
             >
               {pending ? "Saving…" : "Save changes"}
             </button>

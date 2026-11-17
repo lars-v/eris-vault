@@ -39,7 +39,7 @@ export function DrainForm({ characterId, race, hpMax, classes }: { characterId: 
     : null;
 
   return (
-    <details className="rounded-xl border border-[#5c3328] px-4 py-2.5">
+    <details className="rounded-xl border border-ember-edge px-4 py-2.5">
       <summary className="min-h-8 cursor-pointer text-sm text-ember">Level loss</summary>
       <form action={drainLevels} className="flex flex-col gap-3 pt-2">
         <p className="text-xs text-subtle">
@@ -108,7 +108,7 @@ export function DrainForm({ characterId, race, hpMax, classes }: { characterId: 
           </p>
         )}
         {plan && (
-          <p aria-live="polite" className={`text-sm ${typeof plan === "string" ? "text-ember" : "text-[#d6d2c2]"}`}>
+          <p aria-live="polite" className={`text-sm ${typeof plan === "string" ? "text-ember" : "text-soft"}`}>
             {typeof plan === "string"
               ? plan
               : plan.toLevel === plan.fromLevel

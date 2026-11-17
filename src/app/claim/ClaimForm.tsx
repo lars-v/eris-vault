@@ -43,7 +43,7 @@ export function ClaimForm({ signedIn }: { signedIn: boolean }) {
     return (
       <div className="flex flex-col gap-4">
         <p className="text-lg text-lime">You&apos;re the game master now.</p>
-        <Link href="/gm" className="w-fit rounded-xl bg-amber px-5 py-3 font-semibold text-[#1a1408]">
+        <Link href="/gm" className="w-fit rounded-xl bg-amber px-5 py-3 font-semibold text-on-amber">
           Open GM tools
         </Link>
       </div>
@@ -64,7 +64,7 @@ export function ClaimForm({ signedIn }: { signedIn: boolean }) {
       <button
         type="submit"
         disabled={pending}
-        className="min-h-12 w-fit rounded-xl bg-amber px-5 font-semibold text-[#1a1408] disabled:opacity-60"
+        className="min-h-12 w-fit rounded-xl bg-amber px-5 font-semibold text-on-amber disabled:opacity-60"
       >
         {pending ? "Claiming…" : "Claim game master"}
       </button>

@@ -10,7 +10,7 @@ export const metadata = { title: "Admin" };
 
 function Setting({ label, detail, ok }: { label: string; detail: string; ok: boolean }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[#262920] py-3">
+    <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-rule py-3">
       <span className="flex flex-col gap-0.5">
         <span className="text-[15px]">{label}</span>
         <span className="font-mono text-[11px] text-subtle">{detail}</span>
@@ -35,7 +35,7 @@ function ActionButton({ action, userId, field, value, children, tone = "plain" }
       <button
         type="submit"
         className={`min-h-9 rounded-lg border px-2.5 text-[13px] ${
-          tone === "ember" ? "border-[#5c3328] text-ember" : "border-line-2 text-[#d6d2c2] hover:border-moon"
+          tone === "ember" ? "border-ember-edge text-ember" : "border-line-2 text-soft hover:border-moon"
         }`}
       >
         {children}
@@ -56,7 +56,7 @@ export default async function AdminPage() {
       <Nav viewer={viewer} active="admin" />
       <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow="Admin · full control" title="Vault control" tone="moon">
-          <Link href="/gm" className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2]">
+          <Link href="/gm" className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-soft">
             Open GM tools
           </Link>
         </PageHeader>
@@ -65,8 +65,8 @@ export default async function AdminPage() {
         </p>
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
-          <div className="flex flex-col gap-1 rounded-2xl border border-[#34496b] bg-[#141822] p-4">
-            <span className="text-xs uppercase tracking-[0.1em] text-[#9faac0]">Your admin comes from</span>
+          <div className="flex flex-col gap-1 rounded-2xl border border-moon-edge bg-moon-wash p-4">
+            <span className="text-xs uppercase tracking-[0.1em] text-moon-soft">Your admin comes from</span>
             <span className="text-[17px] font-semibold">{viewer.railwayAdmin ? "Railway list" : "Granted in the app"}</span>
           </div>
           <div className="flex flex-col gap-1 rounded-2xl border border-line bg-surface p-4">
@@ -99,7 +99,7 @@ export default async function AdminPage() {
               </thead>
               <tbody>
                 {people.map((p) => (
-                  <tr key={p.userId} className="border-t border-[#262920] align-top">
+                  <tr key={p.userId} className="border-t border-rule align-top">
                     <td className="py-3 pr-3">
                       <span className="font-semibold">{p.name ?? "Unnamed"}</span>
                       <span className="block text-xs text-subtle">{p.email}</span>
@@ -111,7 +111,7 @@ export default async function AdminPage() {
                         {p.status === "blocked" && <Chip tone="ember">Blocked</Chip>}
                       </span>
                     </td>
-                    <td className="py-3 pr-3 text-[#d6d2c2]">{p.characters.join(", ") || "None"}</td>
+                    <td className="py-3 pr-3 text-soft">{p.characters.join(", ") || "None"}</td>
                     <td className="py-3">
                       {p.railwayAdmin || p.userId === viewer.userId ? (
                         <span className="text-[13px] text-subtle">{p.railwayAdmin ? "Locked here; change on Railway" : "That's you"}</span>
@@ -137,7 +137,7 @@ export default async function AdminPage() {
                                 name="targetId"
                                 required
                                 defaultValue=""
-                                className="min-h-9 rounded-lg border border-line-2 bg-surface px-2 text-[13px] text-[#d6d2c2]"
+                                className="min-h-9 rounded-lg border border-line-2 bg-surface px-2 text-[13px] text-soft"
                               >
                                 <option value="" disabled>
                                   Merge into...
@@ -152,7 +152,7 @@ export default async function AdminPage() {
                               </select>
                               <button
                                 type="submit"
-                                className="min-h-9 rounded-lg border border-line-2 px-2.5 text-[13px] text-[#d6d2c2] hover:border-moon"
+                                className="min-h-9 rounded-lg border border-line-2 px-2.5 text-[13px] text-soft hover:border-moon"
                               >
                                 Merge
                               </button>
@@ -169,7 +169,7 @@ export default async function AdminPage() {
         </Panel>
 
         <div className="flex flex-wrap items-start gap-5">
-          <Panel title="GM claim link" className="min-w-0 flex-[1_1_440px] border-[#5e4720]">
+          <Panel title="GM claim link" className="min-w-0 flex-[1_1_440px] border-amber-edge">
             <p className="text-sm leading-relaxed text-muted">
               Works once, expires 48 hours after you create it, and only a hash of the code is stored. Whoever opens it
               and signs in becomes GM.
@@ -180,7 +180,7 @@ export default async function AdminPage() {
           <Panel title="Settings" className="min-w-0 flex-[1_1_520px]">
             <Setting label="GitHub sign-in" detail="AUTH_GITHUB_ID, AUTH_GITHUB_SECRET" ok={Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET)} />
             <Setting label="Google sign-in" detail="AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET" ok={Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)} />
-            <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[#262920] py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-rule py-3">
               <span className="flex flex-col gap-0.5">
                 <span className="text-[15px]">Sample character</span>
                 <span className="text-xs text-subtle">Liz the Giz from your PDF sheet, with her 5 flags for Jay</span>
@@ -189,7 +189,7 @@ export default async function AdminPage() {
                 <Chip tone="lime">Imported</Chip>
               ) : (
                 <form action={importLiz}>
-                  <button type="submit" className="min-h-10 rounded-lg border border-line-2 px-3 text-[13px] text-[#d6d2c2] hover:border-lime">
+                  <button type="submit" className="min-h-10 rounded-lg border border-line-2 px-3 text-[13px] text-soft hover:border-lime">
                     Import Liz
                   </button>
                 </form>
@@ -202,7 +202,7 @@ export default async function AdminPage() {
           {audit.length === 0 ? (
             <p className="text-sm text-muted">Nothing logged yet.</p>
           ) : (
-            <ul className="flex flex-col divide-y divide-[#262920]">
+            <ul className="flex flex-col divide-y divide-rule">
               {audit.map((a) => (
                 <li key={a.id} className="flex flex-wrap items-baseline justify-between gap-3 py-2.5 text-sm">
                   <span className="flex flex-wrap items-baseline gap-2">

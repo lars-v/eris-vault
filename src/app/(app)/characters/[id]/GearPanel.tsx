@@ -45,7 +45,7 @@ const submitWith = (action: (fd: FormData) => void) => (e: FormEvent<HTMLFormEle
 };
 
 function AddButton({ pending, tone }: { pending: boolean; tone: "lime" | "plain" }) {
-  const cls = tone === "lime" ? "bg-lime text-lime-ink hover:brightness-110" : "border border-line-2 text-[#d6d2c2] hover:border-lime";
+  const cls = tone === "lime" ? "bg-lime text-lime-ink hover:brightness-110" : "border border-line-2 text-soft hover:border-lime";
   return (
     <button type="submit" disabled={pending} className={`min-h-11 rounded-xl px-4 text-sm font-semibold disabled:opacity-60 ${cls}`}>
       {pending ? "Adding…" : "Add"}
@@ -58,7 +58,7 @@ const units = (n: number) => `${n} unit${n === 1 ? "" : "s"}`;
 function Problem({ text }: { text: string | null }) {
   if (!text) return null;
   return (
-    <p role="alert" className="rounded-lg border border-[#5c3328] bg-[#2e1a15] px-3 py-2 text-sm text-ember">
+    <p role="alert" className="rounded-lg border border-ember-edge bg-ember-wash px-3 py-2 text-sm text-ember">
       {text}
     </p>
   );
@@ -101,7 +101,7 @@ export function GearPanel({
             onClick={() => setEditing((e) => !e)}
             aria-expanded={editing}
             className={`min-h-9 rounded-lg px-3 text-[13px] font-semibold ${
-              editing ? "bg-lime text-lime-ink" : "border border-line-2 text-[#d6d2c2] hover:border-lime"
+              editing ? "bg-lime text-lime-ink" : "border border-line-2 text-soft hover:border-lime"
             }`}
           >
             {editing ? "Done" : "Edit gear"}
@@ -112,13 +112,13 @@ export function GearPanel({
       {items.length === 0 ? (
         <p className="text-sm text-muted">Nothing carried.</p>
       ) : (
-        <ul className="flex flex-col divide-y divide-[#262920]">
+        <ul className="flex flex-col divide-y divide-rule">
           {items.map((i) => (editing ? <EditRow key={i.id} characterId={id} item={i} staff={staff} /> : <ViewRow key={i.id} item={i} />))}
         </ul>
       )}
 
       {editing && (
-        <div className="flex flex-col gap-4 border-t border-[#262920] pt-4">
+        <div className="flex flex-col gap-4 border-t border-rule pt-4">
           <AddFromList id={id} catalog={catalog} staff={staff} />
           <AddOther id={id} staff={staff} />
           <p className="text-xs text-subtle">
@@ -199,12 +199,12 @@ function EditRow({ characterId, item, staff }: { characterId: string; item: Gear
                 aria-label={`${item.name} is magic`}
                 title="Magic gear counts 0 units (campaign ruling)"
                 className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[13px] ${
-                  item.isMagic ? "border-[#4b5e2a] bg-[#222c17] text-lime" : "border-line-2 text-muted hover:border-lime"
+                  item.isMagic ? "border-lime-edge bg-lime-wash text-lime" : "border-line-2 text-muted hover:border-lime"
                 }`}
               >
                 <span
                   aria-hidden="true"
-                  className={`relative h-4 w-7 rounded-full transition-colors ${item.isMagic ? "bg-lime" : "bg-[#3a3d33]"}`}
+                  className={`relative h-4 w-7 rounded-full transition-colors ${item.isMagic ? "bg-lime" : "bg-line-2"}`}
                 >
                   <span
                     className={`absolute top-0.5 size-3 rounded-full bg-ink transition-[left] ${item.isMagic ? "left-3.5" : "left-0.5"}`}

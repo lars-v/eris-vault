@@ -28,8 +28,8 @@ export function GmToolsPanel({ c, canOverride }: { c: CharacterSheet; canOverrid
   // A re-roll of abilities or hit points would undo hit dice rolled for later levels.
   const early = c.levelDice.length === 0;
   return (
-    <Panel title="GM tools" aside="Every change goes in the audit log" className="border-[#5e4720]">
-      <div className="flex flex-col divide-y divide-[#262920]">
+    <Panel title="GM tools" aside="Every change goes in the audit log" className="border-amber-edge">
+      <div className="flex flex-col divide-y divide-rule">
         {canReturn && (
           <Tool title="Return to player" hint="Sends the character back to draft so the player can change it.">
             <form action={returnToPlayer} className="flex flex-wrap gap-2">

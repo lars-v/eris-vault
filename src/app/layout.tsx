@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { activeScheme } from "@/lib/scheme-server";
+import { resolveScheme, SCHEMES, schemeStyles } from "@/lib/schemes";
 
 // Self-hosted (SIL Open Font License, see src/fonts) so builds never depend on Google Fonts.
 const fell = localFont({
@@ -34,17 +36,32 @@ export const metadata: Metadata = {
   appleWebApp: { title: "Eris Vault", statusBarStyle: "black-translucent" },
 };
 
-// Browser bars match the ink ground; `cover` lets the phone tab bar pad itself for the home indicator.
+// Browser bars match the scheme's ground; `cover` lets the phone tab bar pad itself for the home indicator.
 // Zoom stays on (no maximumScale): pinch-zoom is an accessibility need.
-export const viewport: Viewport = {
-  themeColor: "#0f100d",
-  colorScheme: "dark",
-  viewportFit: "cover",
-};
+export async function generateViewport(): Promise<Viewport> {
+  const { scheme } = await activeScheme();
+  return {
+    themeColor: resolveScheme(scheme).ink,
+    colorScheme: SCHEMES[scheme].mode,
+    viewportFit: "cover",
+  };
+}
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+// Built once: the CSS for every scheme, keyed on <html data-scheme>.
+const SCHEME_CSS = schemeStyles();
+
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { choice, scheme } = await activeScheme();
   return (
-    <html lang="en" className={`${fell.variable} ${inter.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      data-scheme={scheme}
+      data-scheme-choice={choice}
+      className={`${fell.variable} ${inter.variable} ${mono.variable}`}
+    >
+      <head>
+        <style>{SCHEME_CSS}</style>
+      </head>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

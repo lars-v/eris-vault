@@ -44,7 +44,7 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="min-h-9 rounded-lg border border-line-2 px-3 text-[13px] font-semibold text-[#d6d2c2] hover:border-lime"
+            className="min-h-9 rounded-lg border border-line-2 px-3 text-[13px] font-semibold text-soft hover:border-lime"
           >
             {anyPrepared ? "Change prepared spells" : "Prepare spells"}
           </button>
@@ -76,7 +76,7 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
             </fieldset>
           ))}
           {state.error && (
-            <p role="alert" className="rounded-lg border border-[#5c3328] bg-[#2e1a15] px-3 py-2 text-sm text-ember">
+            <p role="alert" className="rounded-lg border border-ember-edge bg-ember-wash px-3 py-2 text-sm text-ember">
               {state.error}
             </p>
           )}
@@ -85,7 +85,7 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
               type="button"
               disabled={pending}
               onClick={() => setEditing(false)}
-              className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime disabled:opacity-60"
+              className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-soft hover:border-lime disabled:opacity-60"
             >
               Cancel
             </button>

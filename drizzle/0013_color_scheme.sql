@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "color_scheme" text DEFAULT 'eris' NOT NULL;

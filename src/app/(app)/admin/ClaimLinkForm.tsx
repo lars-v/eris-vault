@@ -21,15 +21,15 @@ export function ClaimLinkForm() {
         <button
           type="submit"
           disabled={pending}
-          className="min-h-11 rounded-xl bg-amber px-5 text-sm font-semibold text-[#1a1408] disabled:opacity-60"
+          className="min-h-11 rounded-xl bg-amber px-5 text-sm font-semibold text-on-amber disabled:opacity-60"
         >
           {pending ? "Creating…" : "Create link"}
         </button>
       </form>
       {state.url && (
-        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-[#5e4720] bg-ink p-3.5">
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-amber-edge bg-ink p-3.5">
           <div className="flex flex-wrap items-center gap-2.5">
-            <code className="min-w-0 flex-[1_1_260px] break-all font-mono text-[13px] text-[#e2d2b4]">{state.url}</code>
+            <code className="min-w-0 flex-[1_1_260px] break-all font-mono text-[13px] text-amber-soft">{state.url}</code>
             <button
               type="button"
               onClick={async () => {
@@ -40,7 +40,7 @@ export function ClaimLinkForm() {
                   setCopied(false);
                 }
               }}
-              className="min-h-10 rounded-lg border border-[#5e4720] px-3.5 text-[13px] text-amber"
+              className="min-h-10 rounded-lg border border-amber-edge px-3.5 text-[13px] text-amber"
             >
               {copied ? "Copied" : "Copy"}
             </button>

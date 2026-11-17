@@ -58,17 +58,17 @@ export function SpellsPanel({
       )}
 
       {problem && prepared.length > 0 && (
-        <p className="rounded-xl border border-[#5e4720] bg-[#2a2113] px-3 py-2 text-sm text-amber">Saved spells no longer fit: {problem} Prepare again.</p>
+        <p className="rounded-xl border border-amber-edge bg-amber-wash px-3 py-2 text-sm text-amber">Saved spells no longer fit: {problem} Prepare again.</p>
       )}
       {twice.length > 0 && (
-        <p className="rounded-xl border border-[#5e4720] bg-[#2a2113] px-3 py-2 text-sm text-amber">
+        <p className="rounded-xl border border-amber-edge bg-amber-wash px-3 py-2 text-sm text-amber">
           {twice.join(", ")} {twice.length === 1 ? "is" : "are"} prepared more than once. The books don&apos;t say if that&apos;s allowed; Jay will rule.
         </p>
       )}
 
       {castable.length > 0 && <PreparedSpells id={id} levels={prepareLevels} canEdit={canPrepare} />}
 
-      <details className="border-t border-[#262920] pt-3">
+      <details className="border-t border-rule pt-3">
         <summary className="cursor-pointer text-sm font-semibold">
           {cls === "cleric" ? "Cleric" : "Magic-user"} spells · {known.length}
         </summary>

@@ -19,7 +19,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
       <main className="mx-auto flex max-w-[760px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow="Already playing?" title="Upload a character sheet" />
         <Panel title="How it works">
-          <ol className="list-decimal space-y-2 pl-5 text-[15px] leading-relaxed text-[#d6d2c2]">
+          <ol className="list-decimal space-y-2 pl-5 text-[15px] leading-relaxed text-soft">
             <li>Upload your sheet. A filled-in PDF of the Planet Eris sheet or the OD&amp;D sheet is read for you.</li>
             <li>Check the numbers. Fix anything the app read wrong, and fill in what it couldn&apos;t read.</li>
             <li>Send it to Jay. Jay compares it with your sheet and approves it.</li>
@@ -32,7 +32,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
         </Panel>
 
         {error && (
-          <div role="alert" className="rounded-xl border border-[#5c3328] bg-[#2e1a15] px-4 py-3 text-sm text-ember">
+          <div role="alert" className="rounded-xl border border-ember-edge bg-ember-wash px-4 py-3 text-sm text-ember">
             {error}
           </div>
         )}
@@ -46,7 +46,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
                 name="sheet"
                 required
                 accept="application/pdf,.pdf,image/png,image/jpeg"
-                className="rounded-xl border border-line-2 bg-ink p-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-2 file:text-[#d6d2c2]"
+                className="rounded-xl border border-line-2 bg-ink p-3 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-2 file:text-soft"
               />
             </label>
             <div>
@@ -57,7 +57,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
 
         {open.length > 0 && (
           <Panel title="Not sent to Jay yet">
-            <ul className="flex flex-col divide-y divide-[#262920]">
+            <ul className="flex flex-col divide-y divide-rule">
               {open.map((u) => (
                 <li key={u.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                   <span className="min-w-0 truncate">{u.filename}</span>

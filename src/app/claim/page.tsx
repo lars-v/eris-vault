@@ -11,7 +11,7 @@ export default async function ClaimPage() {
     <main className="mx-auto flex min-h-dvh max-w-[720px] flex-col justify-center gap-6 px-4 py-16 sm:px-8">
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber">One-time link</div>
       <h1 className="font-display text-5xl leading-none text-parchment-2">Claim game master</h1>
-      <p className="text-lg leading-relaxed text-[#c9c5b4]">
+      <p className="text-lg leading-relaxed text-lede">
         This link makes the account that uses it the game master for Eris Vault. It works once and expires 48 hours
         after it was made.
       </p>

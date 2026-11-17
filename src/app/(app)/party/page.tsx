@@ -42,7 +42,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
   };
   const viewTab = (active: boolean) =>
     `inline-flex min-h-11 items-center rounded-lg px-4 text-sm ${
-      active ? "bg-[#262920] font-semibold text-lime" : "text-muted hover:text-[#d6d2c2]"
+      active ? "bg-rule font-semibold text-lime" : "text-muted hover:text-soft"
     }`;
 
   return (
@@ -59,7 +59,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
           <span className="flex flex-wrap gap-2">
             <Link
               href="/characters/import"
-              className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime"
+              className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-soft hover:border-lime"
             >
               Upload a sheet
             </Link>
@@ -74,7 +74,7 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
         </PageHeader>
 
         {error && (
-          <div role="alert" className="rounded-xl border border-[#5c3328] bg-[#2e1a15] px-4 py-3 text-sm text-ember">
+          <div role="alert" className="rounded-xl border border-ember-edge bg-ember-wash px-4 py-3 text-sm text-ember">
             {error}
           </div>
         )}
@@ -165,11 +165,11 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
                         {c.hpMax === null ? "Not rolled" : `${c.hpCurrent} / ${c.hpMax}`}
                       </span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-[#262920]">
+                    <div className="h-2 overflow-hidden rounded-full bg-rule">
                       <div className="h-full rounded-full bg-lime" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between border-t border-[#262920] pt-3 text-[13px]">
+                  <div className="flex items-center justify-between border-t border-rule pt-3 text-[13px]">
                     <span className="text-muted">Player: {c.ownerName ?? "unknown"}</span>
                     {c.status === "submitted" ? (
                       <Chip tone="amber">

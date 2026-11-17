@@ -79,6 +79,8 @@ export const profiles = pgTable("profiles", {
   status: text("status").$type<AccountStatus>().notNull().default("active"),
   // Keys of the first-time guides this person has finished or skipped (src/lib/guide.ts).
   guidesSeen: text("guides_seen").array().notNull().default(sql`'{}'::text[]`),
+  // Picked on /account (src/lib/schemes.ts): a scheme key or "strife". Display only.
+  colorScheme: text("color_scheme").notNull().default("eris"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
 

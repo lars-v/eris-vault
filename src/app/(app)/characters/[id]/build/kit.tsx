@@ -112,7 +112,7 @@ export function KitPicker({
                   <legend className="sticky top-0 z-10 w-full bg-surface py-2 text-[13px] font-semibold uppercase tracking-[0.14em] text-subtle">
                     {title}
                   </legend>
-                  <ul className="flex flex-col divide-y divide-[#262920]">
+                  <ul className="flex flex-col divide-y divide-rule">
                     {list.map((r) => {
                       const n = qty[r.key] ?? 0;
                       return (
@@ -123,7 +123,7 @@ export function KitPicker({
                               checked={n > 0}
                               disabled={Boolean(r.why)}
                               onChange={(e) => toggle(r.key, e.target.checked)}
-                              className="size-5 flex-none accent-[#b9d55f]"
+                              className="size-5 flex-none accent-lime"
                             />
                             <span className="flex flex-col">
                               <span className="text-[15px]">{r.name}</span>
@@ -170,7 +170,7 @@ export function KitPicker({
               <button
                 type="button"
                 onClick={() => dialog.current?.close()}
-                className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime"
+                className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-soft hover:border-lime"
               >
                 Cancel
               </button>

@@ -8,12 +8,12 @@ import { changeHitPoints, setCoins, type StatResult } from "../stat-actions";
 const idle: StatResult = { error: null, at: 0 };
 const inputCls =
   "min-h-11 w-full min-w-0 rounded-xl border border-line-2 bg-ink px-3 font-mono text-[15px] text-parchment";
-const editBtn = "min-h-9 rounded-lg border border-line-2 px-3 text-[13px] font-semibold text-[#d6d2c2] hover:border-lime";
+const editBtn = "min-h-9 rounded-lg border border-line-2 px-3 text-[13px] font-semibold text-soft hover:border-lime";
 
 function Problem({ text }: { text: string | null }) {
   if (!text) return null;
   return (
-    <p role="alert" className="rounded-lg border border-[#5c3328] bg-[#2e1a15] px-3 py-2 text-sm text-ember">
+    <p role="alert" className="rounded-lg border border-ember-edge bg-ember-wash px-3 py-2 text-sm text-ember">
       {text}
     </p>
   );
@@ -154,7 +154,7 @@ export function HitPointsPanel({
               disabled={shown <= HP_MIN}
               aria-label="Take 1 damage"
               title="Take 1 damage"
-              className={`${quickBtn} border-[#5c3328] text-ember hover:bg-[#2e1a15]`}
+              className={`${quickBtn} border-ember-edge text-ember hover:bg-ember-wash`}
             >
               −1
             </button>
@@ -203,7 +203,7 @@ export function HitPointsPanel({
           onKeyDown={(e) => {
             if (e.key === "Escape") setEditing(false);
           }}
-          className="flex flex-col gap-2 border-t border-[#262920] pt-3"
+          className="flex flex-col gap-2 border-t border-rule pt-3"
         >
           <label htmlFor={`hp-amount-${id}`} className="text-[13px] text-muted">
             How many hit points?
@@ -223,13 +223,13 @@ export function HitPointsPanel({
             className={inputCls}
           />
           <div className="grid grid-cols-3 gap-2">
-            <button type="submit" value="damage" className="min-h-11 rounded-xl border border-[#5c3328] px-1 text-sm font-semibold text-ember hover:bg-[#2e1a15]">
+            <button type="submit" value="damage" className="min-h-11 rounded-xl border border-ember-edge px-1 text-sm font-semibold text-ember hover:bg-ember-wash">
               {label("damage", "Damage")}
             </button>
             <button type="submit" value="heal" disabled={healNoop} className="min-h-11 rounded-xl bg-lime px-1 text-sm font-semibold text-lime-ink hover:brightness-110 disabled:opacity-40">
               {label("heal", "Heal")}
             </button>
-            <button type="submit" value="set" className="min-h-11 rounded-xl border border-line-2 px-1 text-sm font-semibold text-[#d6d2c2] hover:border-lime">
+            <button type="submit" value="set" className="min-h-11 rounded-xl border border-line-2 px-1 text-sm font-semibold text-soft hover:border-lime">
               {Number.isNaN(typed) ? "Set to" : `Set to ${typed}`}
             </button>
           </div>
@@ -303,7 +303,7 @@ export function CoinsPanel({ id, gp, sp, cp, canEdit }: { id: string; gp: number
           <p className="text-xs text-subtle">Gold can go below 0 for a debt. Silver and copper can&apos;t.</p>
           <Problem text={state.error} />
           <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" disabled={pending} onClick={() => setEditing(false)} className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime disabled:opacity-60">
+            <button type="button" disabled={pending} onClick={() => setEditing(false)} className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-soft hover:border-lime disabled:opacity-60">
               Cancel
             </button>
             <button type="submit" disabled={pending} className="min-h-11 rounded-xl bg-lime px-4 text-sm font-semibold text-lime-ink hover:brightness-110 disabled:opacity-60">
@@ -314,7 +314,7 @@ export function CoinsPanel({ id, gp, sp, cp, canEdit }: { id: string; gp: number
       ) : (
         <div className="grid grid-cols-3 gap-2 text-center">
           {coins.map((c) => (
-            <div key={c.key} className={`rounded-lg p-2 ${c.value < 0 ? "bg-[#2e1a15] text-ember" : "bg-surface-2"}`}>
+            <div key={c.key} className={`rounded-lg p-2 ${c.value < 0 ? "bg-ember-wash text-ember" : "bg-surface-2"}`}>
               <div className="font-mono text-xl">{c.value}</div>
               <div className="text-xs text-muted">{c.label}</div>
             </div>

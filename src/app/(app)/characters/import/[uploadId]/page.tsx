@@ -64,7 +64,7 @@ export default async function ReviewImportPage({
       <Nav viewer={viewer} active="party" />
       <main className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow="Upload a character sheet · check" title={d.name || "Your character"}>
-          <a href={fileUrl} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2]">
+          <a href={fileUrl} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-soft">
             Open {upload.filename}
           </a>
         </PageHeader>
@@ -77,7 +77,7 @@ export default async function ReviewImportPage({
         </p>
 
         {error && (
-          <div role="alert" className="rounded-xl border border-[#5c3328] bg-[#2e1a15] px-4 py-3 text-sm text-ember">
+          <div role="alert" className="rounded-xl border border-ember-edge bg-ember-wash px-4 py-3 text-sm text-ember">
             {error}
           </div>
         )}
@@ -221,9 +221,9 @@ export default async function ReviewImportPage({
           </Panel>
 
           {preview && preview.length > 0 && (
-            <Panel title={`Jay will see ${preview.length} flag${preview.length === 1 ? "" : "s"}`} className="border-[#5e4720]">
+            <Panel title={`Jay will see ${preview.length} flag${preview.length === 1 ? "" : "s"}`} className="border-amber-edge">
               <p className="text-sm text-muted">From your sheet as read. You don&apos;t need to fix these: Jay decides.</p>
-              <ul className="flex flex-col divide-y divide-[#262920]">
+              <ul className="flex flex-col divide-y divide-rule">
                 {preview.map((f) => (
                   <li key={f.title} className="flex flex-col gap-1 py-3">
                     <span className="font-semibold">{f.title}</span>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { signOut } from "@/auth";
 import { GuideButton } from "@/components/Guide";
 import { Logo } from "@/components/Logo";
+import { SchemeSync } from "@/components/SchemeSync";
 import type { CurrentUser } from "@/lib/session";
 
 type Tab = "party" | "rolls" | "gm" | "admin" | "account";
@@ -41,9 +42,9 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: Tab }) {
   const initial = (viewer.name ?? "?").slice(0, 1).toUpperCase();
   const badge =
     viewer.role === "admin" ? (
-      <span className="rounded-md bg-moon px-1.5 py-0.5 text-[11px] font-bold text-[#0e1420]">ADMIN</span>
+      <span className="rounded-md bg-moon px-1.5 py-0.5 text-[11px] font-bold text-on-moon">ADMIN</span>
     ) : viewer.role === "gm" ? (
-      <span className="rounded-md bg-amber px-1.5 py-0.5 text-[11px] font-bold text-[#1a1408]">GM</span>
+      <span className="rounded-md bg-amber px-1.5 py-0.5 text-[11px] font-bold text-on-amber">GM</span>
     ) : null;
   const dot = (key: Tab) => (
     <span aria-hidden="true" className={`h-1 w-6 rounded-full ${active === key ? "bg-lime" : "bg-transparent"}`} />
@@ -51,7 +52,8 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: Tab }) {
 
   return (
     <>
-      <nav aria-label="Main" className="border-b border-[#262920] bg-ink-2">
+      <SchemeSync choice={viewer.colorScheme} />
+      <nav aria-label="Main" className="border-b border-rule bg-ink-2">
         <div className="mx-auto flex max-w-[1280px] items-center gap-x-3 gap-y-3 px-4 py-2.5 sm:flex-wrap sm:gap-x-7 sm:px-8 sm:py-3.5">
           <Link href="/party" className="flex min-h-11 items-center gap-2.5">
             <Logo />
@@ -86,7 +88,7 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: Tab }) {
                 active === "account" ? "border-lime" : "border-line"
               }`}
             >
-              <span className="flex size-8 items-center justify-center rounded-full bg-[#2b3122] font-semibold text-lime">
+              <span className="flex size-8 items-center justify-center rounded-full bg-lime-dim font-semibold text-lime">
                 {initial}
               </span>
               <span className="hidden text-sm sm:inline">{viewer.name ?? "Signed in"}</span>
@@ -103,7 +105,7 @@ export function Nav({ viewer, active }: { viewer: CurrentUser; active?: Tab }) {
       <nav
         aria-label="Sections"
         data-tabbar
-        className="fixed inset-x-0 bottom-0 z-50 flex border-t border-[#262920] bg-ink-2 pb-[env(safe-area-inset-bottom)] sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 flex border-t border-rule bg-ink-2 pb-[env(safe-area-inset-bottom)] sm:hidden"
       >
         <Link href="/party" className={tab("party")} aria-current={active === "party" ? "page" : undefined}>
           {dot("party")}

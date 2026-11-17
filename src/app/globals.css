@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 /* Eris palette: ink ground, parchment text, Eris-sky lime, Ixion amber,
-   Samer red and Damini blue. Same tokens as the design canvas. */
+   Samer red and Damini blue. Same tokens as the design canvas.
+   The other color schemes replace these variables: see src/lib/schemes.ts. Use tokens, never hex. */
 @theme {
   --color-ink: #0f100d;
   --color-ink-2: #12140f;
@@ -18,6 +19,25 @@
   --color-amber: #e5aa4e;
   --color-ember: #e8775f;
   --color-moon: #8fb1e6;
+
+  /* Softer text, dividers, and a pale fill and border for each accent (chips, notices). */
+  --color-soft: #d6d2c2;
+  --color-lede: #c9c5b4;
+  --color-rule: #262920;
+  --color-lime-wash: #222c17;
+  --color-lime-edge: #4b5e2a;
+  --color-lime-dim: #2b3122;
+  --color-lime-deep: #6c7f3a;
+  --color-amber-wash: #2a2113;
+  --color-amber-edge: #5e4720;
+  --color-amber-soft: #e2d2b4;
+  --color-on-amber: #1a1408;
+  --color-ember-wash: #2e1a15;
+  --color-ember-edge: #5c3328;
+  --color-moon-wash: #18202e;
+  --color-moon-edge: #34496b;
+  --color-moon-soft: #9faac0;
+  --color-on-moon: #0e1420;
 
   --font-display: var(--font-fell), Georgia, serif;
   --font-sans: var(--font-inter), system-ui, sans-serif;

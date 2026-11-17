@@ -116,7 +116,7 @@ export default async function BuildPage({
       />
       <main className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-6 sm:px-8 sm:py-10">
         <PageHeader eyebrow={c.status === "draft" ? "New character · draft" : staff ? `Editing as ${viewer.role}` : "With Jay · not yet approved"} title={c.name}>
-          <Link href={`/characters/${id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2]">
+          <Link href={`/characters/${id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-soft">
             View sheet
           </Link>
         </PageHeader>
@@ -129,13 +129,13 @@ export default async function BuildPage({
         </p>
 
         {error && (
-          <div role="alert" className="rounded-xl border border-[#5c3328] bg-[#2e1a15] px-4 py-3 text-sm text-ember">
+          <div role="alert" className="rounded-xl border border-ember-edge bg-ember-wash px-4 py-3 text-sm text-ember">
             {error}
           </div>
         )}
 
         {c.grants.length > 0 && (
-          <Panel title="Re-rolls granted" className="border-[#5e4720]">
+          <Panel title="Re-rolls granted" className="border-amber-edge">
             {c.grants.map((g) => (
               <form key={g.id} action={spendRollGrant} className="flex flex-wrap items-center justify-between gap-3">
                 <input type="hidden" name="id" value={id} />
@@ -254,7 +254,7 @@ export default async function BuildPage({
             <p className="text-sm text-subtle">Choose a class first, so class limits can be checked.</p>
           )}
           {c.items.length > 0 && (
-            <ul className="flex flex-col divide-y divide-[#262920]">
+            <ul className="flex flex-col divide-y divide-rule">
               {c.items.map((i) => (
                 <li key={i.id} className="flex items-center justify-between gap-3 py-2 text-[15px]">
                   <span>

@@ -32,7 +32,7 @@ function LevelChanges({ up }: { up: LevelUp }) {
       {up.notes.length > 0 && (
         <ul className="flex flex-col gap-1">
           {up.notes.map((n) => (
-            <li key={n.text} className={`text-sm ${n.ruling ? "text-amber" : "text-[#d6d2c2]"}`}>
+            <li key={n.text} className={`text-sm ${n.ruling ? "text-amber" : "text-soft"}`}>
               {n.text}
               {n.ruling && ` Jay rules (${n.ruling}).`}
             </li>
@@ -95,14 +95,14 @@ export function LevelPanel({
           <div key={k.id} className="flex flex-col gap-3">
             {classes.length > 1 && <h3 className="text-sm font-semibold">{CLASS_NAMES[k.class]}</h3>}
             {fresh ? (
-              <div className="flex flex-col gap-3 rounded-xl border border-[#4b5e2a] bg-[#1b2113] px-4 py-3">
+              <div className="flex flex-col gap-3 rounded-xl border border-lime-edge bg-lime-wash px-4 py-3">
                 <h4 className="font-display text-2xl text-lime">
                   {toRoll.length === 1
                     ? `${ordinal(reached)} level reached`
                     : `${ordinal(toRoll[0])} to ${ordinal(reached)} level reached`}
                 </h4>
                 <LevelChanges up={fresh} />
-                <div className="flex flex-wrap items-center gap-3 border-t border-[#4b5e2a] pt-3">
+                <div className="flex flex-wrap items-center gap-3 border-t border-lime-edge pt-3">
                   <span className="text-sm">
                     {ordinal(toRoll[0])} level&apos;s hit die is 1d6
                     {HIT_DIE_ADJUST[k.class] ? ` ${formatModifier(HIT_DIE_ADJUST[k.class])} for the class` : ""}
@@ -138,7 +138,7 @@ export function LevelPanel({
               </details>
             )}
             {dice.length > 0 && (
-              <ul className="flex flex-col divide-y divide-[#262920]">
+              <ul className="flex flex-col divide-y divide-rule">
                 {dice.map((d) => (
                   <li key={d.id} className={`flex flex-wrap items-center gap-3 py-2 text-sm ${d.lostAt ? "opacity-60" : ""}`}>
                     <span className="w-24 text-muted">{ordinal(d.level)} level</span>

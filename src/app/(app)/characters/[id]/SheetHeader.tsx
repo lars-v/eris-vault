@@ -59,7 +59,7 @@ function XpBar({ c, xp, lvl, cls }: { c: CharacterSheet; xp: number; lvl: Level;
               : "10th level waits on a GM ruling"}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-[#262920]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-rule">
         <div className="h-full bg-lime" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
       </div>
     </div>
@@ -94,7 +94,7 @@ export function SheetHeader({
       <Medallion c={c} canEdit={canEditPortrait} />
       <div className="flex min-w-0 flex-[999_1_12rem] flex-col gap-2 sm:basis-95">
         <h1 className="font-display text-4xl leading-none text-parchment-2 sm:text-5xl">{c.name}</h1>
-        <div className="text-[#c9c5b4]">
+        <div className="text-lede">
           {c.race ? cap(c.race) : "Race not chosen"} {active ? CLASS_NAMES[active.class] : ""}
           {c.alignment ? ` · ${cap(c.alignment)}` : ""}
           {c.deity ? ` · Patron: ${c.deity}` : ""}

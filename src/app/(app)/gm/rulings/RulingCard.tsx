@@ -59,7 +59,7 @@ export function RulingCard({ ruling, examples }: { ruling: RulingView; examples:
               setText(ruling.answer ?? "");
               setEditing(true);
             }}
-            className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime"
+            className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-soft hover:border-lime"
           >
             Change answer
           </button>
@@ -81,7 +81,7 @@ export function RulingCard({ ruling, examples }: { ruling: RulingView; examples:
                     aria-pressed={chosen}
                     onClick={() => setText(ex.answer)}
                     className={`flex min-h-11 flex-col items-start gap-1 rounded-lg border px-3 py-2 text-left text-sm ${
-                      chosen ? "border-lime bg-[#222c17] text-parchment" : "border-line-2 text-[#d6d2c2] hover:border-lime"
+                      chosen ? "border-lime bg-lime-wash text-parchment" : "border-line-2 text-soft hover:border-lime"
                     }`}
                   >
                     <span>{ex.answer}</span>
@@ -110,7 +110,7 @@ export function RulingCard({ ruling, examples }: { ruling: RulingView; examples:
                 type="button"
                 disabled={pending}
                 onClick={() => setEditing(false)}
-                className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2] hover:border-lime disabled:opacity-60"
+                className="min-h-11 rounded-xl border border-line-2 px-4 text-sm text-soft hover:border-lime disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -124,7 +124,7 @@ export function RulingCard({ ruling, examples }: { ruling: RulingView; examples:
             </button>
           </div>
           {state.error && (
-            <p role="alert" className="rounded-lg border border-[#5c3328] bg-[#2e1a15] px-3 py-2 text-sm text-ember">
+            <p role="alert" className="rounded-lg border border-ember-edge bg-ember-wash px-3 py-2 text-sm text-ember">
               {state.error}
             </p>
           )}

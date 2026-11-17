@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 
 export function Chip({ tone = "plain", children }: { tone?: "lime" | "amber" | "moon" | "ember" | "plain"; children: ReactNode }) {
   const styles = {
-    lime: "bg-[#222c17] border-[#4b5e2a] text-lime",
-    amber: "bg-[#2a2113] border-[#5e4720] text-amber",
-    moon: "bg-[#18202e] border-[#34496b] text-moon",
-    ember: "bg-[#2e1a15] border-[#5c3328] text-ember",
+    lime: "bg-lime-wash border-lime-edge text-lime",
+    amber: "bg-amber-wash border-amber-edge text-amber",
+    moon: "bg-moon-wash border-moon-edge text-moon",
+    ember: "bg-ember-wash border-ember-edge text-ember",
     plain: "border-line-2 text-muted",
   }[tone];
   return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${styles}`}>{children}</span>;

@@ -25,7 +25,7 @@ export default async function GmPage() {
             {queue.length === 0 ? (
               <p className="text-sm text-muted">Nothing waiting for review.</p>
             ) : (
-              <ul className="flex flex-col divide-y divide-[#262920]">
+              <ul className="flex flex-col divide-y divide-rule">
                 {queue.map((c) => (
                   <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <span className="flex flex-col">
@@ -59,10 +59,10 @@ export default async function GmPage() {
               </div>
             ))}
             <div className="mt-1 text-xs font-semibold text-amber">Waiting for a ruling · {pending.length}</div>
-            <ul className="flex flex-col divide-y divide-[#262920]">
+            <ul className="flex flex-col divide-y divide-rule">
               {pending.map((r) => (
                 <li key={r.key} className="flex flex-col gap-0.5 py-2">
-                  <span className="text-sm text-[#d6d2c2]">{r.question}</span>
+                  <span className="text-sm text-soft">{r.question}</span>
                   <span className="text-xs text-subtle">{r.sources}</span>
                 </li>
               ))}
@@ -74,7 +74,7 @@ export default async function GmPage() {
           {waiting.length === 0 ? (
             <p className="text-sm text-muted">No character has a new level waiting for its hit die.</p>
           ) : (
-            <ul className="flex flex-col divide-y divide-[#262920]">
+            <ul className="flex flex-col divide-y divide-rule">
               {waiting.map((w) => (
                 <li key={`${w.characterId}-${w.cls}`} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <span className="flex flex-col">
@@ -99,7 +99,7 @@ export default async function GmPage() {
           {audit.length === 0 ? (
             <p className="text-sm text-muted">Nothing logged yet.</p>
           ) : (
-            <ul className="flex flex-col divide-y divide-[#262920]">
+            <ul className="flex flex-col divide-y divide-rule">
               {audit.map((a) => (
                 <li key={a.id} className="flex flex-wrap items-baseline justify-between gap-3 py-2.5 text-sm">
                   <span className="flex flex-wrap items-baseline gap-2">
