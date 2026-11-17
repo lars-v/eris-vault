@@ -106,6 +106,19 @@ describe("magic armor (Monsters & Treasure p. 30)", () => {
     expect(r.ac).toBe(3);
     expect(texts(r)).toContain("attackers take 2 off their hit dice");
   });
+  it("gives the number with the armor's bonus in beside the book number (magic-armor-ac)", () => {
+    const r = armorClass([item("plate-mail", { isMagic: true, magicBonus: 2 }), item("shield", { isMagic: true, magicBonus: 3 })], 16, fighter);
+    expect(r.ac).toBe(1);
+    expect(r.armorBonus).toBe(2);
+    expect(r.withMagic).toBe(-1);
+    expect(texts(r)).toContain("plays like AC -1");
+    expect(armorClass([item(null, { name: "Chain Mail +1", isMagic: true })], 10, fighter).withMagic).toBe(4);
+  });
+  it("has no magic number for plain armor, a magic shield alone, or a missing bonus", () => {
+    expect(armorClass([item("chain-mail")], 10, fighter).withMagic).toBeNull();
+    expect(armorClass([item("chain-mail"), item("shield", { isMagic: true, magicBonus: 2 })], 10, fighter).withMagic).toBeNull();
+    expect(armorClass([item("chain-mail", { isMagic: true })], 10, fighter).withMagic).toBeNull();
+  });
   it("a better magic shield catches one blow in three", () => {
     const r = armorClass([item("chain-mail", { isMagic: true, magicBonus: 1 }), item("shield", { isMagic: true, magicBonus: 2 })], 10, fighter);
     expect(r.ac).toBe(4);

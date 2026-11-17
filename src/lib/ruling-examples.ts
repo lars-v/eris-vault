@@ -116,6 +116,11 @@ export const RULING_EXAMPLES: Record<string, RulingExample[]> = {
     { answer: "No. A large shield counts as a shield.", basis: NOW },
     { answer: "Yes. A large shield gives 1 more point of armor class than a shield." },
   ],
+  "magic-armor-ac": [
+    { answer: "No. The AC stays as the table gives it. Attackers take the armor's bonus off their roll.", basis: "Monsters & Treasure p. 30" },
+    { answer: "Yes. Magic armor lowers armor class by its bonus. A magic shield stays one blow in three." },
+    { answer: "Show both numbers and use the lower one at the table.", basis: NOW },
+  ],
   "dart-long-range": [
     { answer: "Yes. Dart long range is 31-45 feet.", basis: "The pattern of the other rows on WW p. 19" },
     { answer: "Keep the ranges as printed and settle overlaps at the table.", basis: NOW },
