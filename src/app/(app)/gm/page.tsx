@@ -42,7 +42,15 @@ export default async function GmPage() {
             <p className="text-xs text-subtle">Open a character to approve it, return it to the player, or grant a re-roll. Award XP from the character&apos;s sheet.</p>
           </Panel>
 
-          <Panel title="Rulings ledger" className="min-w-0 flex-[1_1_360px]">
+          <Panel
+            title="Rulings ledger"
+            aside={
+              <Link href="/gm/rulings" className="font-semibold text-amber hover:text-lime">
+                {pending.length > 0 ? "Answer questions" : "Open rulings"}
+              </Link>
+            }
+            className="min-w-0 flex-[1_1_360px]"
+          >
             <div className="text-xs font-semibold text-lime">On file · {decided.length}</div>
             {decided.map((r) => (
               <div key={r.key} className="flex flex-col gap-0.5 rounded-lg bg-surface-2 px-3 py-2.5">
