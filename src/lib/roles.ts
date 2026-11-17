@@ -41,6 +41,12 @@ export const can = {
   // The day's prepared spells: the player who owns the character, or Jay and admins.
   editSpells: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
+  // Loading and releasing spells in the staff or wand (WW p. 7): the player who owns
+  // the character, or Jay and admins. The status check is playStateOpen.
+  useSpellStaff: (v: Viewer, c: CharacterRef) =>
+    v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
+  // Clearing a stored spell by ruling (for example a broken staff): Jay and admins only.
+  voidStoredSpell: (v: Viewer) => v.status === "active" && isStaff(v),
   // The character's picture: the player who owns it, or Jay and admins, at any status.
   editPortrait: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
