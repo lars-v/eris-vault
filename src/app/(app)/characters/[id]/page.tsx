@@ -85,6 +85,7 @@ export default async function CharacterPage({
   // Hit points and coins: the player once approved, Jay and admins once submitted.
   const canPlay = can.editPlayState(viewer, c) && playStateOpen(c.status, staff);
   const canOverride = can.overrideStats(viewer) && overrideOpen(c.status);
+  const canEditPortrait = can.editPortrait(viewer, c);
   // Who set abilities or maximum hit points by hand. The reason shows to the player and staff.
   const overrides = c.manualFields.length > 0 ? await statOverrides(c.id) : [];
   const seesReason = staff || c.ownerId === viewer.userId;
@@ -108,7 +109,16 @@ export default async function CharacterPage({
       <Nav viewer={viewer} active="party" />
       <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-10">
         <header className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-surface p-5 sm:gap-6 sm:p-6">
-          {c.portrait ? (
+          {canEditPortrait ? (
+            // Clicking the medallion opens the same file picker as the buttons in PortraitEditor.
+            <label
+              htmlFor={`portrait-${c.id}`}
+              title={c.portrait ? "Change picture" : "Add a picture"}
+              className="flex-none cursor-pointer rounded-[50%] transition hover:ring-2 hover:ring-lime/50 hover:brightness-110"
+            >
+              <Portrait name={c.name} src={c.portrait} size="sheet" />
+            </label>
+          ) : c.portrait ? (
             <a href={c.portrait} target="_blank" rel="noopener" title="Open the full picture" className="flex-none rounded-[50%]">
               <Portrait name={c.name} src={c.portrait} size="sheet" />
             </a>
@@ -156,7 +166,7 @@ export default async function CharacterPage({
                 </div>
               </div>
             )}
-            {can.editPortrait(viewer, c) && <PortraitEditor id={c.id} name={c.name} hasPortrait={c.portrait !== null} />}
+            {canEditPortrait && <PortraitEditor id={c.id} name={c.name} hasPortrait={c.portrait !== null} />}
           </div>
         </header>
 

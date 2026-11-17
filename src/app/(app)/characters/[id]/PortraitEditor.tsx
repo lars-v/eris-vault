@@ -56,6 +56,7 @@ export function PortraitEditor({ id, name, hasPortrait }: { id: string; name: st
           accept={ACCEPT}
           className="sr-only"
           tabIndex={-1}
+          disabled={pending}
           aria-hidden="true"
           onChange={(e) => onPick(e.target.files?.[0])}
         />
