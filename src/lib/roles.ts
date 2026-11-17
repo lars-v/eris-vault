@@ -52,8 +52,12 @@ export const can = {
     v.status === "active" && (isStaff(v) || c.ownerId === v.userId),
   // Magic gear counts 0 units (campaign ruling), so only Jay and admins mark or unmark it.
   markMagic: (v: Viewer) => v.status === "active" && isStaff(v),
+  // The build wizard: the player who owns the character until Jay approves it, or Jay and
+  // admins on any character. The wizard itself locks abilities, race and class once hit
+  // points are rolled.
   editCoreStats: (v: Viewer, c: CharacterRef) =>
-    v.status === "active" && (isStaff(v) || (c.ownerId === v.userId && c.status === "draft")),
+    v.status === "active" &&
+    (isStaff(v) || (c.ownerId === v.userId && (c.status === "draft" || c.status === "submitted"))),
   awardXp: (v: Viewer) => v.status === "active" && isStaff(v),
   // Setting abilities, maximum hit points, XP and identity by hand, with a reason. Audited.
   overrideStats: (v: Viewer) => v.status === "active" && isStaff(v),

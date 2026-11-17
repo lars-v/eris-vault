@@ -51,8 +51,14 @@ async function recordRoll(tx: Tx, viewer: CurrentUser, characterId: string, purp
   return row.id;
 }
 
-/** Locks the character row and checks the viewer may change its core stats. */
-async function lockEditable(tx: Tx, viewer: CurrentUser, id: string) {
+type WizardStep = "abilities" | "identity" | "hp" | "gold" | "reroll" | "kit" | "random-kit" | "remove-item" | "submit";
+
+/**
+ * Locks the character row and checks the viewer may change its core stats.
+ * A change to a character that has left draft (a player's own before approval,
+ * or Jay's on any) goes in the audit log with the change, so Jay sees it.
+ */
+async function lockEditable(tx: Tx, viewer: CurrentUser, id: string, step: WizardStep) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Unknown character");
   const [c] = await tx
     .select()
@@ -64,6 +70,9 @@ async function lockEditable(tx: Tx, viewer: CurrentUser, id: string) {
   // Imported characters have no app rolls to build on, so the wizard stays shut for players.
   if (c.source !== "app" && !can.approve(viewer)) {
     throw new Error("This character came from a sheet. Ask Jay to change it, or delete it and upload the sheet again.");
+  }
+  if (c.status !== "draft") {
+    await writeAudit(viewer, { action: "character.edited", characterId: id, after: { status: c.status, step } }, tx);
   }
   return c;
 }
@@ -124,7 +133,7 @@ async function saveAbilitiesImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id, "abilities");
     if (c.hpRollId) throw new Error("Abilities are fixed once hit points are rolled.");
     if (!c.abilityRollId) throw new Error("Roll abilities first.");
     const [roll] = await tx.select().from(rolls).where(eq(rolls.id, c.abilityRollId));
@@ -149,7 +158,7 @@ async function saveIdentityImpl(formData: FormData) {
   if (problem) throw new Error(problem);
 
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id, "identity");
     const current = await activeClass(tx, id);
     if (c.hpRollId && (c.race !== race || current !== cls)) {
       throw new Error("Race and class are fixed once hit points are rolled.");
@@ -188,7 +197,7 @@ async function rollHitPointsImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id, "hp");
     if (c.hpRollId) throw new Error("Hit points are already rolled. Jay can grant a re-roll.");
     await doHpRoll(tx, viewer, c);
   });
@@ -199,7 +208,7 @@ async function rollGoldImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id, "gold");
     if (c.goldRollId) throw new Error("Starting gold is already rolled. Jay can grant a re-roll.");
     await doGoldRoll(tx, viewer, c);
   });
@@ -212,7 +221,7 @@ async function spendRollGrantImpl(formData: FormData) {
   const id = str(formData, "id");
   const grantId = str(formData, "grantId");
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id, "reroll");
     const [grant] = await tx
       .select()
       .from(rollGrants)
@@ -267,7 +276,7 @@ async function setKitImpl(formData: FormData) {
     if (name.startsWith("qty:")) picks[name.slice(4)] = Number(value);
   }
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id, "kit");
     const cls = await activeClass(tx, id);
     if (!cls) throw new Error("Choose a class first, so class limits can be checked.");
     const kit = checkKit({ cls, race: c.race, int: c.int }, picks);
@@ -294,16 +303,22 @@ async function setKitImpl(formData: FormData) {
   refresh(id);
 }
 
-/** Replaces the kit with a random basic kit that fits the class (see randomKitKeys). Not a roll: it isn't logged. */
+/**
+ * Replaces the kit with a random basic kit that fits the class (see randomKitKeys).
+ * Like setKit it swaps only price-list items that aren't magic, so anything Jay
+ * added or marked stays. Not a roll: it isn't logged.
+ */
 async function randomKitImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id, "random-kit");
     const cls = await activeClass(tx, id);
     if (!cls) throw new Error("Choose a class first, so the kit fits it.");
     const keys = randomKitKeys({ cls, race: c.race, int: c.int });
-    await tx.delete(inventory).where(eq(inventory.characterId, id));
+    await tx
+      .delete(inventory)
+      .where(and(eq(inventory.characterId, id), isNotNull(inventory.catalogKey), eq(inventory.isMagic, false)));
     await tx.insert(inventory).values(
       keys.map((key) => {
         const item = catalogItem(key)!;
@@ -327,7 +342,7 @@ async function removeItemImpl(formData: FormData) {
   const id = str(formData, "id");
   const itemId = str(formData, "itemId");
   await db.transaction(async (tx) => {
-    await lockEditable(tx, viewer, id);
+    await lockEditable(tx, viewer, id, "remove-item");
     await tx.delete(inventory).where(and(eq(inventory.id, itemId), eq(inventory.characterId, id)));
   });
   refresh(id);
@@ -337,7 +352,7 @@ async function submitCharacterImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id);
+    const c = await lockEditable(tx, viewer, id, "submit");
     if (c.status !== "draft") throw new Error("Only drafts can be sent to Jay.");
     const cls = await activeClass(tx, id);
     const missing = [

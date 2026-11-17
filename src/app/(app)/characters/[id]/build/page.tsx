@@ -66,6 +66,9 @@ export default async function BuildPage({
   // Imported characters have no app rolls to build on (see lockEditable in ../../actions).
   if (c.source !== "app" && !can.approve(viewer)) redirect(`/characters/${id}`);
 
+  const staff = can.approve(viewer);
+  // Players can delete until Jay approves (can.deleteCharacter); Jay deletes from the sheet.
+  const canDelete = (c.status === "draft" || c.status === "submitted") && can.deleteCharacter(viewer, c);
   const cls: CharacterClass | null = (c.classes.find((k) => k.active) ?? c.classes[0])?.class ?? null;
   const totals = c.abilityRoll?.totals ?? [];
   const scoresDone = ABILITIES.every((a) => c[a] !== null);
@@ -112,7 +115,7 @@ export default async function BuildPage({
         autoStart={c.status === "draft" && c.ownerId === viewer.userId && !viewer.guidesSeen.includes("build")}
       />
       <main className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-6 sm:px-8 sm:py-10">
-        <PageHeader eyebrow={c.status === "draft" ? "New character · draft" : `Editing as ${viewer.role}`} title={c.name}>
+        <PageHeader eyebrow={c.status === "draft" ? "New character · draft" : staff ? `Editing as ${viewer.role}` : "With Jay · not yet approved"} title={c.name}>
           <Link href={`/characters/${id}`} className="inline-flex min-h-11 items-center rounded-xl border border-line-2 px-4 text-sm text-[#d6d2c2]">
             View sheet
           </Link>
@@ -243,8 +246,8 @@ export default async function BuildPage({
                 </form>
               </div>
               <span className="text-xs text-subtle">
-                Random basic kit replaces the list with a weapon and armor your class may use, its tools, and 4 to 6 pieces
-                of gear. Clerics get a non-edged weapon until Jay rules on edged ones. Not a roll, so it isn&apos;t logged.
+                Random basic kit replaces the price-list items with a weapon and armor your class may use, its tools, and 4
+                to 6 pieces of gear. Magic items and items Jay added stay. Clerics get a non-edged weapon until Jay rules on edged ones. Not a roll, so it isn&apos;t logged.
               </span>
             </div>
           ) : (
@@ -293,19 +296,24 @@ export default async function BuildPage({
               </SubmitButton>
               {!ready && <span className="text-sm text-subtle">Finish steps 1 to 4 first.</span>}
             </form>
+          ) : c.status === "submitted" ? (
+            <span className="max-w-[560px] text-sm text-muted">
+              Sent to Jay. You can keep changing it until Jay approves it. Each change saves as you go and shows in
+              Jay&apos;s log.
+            </span>
           ) : (
             <span className="text-sm text-muted">Status: {c.status}</span>
           )}
-          {c.status === "draft" && (
+          {canDelete && (
             <form action={deleteDraft}>
               <input type="hidden" name="id" value={id} />
               <SubmitButton tone="ember" pendingText="Deleting…">
-                Delete draft
+                {c.status === "draft" ? "Delete draft" : "Delete character"}
               </SubmitButton>
             </form>
           )}
         </div>
-        <p className="text-xs text-subtle">Deleting a draft keeps its rolls in the roll log.</p>
+        {canDelete && <p className="text-xs text-subtle">Deleting keeps the character&apos;s rolls in the roll log.</p>}
       </main>
     </>
   );
