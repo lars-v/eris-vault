@@ -2,6 +2,7 @@ import { PDFCheckBox, PDFDocument, PDFDropdown, PDFOptionList, PDFRadioGroup, PD
 import type { Alignment, CharacterClass, Race } from "@/db/schema";
 import { ABILITIES, type Ability } from "@/lib/rules/abilities";
 import { CATALOG, type CatalogItem } from "@/lib/rules/equipment";
+import type { WrittenOnSheet } from "@/lib/rules/import";
 
 /**
  * Reads an uploaded character sheet into a draft the player checks before it
@@ -64,7 +65,7 @@ export type SheetDraft = {
   items: DraftItem[];
   notes: string;
   /** Written on the sheet but worked out by the app; kept only to spot mismatches. */
-  written: { level: number | null; save: number | null; bonuses: Record<Ability, number | null> };
+  written: WrittenOnSheet;
 };
 
 /** "+2", "-15", "−15", "1,250" to a whole number; anything else is null. */
@@ -191,7 +192,8 @@ export function draftFromFields(fields: Record<string, string>): SheetDraft {
   const weapons = [1, 2, 3, 4, 5]
     .map((n) => {
       const w = get(`WeaponRow${n}`);
-      const extra = [get(`DamageRow${n}`), get(`MeleeRangedRow${n}`)].filter(Boolean).join(", ");
+      const range = [get(`SRow${n}`), get(`MRow${n}`), get(`LRow${n}`)].filter(Boolean).join(" / ");
+      const extra = [get(`SizeRow${n}`), get(`DamageRow${n}`), get(`MeleeRangedRow${n}`), range && `range ${range}`].filter(Boolean).join(", ");
       return w ? (extra ? `${w} (${extra})` : w) : "";
     })
     .filter(Boolean);
@@ -213,6 +215,24 @@ export function draftFromFields(fields: Record<string, string>): SheetDraft {
     coinsGp: toInt(get("CoinsGP")),
     items: items.slice(0, 60),
     notes: notes.join("\n").slice(0, 4000),
-    written: { level: toInt(get("LEVEL")), save: toInt(get("Base Save")), bonuses },
+    written: {
+      level: toInt(get("LEVEL")),
+      save: toInt(get("Base Save")),
+      bonuses,
+      // "Target armor class 9 to 0, roll d20 to hit" along the foot of page 1.
+      toHit: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((ac) => toInt(get(`ac${ac}`))),
+      saveBonuses: [1, 2]
+        .map((n) => ({ bonus: toInt(get(`save bonus ${n}`)), against: get(`AGAINST_${n}`) }))
+        .filter((b) => b.bonus !== null || b.against),
+      weapons: [1, 2, 3, 4, 5]
+        .map((n) => ({
+          name: get(`WeaponRow${n}`),
+          size: get(`SizeRow${n}`),
+          damage: get(`DamageRow${n}`),
+          meleeRanged: get(`MeleeRangedRow${n}`),
+          ranges: [get(`SRow${n}`), get(`MRow${n}`), get(`LRow${n}`)] as [string, string, string],
+        }))
+        .filter((w) => w.name),
+    },
   };
 }

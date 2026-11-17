@@ -116,6 +116,14 @@ export const RULING_EXAMPLES: Record<string, RulingExample[]> = {
     { answer: "No. A large shield counts as a shield.", basis: NOW },
     { answer: "Yes. A large shield gives 1 more point of armor class than a shield." },
   ],
+  "dart-long-range": [
+    { answer: "Yes. Dart long range is 31-45 feet.", basis: "The pattern of the other rows on WW p. 19" },
+    { answer: "Keep the ranges as printed and settle overlaps at the table.", basis: NOW },
+  ],
+  "sling-long-range": [
+    { answer: "Yes. Sling long range is 81-160 feet.", basis: "The pattern of the other rows on WW p. 19" },
+    { answer: "Keep the ranges as printed and settle overlaps at the table.", basis: NOW },
+  ],
   "one-level-per-adventure": [
     { answer: "Yes. No single award gains more than one level.", basis: "Men & Magic p. 18" },
     { answer: "No. The form warns, but any award goes through.", basis: NOW },

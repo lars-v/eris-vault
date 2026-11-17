@@ -182,6 +182,65 @@ describe("checking an imported character (WW pp. 5, 7-10)", () => {
     expect(flags.map((f) => f.title)).toEqual(["Hit points above maximum", "Negative gold", "Gear outside class limits"]);
   });
 
+  it("reads the page 1 weapon table, save bonus boxes and to-hit row", () => {
+    const d = draftFromFields({ ...RAZ, SizeRow1: "S", WeaponRow2: "dagger", SizeRow2: "S", DamageRow2: "1d6-1", MeleeRangedRow2: "M/R", SRow2: "1-10", MRow2: "11-20", LRow2: "21-30", ac9: "11", ac0: "20" });
+    expect(d.written.saveBonuses).toEqual([{ bonus: 2, against: "death & poison" }]);
+    expect(d.written.weapons?.[1]).toEqual({ name: "dagger", size: "S", damage: "1d6-1", meleeRanged: "M/R", ranges: ["1-10", "11-20", "21-30"] });
+    expect(d.written.toHit).toEqual([11, null, null, null, null, null, null, null, null, 20]);
+    expect(d.notes).toContain("Weapons: short sword (S, 1d6-1, m); dagger (S, 1d6-1, M/R, range 1-10 / 11-20 / 21-30)");
+  });
+
+  it("Raz's sheet: weapons match WW p. 19, but the +4 vs magic is missing (WW p. 21)", () => {
+    const raz: ImportedCharacter = { ...base, race: "halfling", cls: "thief", alignment: "neutral", xp: 5000, scores: { str: 10, int: 12, wis: 11, dex: 13, con: 10, cha: 8 } };
+    const written = {
+      ...nothingWritten,
+      saveBonuses: [{ bonus: 2, against: "death & poison" }],
+      weapons: [
+        { name: "short sword", size: "S", damage: "1d6-1", meleeRanged: "m", ranges: ["", "", ""] as [string, string, string] },
+        { name: "dagger", size: "S", damage: "1d6-1", meleeRanged: "M/R", ranges: ["1-10", "11-20", "21-30"] as [string, string, string] },
+      ],
+    };
+    const flags = importFlags(raz, written);
+    expect(flags.map((f) => f.title)).toEqual(["Save bonuses differ from the book"]);
+    expect(flags[0].body).toBe(
+      "The sheet has no bonus vs magic; WW p. 21 gives Halfling +4. Whether class and race bonuses add together waits on a ruling (save-bonus-stacking).",
+    );
+  });
+
+  it("flags save bonuses the book doesn't give, and boxes it can't read", () => {
+    const flags = importFlags(base, { ...nothingWritten, saveBonuses: [{ bonus: 3, against: "poison & paralysis" }, { bonus: 1, against: "wands" }] });
+    expect(flags[0].body).toBe('The sheet gives +3 vs poison; WW p. 21 gives +2. The sheet gives +3 vs paralysis; WW p. 21 gives +2. Couldn\'t read "+1 vs wands".');
+  });
+
+  it("flags a to-hit row that doesn't match the Combat Matrix (WW p. 20)", () => {
+    const ok = Array.from({ length: 10 }, (_, i) => 9 + i);
+    expect(importFlags(base, { ...nothingWritten, toHit: ok })).toEqual([]);
+    const flags = importFlags(base, { ...nothingWritten, toHit: [10, ...ok.slice(1)] });
+    expect(flags[0]).toMatchObject({ title: "To-hit row doesn't match the Combat Matrix", source: "WW p. 20" });
+    expect(flags[0].body).toContain("A level 3 Cleric needs 9, 10, 11, 12, 13, 14, 15, 16, 17, 18");
+  });
+
+  it("flags weapon rows that differ from WW p. 19", () => {
+    const row = (name: string, size: string, damage: string, meleeRanged = "", ranges: [string, string, string] = ["", "", ""]) => ({ name, size, damage, meleeRanged, ranges });
+    const flags = importFlags(
+      { ...base, scores: { ...base.scores, str: 16 } },
+      {
+        ...nothingWritten,
+        weapons: [
+          row("mace +1", "N", "1d6+2"),
+          row("long sword", "S", "1d8"),
+          row("spear", "N", "1d6", "M/R", ["1-10", "11-20", "21-30"]),
+          row("sword +1", "", "1d6"),
+        ],
+      },
+    );
+    expect(flags[0].title).toBe("Weapon table differs from the book");
+    expect(flags[0].body).toBe(
+      "long sword: size says S; WW p. 19 lists it as normal. long sword: damage says 1d8; WW p. 19 gives 1d6, plus Strength +1 in melee. " +
+        "spear: ranges say 1-10 / 11-20 / 21-30; WW p. 19 prints 1-20 / 21-40 / 41-60. Not on the WW p. 19 damage table: sword +1.",
+    );
+  });
+
   it("lists what the player changed from the sheet", () => {
     const flag = changedFromSheet([
       { label: "XP", sheet: 5000, entered: 7420 },

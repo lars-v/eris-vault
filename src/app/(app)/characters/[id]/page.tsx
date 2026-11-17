@@ -11,7 +11,9 @@ import { ADVANCEMENT_SOURCE, cappedLevelFor, CLASS_NAMES } from "@/lib/rules/adv
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
 import { CATALOG, catalogItem, classAllows, type Wielder } from "@/lib/rules/equipment";
 import { overrideOpen, playStateOpen } from "@/lib/rules/overrides";
+import { againstText, CLASS_SAVE_BONUSES, overlappingForms, RACE_SAVE_BONUSES } from "@/lib/rules/saves";
 import { castsSpells } from "@/lib/rules/spells";
+import { weaponTable } from "@/lib/rules/weapons";
 import { can } from "@/lib/roles";
 import { requireUser } from "@/lib/session";
 import { SubmitButton } from "./build/forms";
@@ -59,6 +61,10 @@ export default async function CharacterPage({
     return allowed.ok ? null : allowed.why;
   };
   const ac = armorClass(c.items, c.dex, wielder);
+  // Saving throw bonuses (WW p. 21): each class's row, then the race's, listed once.
+  const saveBonuses = [...c.classes.flatMap((k) => CLASS_SAVE_BONUSES[k.class]), ...(c.race ? RACE_SAVE_BONUSES[c.race] : [])];
+  const saveOverlap = overlappingForms(saveBonuses);
+  const weapons = weaponTable(c.items, { str: c.str, dex: c.dex, race: c.race, wielder });
   const gearItems: GearItem[] = c.items.map((i) => ({
     id: i.id,
     name: i.name,
@@ -278,9 +284,38 @@ export default async function CharacterPage({
                   </p>
                 ))}
               </Panel>
-              <Panel title="Saving throw" aside={active ? ADVANCEMENT_SOURCE[active.class] : undefined}>
-                <div className="font-mono text-4xl">{lvl?.save ?? "?"}</div>
-                <div className="text-xs text-subtle">Class and race bonuses arrive with the rules engine.</div>
+              <Panel title="Saving throw" aside={active ? `${ADVANCEMENT_SOURCE[active.class].replace("Woundwort's Warren p.", "WW pp.")}, 21` : undefined}>
+                {c.classes.length > 1 ? (
+                  // Elves keep a separate saving throw for each class (WW p. 21).
+                  <div className="flex flex-wrap gap-x-5 gap-y-1">
+                    {c.classes.map((k) => (
+                      <span key={k.id} className="flex items-baseline gap-2">
+                        <span className="font-mono text-4xl">{cappedLevelFor(c.race, k.class, k.xp).save}</span>
+                        <span className="text-sm text-muted">{CLASS_NAMES[k.class]}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="font-mono text-4xl">{lvl?.save ?? "?"}</div>
+                )}
+                {saveBonuses.length > 0 && (
+                  <ul className="flex flex-col gap-0.5 text-sm">
+                    {saveBonuses.map((b, i) => (
+                      <li key={i}>
+                        <span className="font-mono">{formatModifier(b.bonus)}</span> vs {againstText(b.against)}{" "}
+                        <span className="text-xs text-subtle">({b.who})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {saveOverlap.length > 0 && (
+                  <p className="text-xs text-amber">
+                    Class and race both give a bonus vs {againstText(saveOverlap)}. Whether they add together waits on Jay (save-bonus-stacking).
+                  </p>
+                )}
+                <p className="text-xs text-subtle">
+                  One number for every saving throw (WW p. 21). Wisdom vs charms and illusions is the referee&apos;s call (wis-vs-mind).
+                </p>
               </Panel>
             </div>
             <Panel title="Encumbrance" aside={ENCUMBRANCE_SOURCE}>
@@ -324,7 +359,7 @@ export default async function CharacterPage({
           />
         )}
 
-        {active && <CombatPanel race={c.race} alignment={c.alignment} str={c.str} dex={c.dex} classes={c.classes} />}
+        {active && <CombatPanel race={c.race} alignment={c.alignment} str={c.str} dex={c.dex} classes={c.classes} weapons={weapons} />}
 
         {active && lvl && castsSpells(active.class) && (
           <SpellsPanel

@@ -6,13 +6,17 @@ import { ARMOR_CLASSES, combatRows } from "@/lib/rules/combat";
 import { ordinal } from "@/lib/rules/levelup";
 import { thiefSkills } from "@/lib/rules/thief";
 import { canAffectUndead, turningGroups } from "@/lib/rules/turning";
+import type { WeaponTable } from "@/lib/rules/weapons";
 
 type ClassRow = { id: string; class: CharacterClass; xp: number };
 
 const cell = "px-1.5 py-1 text-center font-mono";
 
+const USE_LABEL = { melee: "Melee", hurled: "Thrown", missile: "Missile" } as const;
+
 /**
- * Rolls that change with level: to hit (WW pp. 19-20), thief skills (WW p. 9)
+ * The weapon table from page 1 of the paper sheet (damage and ranges WW p. 19),
+ * then rolls that change with level: to hit (WW pp. 19-20), thief skills (WW p. 9)
  * and a cleric's power over undead (WW p. 8). Elves keep a record per class
  * (WW p. 10), so every class gets its own block.
  */
@@ -22,17 +26,20 @@ export function CombatPanel({
   str,
   dex,
   classes,
+  weapons,
 }: {
   race: Race | null;
   alignment: Alignment | null;
   str: number | null;
   dex: number | null;
   classes: ClassRow[];
+  weapons: WeaponTable;
 }) {
   const strMod = str === null ? null : abilityModifier(str);
   const dexMod = dex === null ? null : abilityModifier(dex);
   return (
     <Panel title="Fighting and skills" aside="Woundwort's Warren pp. 8-9, 19-20">
+      <WeaponsSection weapons={weapons} />
       {classes.map((k) => {
         const level = cappedLevelFor(race, k.class, k.xp).level;
         const rows = combatRows(k.class, level);
@@ -85,7 +92,6 @@ export function CombatPanel({
                 {k.class === "thief" ? "Thieves use the cleric's row (WW p. 20). " : ""}
                 Strength bonuses and penalties{strMod === null ? "" : ` (${formatModifier(strMod)} here)`} apply to melee rolls,
                 Dexterity{dexMod === null ? "" : ` (${formatModifier(dexMod)} here)`} to missile rolls (WW p. 5).
-                {race === "halfling" ? " Halflings get +1 with hurled weapons and +2 with hurled stones (WW p. 10)." : ""}
                 {k.class === "thief" ? " Attacking unnoticed from behind: +4 to hit and double damage (WW p. 9)." : ""}
                 {k.class === "fighting-man" ? " A natural 20 does double damage (WW p. 7)." : ""}
               </p>
@@ -128,6 +134,91 @@ export function CombatPanel({
         );
       })}
     </Panel>
+  );
+}
+
+function WeaponsSection({ weapons }: { weapons: WeaponTable }) {
+  const { rows, unknown, notes } = weapons;
+  if (rows.length === 0 && unknown.length === 0) {
+    return (
+      <section className="flex flex-col gap-1.5">
+        <h4 className="text-[13px] font-semibold tracking-wide text-muted">Weapons (WW p. 19)</h4>
+        <p className="text-sm text-muted">No weapons carried. Weapons in the gear list show here with damage and range.</p>
+      </section>
+    );
+  }
+  const th = "px-2 py-1 font-normal";
+  return (
+    <section className="flex min-w-0 flex-col gap-1.5">
+      <h4 className="text-[13px] font-semibold tracking-wide text-muted">Weapons (WW p. 19)</h4>
+      {rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="text-sm">
+            <thead>
+              <tr className="text-left text-xs text-subtle">
+                <th className={th}>Weapon</th>
+                <th className={th}>Size</th>
+                <th className={th}>Damage</th>
+                <th className={th}>Use</th>
+                <th className={`${th} text-center`}>To hit</th>
+                <th className={`${th} text-center`}>Short</th>
+                <th className={`${th} text-center`}>Medium</th>
+                <th className={`${th} text-center`}>Long</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <WeaponRowView key={`${r.name}-${r.use}-${i}`} row={r} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {unknown.length > 0 && (
+        <p className="text-xs text-amber">
+          Not on the WW p. 19 damage table, so not shown: {unknown.join(", ")}. Jay can say what they count as.
+        </p>
+      )}
+      <ul className="flex flex-col gap-0.5 text-xs text-subtle">
+        {notes.map((n) => (
+          <li key={n}>{n}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function WeaponRowView({ row: r }: { row: WeaponTable["rows"][number] }) {
+  const td = "px-2 py-1 whitespace-nowrap";
+  return (
+    <>
+      <tr className="border-t border-[#262920]">
+        <td className={`${td} max-w-48 truncate`}>{r.name}</td>
+        <td className={`${td} font-mono`}>{r.size ?? "-"}</td>
+        <td className={`${td} font-mono`}>
+          {r.damage}
+          {r.damageFrom && <span className="ml-1 font-sans text-xs text-subtle">{r.damageFrom}</span>}
+        </td>
+        <td className={td}>{USE_LABEL[r.use]}</td>
+        <td className={`${td} text-center font-mono`}>{formatModifier(r.toHit)}</td>
+        {[0, 1, 2].map((i) => (
+          <td key={i} className={`${td} text-center font-mono`}>
+            {r.ranges ? r.ranges[i] : "-"}
+          </td>
+        ))}
+      </tr>
+      {r.notes.length > 0 && (
+        <tr>
+          <td colSpan={8} className="px-2 pb-1.5">
+            {r.notes.map((n) => (
+              <p key={n.text} className={`text-xs ${n.tone === "amber" ? "text-amber" : "text-subtle"}`}>
+                {n.text}
+              </p>
+            ))}
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
