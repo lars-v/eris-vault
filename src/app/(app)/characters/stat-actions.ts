@@ -8,6 +8,7 @@ import { characterClasses, characters, hitDice } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { can } from "@/lib/roles";
 import { ABILITIES } from "@/lib/rules/abilities";
+import { CLASS_NAMES, levelRow, xpBelowRolledLevel } from "@/lib/rules/advancement";
 import {
   applyHpChange,
   checkCoins,
@@ -16,6 +17,7 @@ import {
   planOverride,
   playStateOpen,
   REASON_MAX,
+  XP_LIMIT,
   type HpChange,
   type OverrideInput,
 } from "@/lib/rules/overrides";
@@ -194,6 +196,65 @@ async function overrideStatsImpl(formData: FormData) {
   });
   refresh(id);
   revalidatePath(`/characters/${id}/build`);
+}
+
+/* ---------- XP ---------- */
+
+/**
+ * Sets one class's XP to a new total, typed straight into the sheet. The
+ * player on an approved character, Jay and admins on submitted ones too
+ * (can.editXp). Every change is audited, the player's too, so Jay sees it.
+ * WW p. 11: no bonus or penalty to earned XP for high or low scores.
+ */
+async function setXpImpl(formData: FormData) {
+  const viewer = await requireUser();
+  const id = str(formData, "id");
+  const classId = str(formData, "classId");
+  const xp = num(formData, "xp");
+  if (!UUID.test(classId)) throw new Error("Unknown class");
+  if (!Number.isInteger(xp) || xp < 0 || xp > XP_LIMIT) throw new Error(`XP must be a whole number from 0 to ${XP_LIMIT.toLocaleString("en-US")}.`);
+  const change = await db.transaction(async (tx) => {
+    const c = await lockCharacter(tx, id);
+    if (!can.editXp(viewer, c)) {
+      throw new Error(c.ownerId === viewer.userId ? "You can change XP once Jay approves the character." : "Only the player or Jay can change this character's XP.");
+    }
+    if (c.status !== "submitted" && c.status !== "approved") throw new Error("XP changes here once the character is submitted.");
+    const [k] = await tx
+      .select()
+      .from(characterClasses)
+      .where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
+    if (!k) throw new Error("Unknown class");
+    if (xp === k.xp) return null;
+    if (xp < k.xp) {
+      const [row] = await tx
+        .select({ level: max(hitDice.level) })
+        .from(hitDice)
+        .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class), isNull(hitDice.lostAt)));
+      const top = row?.level ?? 0;
+      const below = xpBelowRolledLevel(k.class, xp, top);
+      if (below) {
+        const floor = levelRow(k.class, top).xp.toLocaleString("en-US");
+        throw new Error(
+          can.approve(viewer)
+            ? below
+            : `${CLASS_NAMES[k.class]} has hit points rolled for level ${top}, so XP can't go below ${floor}. Ask Jay if you lost a level.`,
+        );
+      }
+    }
+    await tx.update(characterClasses).set({ xp }).where(eq(characterClasses.id, k.id));
+    await tx.update(characters).set({ updatedAt: new Date() }).where(eq(characters.id, id));
+    await writeAudit(
+      viewer,
+      { action: "character.xp_set", characterId: id, before: { class: k.class, xp: k.xp }, after: { class: k.class, xp } },
+      tx,
+    );
+    return true;
+  });
+  if (change) refresh(id);
+}
+
+export async function setXp(_prev: StatResult, formData: FormData): Promise<StatResult> {
+  return guard(formData, setXpImpl);
 }
 
 export async function changeHitPoints(_prev: StatResult, formData: FormData): Promise<StatResult> {

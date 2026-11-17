@@ -37,7 +37,7 @@ export function RulingCard({ ruling, examples }: { ruling: RulingView; examples:
   const boxId = `answer-${ruling.key}`;
 
   return (
-    <li className="flex flex-col gap-3 rounded-xl border border-line bg-surface-2 p-4">
+    <li id={`ruling-${ruling.key}`} className="flex scroll-mt-6 flex-col gap-3 rounded-xl border border-line bg-surface-2 p-4">
       <div className="flex flex-col gap-1">
         <p className="text-[15px] leading-snug text-parchment">{ruling.question}</p>
         <p className="text-xs text-subtle">{ruling.sources}</p>

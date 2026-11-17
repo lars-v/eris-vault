@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { and, eq, isNotNull, isNull, max } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   characterClasses,
@@ -22,7 +22,7 @@ import { NOTES_MAX } from "@/lib/limits";
 import { can } from "@/lib/roles";
 import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities";
 import { assignScores, isValidIdentity } from "@/lib/rules/creation";
-import { countedHpLevel, levelFor, levelsToRoll, xpBelowRolledLevel } from "@/lib/rules/advancement";
+import { countedHpLevel, levelFor, levelsToRoll } from "@/lib/rules/advancement";
 import { rollAbilitySets, rollFirstLevelHp, rollLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
 import { catalogItem, checkKit, classAllows, kindFor, randomKitKeys } from "@/lib/rules/equipment";
 import { planDrain } from "@/lib/rules/drain";
@@ -644,58 +644,6 @@ export async function grantReroll(formData: FormData) {
 const XP_STATUSES = new Set(["submitted", "approved"]);
 
 /**
- * Adds (or, with a negative amount, corrects) XP for one class. Jay and admins
- * on submitted or approved characters, the owner on an approved one
- * (can.editXp). Every change is audited, the player's too, so Jay sees it.
- * WW p. 11: no bonus or penalty to earned XP for high or low scores.
- */
-async function awardXpImpl(formData: FormData) {
-  const viewer = await requireUser();
-  const id = str(formData, "id");
-  const classId = str(formData, "classId");
-  const amount = wholeNumber(formData, "amount", "XP", -10_000_000, 10_000_000);
-  if (amount === 0) throw new Error("Enter an amount of XP other than 0.");
-  const note = str(formData, "note").slice(0, 200) || null;
-  const change = await db.transaction(async (tx) => {
-    const [c] = await tx
-      .select()
-      .from(characters)
-      .where(and(eq(characters.id, id), isNull(characters.deletedAt)))
-      .for("update");
-    if (!c) throw new Error("Unknown character");
-    if (!can.editXp(viewer, c)) {
-      throw new Error(c.ownerId === viewer.userId ? "You can add XP once Jay approves the character." : "Only the player or Jay can change this character's XP.");
-    }
-    if (!XP_STATUSES.has(c.status)) throw new Error("XP goes to submitted or approved characters.");
-    const [k] = await tx
-      .select()
-      .from(characterClasses)
-      .where(and(eq(characterClasses.characterId, id), classId ? eq(characterClasses.id, classId) : eq(characterClasses.active, true)));
-    if (!k) throw new Error("Unknown class");
-    const xp = k.xp + amount;
-    if (xp < 0) throw new Error(`That would leave ${k.xp + amount} XP. A correction can take XP down to 0 at most.`);
-    if (amount < 0) {
-      const [top] = await tx
-        .select({ level: max(hitDice.level) })
-        .from(hitDice)
-        .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class), isNull(hitDice.lostAt)));
-      const below = xpBelowRolledLevel(k.class, xp, top?.level ?? 0);
-      if (below) throw new Error(below);
-    }
-    await tx.update(characterClasses).set({ xp }).where(eq(characterClasses.id, k.id));
-    await tx.update(characters).set({ updatedAt: new Date() }).where(eq(characters.id, id));
-    return { cls: k.class, from: k.xp, to: xp };
-  });
-  await writeAudit(viewer, {
-    action: "character.xp_awarded",
-    characterId: id,
-    before: { class: change.cls, xp: change.from },
-    after: { class: change.cls, xp: change.to, amount, note },
-  });
-  refresh(id);
-}
-
-/**
  * Rolls the hit die for the next level the XP has reached (WW p. 6), for the
  * owner or staff. The roll is logged first; its gain is added to maximum hit
  * points. Current hit points are left alone ("level-hp-current" is pending).
@@ -823,10 +771,6 @@ export async function drainLevels(formData: FormData) {
 }
 
 const sheetPath = (fd: FormData) => `/characters/${encodeURIComponent(str(fd, "id"))}`;
-
-export async function awardXp(formData: FormData) {
-  return guard(formData, awardXpImpl, sheetPath(formData));
-}
 
 export async function rollLevelHitPoints(formData: FormData) {
   return guard(formData, rollLevelHpImpl, sheetPath(formData));
