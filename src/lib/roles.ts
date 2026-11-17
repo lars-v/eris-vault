@@ -48,7 +48,12 @@ export const can = {
   markMagic: (v: Viewer) => v.status === "active" && isStaff(v),
   editCoreStats: (v: Viewer, c: CharacterRef) =>
     v.status === "active" && (isStaff(v) || (c.ownerId === v.userId && c.status === "draft")),
-  awardXp: (v: Viewer) => v.status === "active" && isStaff(v),
+  // XP: Jay and admins on submitted or approved characters; the player who owns the
+  // character once it is approved (like hit points and coins). Every change is audited.
+  editXp: (v: Viewer, c: CharacterRef) =>
+    v.status === "active" && (isStaff(v) || (c.ownerId === v.userId && c.status === "approved")),
+  // Level drain (Monsters & Treasure p. 9) takes hit dice away: Jay and admins only.
+  drainLevels: (v: Viewer) => v.status === "active" && isStaff(v),
   // Setting abilities, maximum hit points, XP and identity by hand, with a reason. Audited.
   overrideStats: (v: Viewer) => v.status === "active" && isStaff(v),
   approve: (v: Viewer) => v.status === "active" && isStaff(v),

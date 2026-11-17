@@ -10,12 +10,24 @@ import { SubmitButton } from "./build/forms";
 type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean };
 
 /**
- * Jay's XP award, with a live note of the level it reaches. M&M p. 18
+ * Adds XP for one class, with a live note of the level it reaches. Jay and
+ * admins use it on any submitted or approved character, the player on their
+ * own approved one (can.editXp). M&M p. 18
  * recommends no more XP from one adventure than it takes to gain one level;
  * whether the table uses that is the pending ruling "one-level-per-adventure",
- * so the form warns and still lets Jay award it.
+ * so the form warns and still allows it.
  */
-export function AwardXpForm({ characterId, race, classes }: { characterId: string; race: Race | null; classes: ClassRow[] }) {
+export function AwardXpForm({
+  characterId,
+  race,
+  classes,
+  staff,
+}: {
+  characterId: string;
+  race: Race | null;
+  classes: ClassRow[];
+  staff: boolean;
+}) {
   const [classId, setClassId] = useState(classes.find((k) => k.active)?.id ?? classes[0]?.id);
   const [amount, setAmount] = useState("");
   const k = classes.find((c) => c.id === classId);
@@ -60,8 +72,8 @@ export function AwardXpForm({ characterId, race, classes }: { characterId: strin
         Note (optional)
         <input name="note" maxLength={200} placeholder="What it was for" className="min-h-11 rounded-xl border border-line-2 bg-ink px-3 text-sm text-parchment" />
       </label>
-      <SubmitButton tone="amber" pendingText="Awarding…">
-        Award XP
+      <SubmitButton tone="amber" pendingText={staff ? "Awarding…" : "Adding…"}>
+        {staff ? "Award XP" : "Add XP"}
       </SubmitButton>
       {gain && k && gain.to !== gain.from && (
         <p aria-live="polite" className={`basis-full text-sm ${gain.to - gain.from > 1 ? "text-amber" : "text-lime"}`}>
@@ -69,12 +81,12 @@ export function AwardXpForm({ characterId, race, classes }: { characterId: strin
             ? `This takes ${CLASS_NAMES[k.class]} from ${ordinal(gain.from)} to ${ordinal(gain.to)} level (${levelRow(k.class, gain.to).title}).`
             : `This takes ${CLASS_NAMES[k.class]} down from ${ordinal(gain.from)} to ${ordinal(gain.to)} level.`}
           {gain.to - gain.from > 1 &&
-            " Men & Magic p. 18 recommends no more XP from one adventure than it takes to gain one level. Your call (one-level-per-adventure)."}
+            ` Men & Magic p. 18 recommends no more XP from one adventure than it takes to gain one level. ${staff ? "Your call" : "Jay's call"} (one-level-per-adventure).`}
         </p>
       )}
       <span className="basis-full text-xs text-subtle">
-        Use a negative number to correct a mistake. High or low scores give no XP bonus or penalty (WW p. 11). Every award goes in
-        the audit log.
+        {staff ? "" : "Enter the XP Jay awarded. "}Use a negative number to correct a mistake. High or low scores give no XP bonus or
+        penalty (WW p. 11). Every change goes in the audit log{staff ? "" : ", which Jay reads"}.
       </span>
     </form>
   );

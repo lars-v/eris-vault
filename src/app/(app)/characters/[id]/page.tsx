@@ -374,7 +374,9 @@ export default async function CharacterPage({
             conModifier={c.con === null ? 0 : abilityModifier(c.con)}
             levelDice={c.levelDice}
             canRoll={can.editPlayState(viewer, c)}
-            canAward={can.awardXp(viewer)}
+            canEditXp={can.editXp(viewer, c)}
+            canDrain={can.drainLevels(viewer)}
+            staff={staff}
           />
         )}
 
