@@ -15,11 +15,18 @@ export const metadata = { title: "The party" };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export default async function PartyPage({ searchParams }: { searchParams: Promise<{ error?: string; guide?: string }> }) {
+export default async function PartyPage({ searchParams }: { searchParams: Promise<{ error?: string; guide?: string; view?: string }> }) {
   const viewer = await requireUser();
-  const { error, guide } = await searchParams;
-  const [party, waiting] = await Promise.all([listCharacters(), levelUpsWaiting()]);
+  const { error, guide, view } = await searchParams;
+  const [everyone, waiting] = await Promise.all([listCharacters(), levelUpsWaiting()]);
   const levelUp = new Set(waiting.map((w) => w.characterId));
+  const mineOnly = view === "mine";
+  const mine = everyone.filter((c) => c.ownerId === viewer.userId);
+  const party = mineOnly ? mine : everyone;
+  const viewTab = (active: boolean) =>
+    `inline-flex min-h-11 items-center rounded-lg px-4 text-sm ${
+      active ? "bg-[#262920] font-semibold text-lime" : "text-muted hover:text-[#d6d2c2]"
+    }`;
 
   return (
     <>
@@ -55,9 +62,30 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
           </div>
         )}
 
+        <nav aria-label="Whose characters" className="flex w-fit gap-1 rounded-xl border border-line p-1">
+          <Link href="/party" className={viewTab(!mineOnly)} aria-current={!mineOnly ? "page" : undefined}>
+            Everyone ({everyone.length})
+          </Link>
+          <Link href="/party?view=mine" className={viewTab(mineOnly)} aria-current={mineOnly ? "page" : undefined}>
+            Mine ({mine.length})
+          </Link>
+        </nav>
+
         {party.length === 0 ? (
           <div data-guide="party" className="rounded-2xl border border-dashed border-line-2 p-8 text-muted">
-            No characters yet. {viewer.role === "admin" ? "Import Liz from the admin page to see a full sheet." : "They'll appear here as players make them."}
+            {mineOnly ? (
+              <>
+                You have no characters yet.{" "}
+                <Link href="/characters/new" className="text-lime underline-offset-4 hover:underline">
+                  Make one
+                </Link>{" "}
+                or upload a sheet.
+              </>
+            ) : (
+              <>
+                No characters yet. {viewer.role === "admin" ? "Import Liz from the admin page to see a full sheet." : "They'll appear here as players make them."}
+              </>
+            )}
           </div>
         ) : (
           <div data-guide="party" className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-4">
