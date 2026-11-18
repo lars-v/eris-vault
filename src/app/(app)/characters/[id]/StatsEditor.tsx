@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from "react";
 import type { CharacterClass } from "@/db/schema";
-import { ABILITIES, ABILITY_NAMES, type Ability } from "@/lib/rules/abilities";
+import { ABILITIES, ABILITY_NAMES, abilityModifier, type Ability } from "@/lib/rules/abilities";
 import { CLASS_NAMES } from "@/lib/rules/advancement";
 import { alignmentsFor, ALIGNMENTS } from "@/lib/rules/creation";
 import { ABILITY_MAX, ABILITY_MIN, DEITY_MAX, HP_LIMIT, NAME_MAX, REASON_MAX, XP_LIMIT } from "@/lib/rules/overrides";
@@ -29,6 +29,7 @@ export function StatsEditor({
   deity,
   scores,
   hpMax,
+  hpRecountable,
   classes,
   activeClass,
 }: {
@@ -38,6 +39,8 @@ export function StatsEditor({
   deity: string | null;
   scores: Record<Ability, number | null>;
   hpMax: number | null;
+  /** Every die behind maximum hit points is on record, so a new Constitution can recount them (con-change-hp). */
+  hpRecountable: boolean;
   classes: StatsEditorClass[];
   activeClass: CharacterClass | null;
 }) {
@@ -76,7 +79,11 @@ export function StatsEditor({
   for (const a of ABILITIES) if (values[a] !== initial[a]) changed.push(ABILITY_NAMES[a]);
   if (values.hpMax !== initial.hpMax) changed.push("Maximum hit points");
   for (const k of classes) if (values.xp[k.id] !== initial.xp[k.id]) changed.push(`XP (${CLASS_NAMES[k.class]})`);
-  const conChanged = values.con !== initial.con;
+  const modOf = (v: string) => {
+    const n = Number(v);
+    return v !== "" && Number.isInteger(n) && n >= ABILITY_MIN && n <= ABILITY_MAX ? abilityModifier(n) : null;
+  };
+  const conModChanged = initial.con !== "" && modOf(values.con) !== null && modOf(values.con) !== modOf(initial.con);
 
   const allowed = activeClass ? alignmentsFor(activeClass) : ALIGNMENTS;
   const set = (k: keyof Omit<Values, "xp">) => (e: { target: { value: string } }) => setValues((v) => ({ ...v, [k]: e.target.value }));
@@ -166,12 +173,22 @@ export function StatsEditor({
                   </label>
                 ))}
               </div>
-              {conChanged && (
-                <p className="text-xs text-amber">
-                  Maximum hit points don&apos;t follow a new Constitution on their own. Jay rules on that (con-change-hp). Change them
-                  below if needed.
-                </p>
-              )}
+              {conModChanged &&
+                (hpRecountable ? (
+                  <p className="text-xs text-amber">
+                    The Constitution modifier changes, so maximum hit points are recounted from the rolls for every level (Jay&apos;s
+                    ruling). A maximum typed below wins instead.
+                  </p>
+                ) : (
+                  <label className="flex items-start gap-2 text-xs text-amber">
+                    <input type="checkbox" name="hpRecounted" className="mt-0.5 size-4 flex-none accent-amber" />
+                    <span>
+                      The Constitution modifier changes maximum hit points for every level (Jay&apos;s ruling), but this
+                      character&apos;s can&apos;t be recounted from the rolls. Enter the new maximum below, or tick here if it is
+                      already right.
+                    </span>
+                  </label>
+                ))}
             </fieldset>
 
             <fieldset className="flex flex-col gap-3">

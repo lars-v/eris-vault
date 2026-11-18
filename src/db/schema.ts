@@ -112,6 +112,10 @@ export const characters = pgTable("characters", {
   abilityRollId: uuid("ability_roll_id"),
   hpRollId: uuid("hp_roll_id"),
   goldRollId: uuid("gold_roll_id"),
+  // A player dwarf rolls once for the 2 in 6 sight in the dark (WW p. 10; Jay's
+  // ruling dwarf-darkvision). Null until rolled, and for everyone else.
+  darkSightRollId: uuid("dark_sight_roll_id"),
+  darkSight: boolean("dark_sight"),
   hpCurrent: smallint("hp_current"),
   hpMax: smallint("hp_max"),
   coinsGp: integer("coins_gp").notNull().default(0),
@@ -172,7 +176,7 @@ export const inventory = pgTable("inventory", {
   isSpellFocus: boolean("is_spell_focus"),
 }, (t) => [uniqueIndex("inventory_one_spell_focus").on(t.characterId).where(sql`${t.isSpellFocus}`)]);
 
-export type RollPurpose = "abilities" | "hp" | "gold" | "level-hp" | "play";
+export type RollPurpose = "abilities" | "hp" | "gold" | "level-hp" | "dark-sight" | "play";
 
 /** Insert-only. Every die is kept. */
 export const rolls = pgTable("rolls", {
@@ -223,9 +227,11 @@ export const storedSpellEvents = pgTable(
 );
 
 /**
- * The hit die rolled for one new level of one class (WW p. 6). `gain` is what
- * it added to maximum hit points; null while the total is below 1 and the
- * "hit-die-floor" ruling is pending.
+ * The hit points added for one new level of one class: a rolled hit die
+ * (WW p. 6), or from 10th level a fixed amount with no roll (WW pp. 7-9), so
+ * `roll_id` is null then. `gain` is what it added to maximum hit points; at
+ * least 1 (Jay's ruling hit-die-floor). Rows from before that ruling may hold
+ * null for a total below 1, which added nothing.
  */
 export const hitDice = pgTable(
   "hit_dice",
@@ -236,12 +242,10 @@ export const hitDice = pgTable(
       .references(() => characters.id),
     class: text("class").$type<CharacterClass>().notNull(),
     level: smallint("level").notNull(),
-    rollId: uuid("roll_id")
-      .notNull()
-      .references(() => rolls.id),
+    rollId: uuid("roll_id").references(() => rolls.id),
     gain: smallint("gain"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-    // Set when a level drain takes this die's level away (Monsters & Treasure p. 9).
+    // Set when Jay takes this die's level away (Take levels away on the sheet).
     // The row stays as the record; only dice with no lost_at count.
     lostAt: timestamp("lost_at", { mode: "date" }),
   },
@@ -255,7 +259,7 @@ export const rollGrants = pgTable("roll_grants", {
   characterId: uuid("character_id")
     .notNull()
     .references(() => characters.id),
-  purpose: text("purpose").$type<Exclude<RollPurpose, "play" | "level-hp">>().notNull(),
+  purpose: text("purpose").$type<Exclude<RollPurpose, "play" | "level-hp" | "dark-sight">>().notNull(),
   grantedBy: text("granted_by")
     .notNull()
     .references(() => users.id),

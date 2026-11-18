@@ -31,12 +31,14 @@ describe("advancement tables (Woundwort's Warren pp. 7-9)", () => {
   it("thresholds are inclusive", () => {
     expect(levelFor("thief", 1249).level).toBe(1);
     expect(levelFor("thief", 1250).level).toBe(2);
-    expect(levelFor("magic-user", 100000)).toMatchObject({ level: 9, title: "Sorcerer", pastNine: true });
+    expect(levelFor("magic-user", 100000)).toMatchObject({ level: 9, title: "Sorcerer", nextXp: 200000 });
+    expect(levelFor("magic-user", 200000)).toMatchObject({ level: 10, title: "Wizard", pastTen: false });
     expect(levelFor("fighting-man", 0)).toMatchObject({ level: 1, title: "Veteran", save: 15 });
   });
 
-  it("stops at 9th until the name-level XP ruling is made", () => {
-    expect(levelFor("cleric", 999999).level).toBe(9);
+  it("stops at 10th, 100,000 XP past 9th (Jay's ruling name-level-xp; past-tenth-level is pending)", () => {
+    expect(levelFor("cleric", 299999).level).toBe(9);
+    expect(levelFor("cleric", 999999)).toMatchObject({ level: 10, title: "Patriarch", pastTen: true });
   });
 
   it("race and class limits", () => {

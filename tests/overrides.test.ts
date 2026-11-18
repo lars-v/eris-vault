@@ -85,6 +85,11 @@ describe("overrides", () => {
     deity: null,
     hpMax: 6,
     classes: [{ id: "k1", class: "thief", xp: 1300, highestHitDie: 2 }],
+    // 1st level: a 5, -1 for a thief = 4. 2nd level: a 3, -1 = 2.
+    hpDice: [
+      { id: null, cls: "thief", level: 1, face: 5, gain: 4 },
+      { id: "d2", cls: "thief", level: 2, face: 3, gain: 2 },
+    ],
   };
   const same = (): OverrideInput => ({
     str: 9, int: 12, wis: 8, dex: 14, con: 10, cha: 7,
@@ -93,6 +98,7 @@ describe("overrides", () => {
     deity: "",
     hpMax: 6,
     xp: { k1: 1300 },
+    hpRecounted: false,
   });
   const plan = (input: OverrideInput) => planOverride(cur, input, "thief");
 
@@ -106,7 +112,7 @@ describe("overrides", () => {
     expect(p.xp).toEqual({ k1: 2600 });
     expect(p.manual).toEqual(["str", "hpMax"]);
   });
-  it("keeps abilities within 3d6 (WW p. 5) until the ability-range ruling", () => {
+  it("keeps abilities within 3d6 (WW p. 5; Jay's ruling ability-range)", () => {
     expect(plan({ ...same(), str: 19 })).toMatch(/3 to 18/);
     expect(plan({ ...same(), con: 2 })).toMatch(/3 to 18/);
     expect(plan({ ...same(), dex: 12.5 })).toMatch(/whole number/);
@@ -126,6 +132,30 @@ describe("overrides", () => {
     expect(plan({ ...same(), xp: {} })).toMatch(/Enter XP/);
     expect(plan({ ...same(), xp: { k1: 1300, other: 5 } })).toBe("Unknown class");
   });
+  it("recounts maximum hit points when Constitution changes its modifier (Jay's ruling con-change-hp)", () => {
+    // Con 15 gives +1: 5-1+1 = 5 (at least 3), 3-1+1 = 3.
+    const up = plan({ ...same(), con: 15 }) as OverridePlan;
+    expect(up.set).toEqual({ con: 15, hpMax: 8 });
+    expect(up.dieGains).toEqual([{ id: "d2", gain: 3 }]);
+    expect(up.manual).toEqual(["con"]);
+    // Con 3 gives -2: 5-1-2 = 2, but at least 3 at 1st level; 3-1-2 = 0, but at least 1.
+    const down = plan({ ...same(), con: 3 }) as OverridePlan;
+    expect(down.set.hpMax).toBe(4);
+    expect(down.dieGains).toEqual([{ id: "d2", gain: 1 }]);
+    // Same modifier: nothing to recount.
+    expect((plan({ ...same(), con: 12 }) as OverridePlan).set).toEqual({ con: 12 });
+  });
+  it("keeps a maximum Jay types over the recount", () => {
+    const p = plan({ ...same(), con: 15, hpMax: 20 }) as OverridePlan;
+    expect(p.set).toEqual({ con: 15, hpMax: 20 });
+    expect(p.dieGains).toEqual([]);
+  });
+  it("asks Jay for the maximum when the rolls can't be recounted", () => {
+    const imported = { ...cur, hpDice: null };
+    expect(planOverride(imported, { ...same(), con: 15 }, "thief")).toMatch(/can't be recounted/);
+    expect((planOverride(imported, { ...same(), con: 15, hpRecounted: true }, "thief") as OverridePlan).set).toEqual({ con: 15 });
+    expect((planOverride(imported, { ...same(), con: 15, hpMax: 9 }, "thief") as OverridePlan).set).toEqual({ con: 15, hpMax: 9 });
+  });
   it("an empty patron clears it", () => {
     const p = planOverride({ ...cur, deity: "Ashan" }, same(), "thief") as OverridePlan;
     expect(p.set).toEqual({ deity: null });
@@ -136,5 +166,32 @@ describe("hand-set markers", () => {
   it("merge without repeats, in a fixed order", () => {
     expect(mergeManual(["hpMax"], ["con", "str"])).toEqual(["str", "con", "hpMax"]);
     expect(mergeManual(["str"], ["str"])).toEqual(["str"]);
+  });
+});
+
+describe("0 hit points and below (WW p. 6; Jay's ruling hp-below-zero)", () => {
+  it("is unconscious down to minus the level, dead below it", async () => {
+    const { hpCondition } = await import("@/lib/rules/overrides");
+    expect(hpCondition(1, 3)).toBe("up");
+    expect(hpCondition(0, 3)).toBe("unconscious");
+    expect(hpCondition(-3, 3)).toBe("unconscious");
+    expect(hpCondition(-4, 3)).toBe("dead");
+    expect(hpCondition(-9, null)).toBe("unconscious");
+  });
+});
+
+describe("abilities (WW pp. 5, 11; M&M p. 11)", () => {
+  it("Int 6 or below can't read or write (Jay's ruling low-int-literacy)", async () => {
+    const { canReadAndWrite } = await import("@/lib/rules/abilities");
+    expect([3, 4, 6, 7, 18].map(canReadAndWrite)).toEqual([false, false, false, true, true]);
+    expect(canReadAndWrite(null)).toBeNull();
+  });
+  it("survive adversity as printed (Jay's ruling survive-adversity)", async () => {
+    const { surviveAdversity } = await import("@/lib/rules/abilities");
+    expect(surviveAdversity(14)).toBe("Will withstand adversity");
+    expect(surviveAdversity(9)).toBe("60% to 90% chance of survival");
+    expect(surviveAdversity(7)).toBe("40% to 50% chance of survival");
+    expect(surviveAdversity(15)).toBeNull();
+    expect(surviveAdversity(6)).toBeNull();
   });
 });

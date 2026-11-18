@@ -116,18 +116,31 @@ describe("price list and class limits (WW pp. 9, 17, 19)", () => {
     expect(classAllows({ ...mu, int: 15 }, catalogItem("staff")!).ok).toBe(true);
     expect(classAllows({ ...mu, race: "elf" }, catalogItem("long-sword")!).ok).toBe(true);
   });
-  it("checks a whole kit at once against the price list and class limits", () => {
-    const fighter = { cls: "fighting-man" as const, race: "human" as const, int: 10 };
-    expect(checkKit(fighter, { torches: 2, "long-sword": 1, rope: 0 } as Record<string, number>)).toBe("That item isn't on the price list.");
-    expect(checkKit(fighter, { torches: 2, "long-sword": 1, shield: 0 })).toEqual([
+  it("keeps clerics to non-edged weapons, no arrows (Jay's ruling cleric-edged-weapons)", () => {
+    const cl = { cls: "cleric" as const, race: "human" as const, int: 10 };
+    for (const k of ["mace", "club", "flail", "morning-star", "staff", "war-hammer", "heavy-war-hammer", "sling"]) {
+      expect(classAllows(cl, catalogItem(k)!).ok, k).toBe(true);
+    }
+    for (const k of ["long-sword", "dagger", "battle-axe", "spear", "short-bow", "crossbow", "arrows-score"]) {
+      expect(classAllows(cl, catalogItem(k)!).ok, k).toBe(false);
+    }
+    expect(classAllows(cl, catalogItem("plate-mail")!).ok).toBe(true);
+  });
+  it("checks a whole kit against the price list; the class may carry anything (carry-unusable-gear)", () => {
+    expect(checkKit({ torches: 2, "long-sword": 1, rope: 0 } as Record<string, number>)).toBe("That item isn't on the price list.");
+    expect(checkKit({ torches: 2, "long-sword": 1, shield: 0 })).toEqual([
       { key: "long-sword", quantity: 1 },
       { key: "torches", quantity: 2 },
     ]);
-    expect(checkKit(fighter, { torches: 21 })).toMatch(/1 to 20/);
-    expect(checkKit(fighter, { torches: 1.5 })).toMatch(/1 to 20/);
-    expect(checkKit(T, { "leather-armor": 1, "plate-mail": 1 })).toMatch(/heavier than leather/);
-    expect(checkKit(fighter, {})).toEqual([]);
+    expect(checkKit({ torches: 21 })).toMatch(/1 to 20/);
+    expect(checkKit({ torches: 1.5 })).toMatch(/1 to 20/);
+    expect(checkKit({ "leather-armor": 1, "plate-mail": 1 })).toEqual([
+      { key: "leather-armor", quantity: 1 },
+      { key: "plate-mail", quantity: 1 },
+    ]);
+    expect(checkKit({})).toEqual([]);
   });
+
   it("counts unknown weights separately instead of guessing", () => {
     const items = [
       { encUnits: null, quantity: 1, isMagic: false, location: "carried" },

@@ -7,10 +7,10 @@ import type { CharacterClass } from "@/db/schema";
  * progression (WW p. 20 footnote). Dwarves fight as fighting-men (WW p. 9);
  * elves keep a separate record for each class (WW p. 10).
  *
- * The magic-user column prints row 2 as levels 4-6 and row 3 as 5-9, so 5th
- * and 6th level sit in both rows. WW p. 19 ("every 3 experience levels")
- * points to 7-9, but the choice is Jay's (pending ruling "mu-combat-rows"),
- * so combatRows returns both rows for those levels.
+ * The magic-user column prints row 2 as levels 4-6 and row 3 as 5-9. Jay's
+ * ruling "mu-combat-rows" (17 Nov 2026): 5th and 6th level use the 4-6 row,
+ * and "5-9" is a misprint for 7-9, since magic-users improve every 3 levels
+ * (WW p. 19).
  */
 export const COMBAT_SOURCE = "Woundwort's Warren pp. 19-20";
 
@@ -38,7 +38,7 @@ type Column = "fighting-man" | "cleric" | "magic-user";
 const COLUMNS: Record<Column, [number, number][]> = {
   "fighting-man": [[1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10]],
   cleric: [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12], [13, 14], [15, 16], [17, 18], [19, 20]],
-  "magic-user": [[1, 3], [4, 6], [5, 9], [10, 12], [13, 15], [16, 18], [19, 21], [22, 24], [25, 27], [28, 30]],
+  "magic-user": [[1, 3], [4, 6], [7, 9], [10, 12], [13, 15], [16, 18], [19, 21], [22, 24], [25, 27], [28, 30]],
 };
 
 const COLUMN_FOR: Record<CharacterClass, Column> = {
@@ -50,7 +50,7 @@ const COLUMN_FOR: Record<CharacterClass, Column> = {
 
 export type CombatRow = { row: number; toHit: number[] };
 
-/** Matrix rows that list this class and level. Two rows only where the book lists the level twice. */
+/** The matrix row for this class and level, as a one-item list. */
 export function combatRows(cls: CharacterClass, level: number): CombatRow[] {
   if (!Number.isInteger(level) || level < 1) throw new RangeError(`No combat row for level ${level}`);
   const out: CombatRow[] = [];
@@ -59,11 +59,6 @@ export function combatRows(cls: CharacterClass, level: number): CombatRow[] {
   });
   if (out.length === 0) throw new RangeError(`No combat row for level ${level}`);
   return out;
-}
-
-/** The pending ruling that applies to this class and level's row, if any. */
-export function combatRuling(cls: CharacterClass, level: number): string | null {
-  return combatRows(cls, level).length > 1 ? "mu-combat-rows" : null;
 }
 
 /** Roll needed to hit one armor class, one value per row combatRows returned. */

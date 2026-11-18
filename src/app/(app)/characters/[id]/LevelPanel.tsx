@@ -2,16 +2,25 @@ import { DiceFaces } from "@/components/Dice";
 import { Panel } from "@/components/ui";
 import type { Alignment, CharacterClass, Race } from "@/db/schema";
 import { formatModifier } from "@/lib/rules/abilities";
-import { CLASS_NAMES, countedHpLevel, levelFor, levelsToRoll, maxLevel } from "@/lib/rules/advancement";
+import { CLASS_NAMES, countedHpLevel, fixedHpLevel, levelFor, levelsToRoll, maxLevel, NAME_LEVEL_HP, TOP_LEVEL } from "@/lib/rules/advancement";
 import { HIT_DIE_ADJUST } from "@/lib/rules/dice";
-import { levelUp, ordinal, type LevelUp } from "@/lib/rules/levelup";
+import { levelUp, neutralClericBlocked, ordinal, type LevelUp } from "@/lib/rules/levelup";
 import { rollLevelHitPoints } from "../actions";
 import { DrainForm } from "./DrainForm";
 import { SubmitButton } from "./build/forms";
 import { XpField } from "./XpField";
 
 type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean; baseHpLevel: number };
-type LevelDie = { id: string; class: CharacterClass; level: number; gain: number | null; lostAt: Date | null; dice: number[][]; total: number[] };
+/** `dice` and `total` are null from 10th level, where hit points are fixed and not rolled (WW pp. 7-9). */
+type LevelDie = {
+  id: string;
+  class: CharacterClass;
+  level: number;
+  gain: number | null;
+  lostAt: Date | null;
+  dice: number[][] | null;
+  total: number[] | null;
+};
 
 /** What a level-up changed, each line with its page; open questions name their ruling. */
 function LevelChanges({ up }: { up: LevelUp }) {
@@ -34,7 +43,7 @@ function LevelChanges({ up }: { up: LevelUp }) {
           {up.notes.map((n) => (
             <li key={n.text} className={`text-sm ${n.ruling ? "text-amber" : "text-soft"}`}>
               {n.text}
-              {n.ruling && ` Jay rules (${n.ruling}).`}
+              {n.ruling && ` Waiting on Jay's ruling (${n.ruling}).`}
             </li>
           ))}
         </ul>
@@ -80,7 +89,7 @@ export function LevelPanel({
     <Panel title="Levels and hit points" aside="Woundwort's Warren pp. 6-11">
       {classes.map((k) => {
         const dice = levelDice.filter((d) => d.class === k.class);
-        // Dice lost to a level drain stay listed but no longer count (Monsters & Treasure p. 9).
+        // Dice for levels Jay took away stay listed but no longer count.
         const counted = countedHpLevel(firstLevelCounted, k.baseHpLevel, dice.filter((d) => !d.lostAt).map((d) => d.level));
         const toRoll = levelsToRoll(race, k.class, k.xp, counted);
         const cap = maxLevel(race, k.class);
@@ -88,6 +97,8 @@ export function LevelPanel({
         const capped = levelFor(k.class, k.xp).level > cap;
         const adj = HIT_DIE_ADJUST[k.class] + conModifier;
         const input = { race, cls: k.class, alignment, wis };
+        const blocked = toRoll.length > 0 ? neutralClericBlocked(k.class, alignment, toRoll[0]) : null;
+        const fixed = toRoll.length > 0 && fixedHpLevel(toRoll[0]);
         const fresh = toRoll.length > 0 ? levelUp(input, counted, reached) : null;
         const last = !fresh && firstLevelCounted && reached > 1 ? levelUp(input, reached - 1, reached) : null;
         return (
@@ -104,17 +115,30 @@ export function LevelPanel({
                 <LevelChanges up={fresh} />
                 <div className="flex flex-wrap items-center gap-3 border-t border-lime-edge pt-3">
                   <span className="text-sm">
-                    {ordinal(toRoll[0])} level&apos;s hit die is 1d6
-                    {HIT_DIE_ADJUST[k.class] ? ` ${formatModifier(HIT_DIE_ADJUST[k.class])} for the class` : ""}
-                    {conModifier ? `${HIT_DIE_ADJUST[k.class] ? "," : ""} ${formatModifier(conModifier)} for Constitution` : ""} (WW pp.
-                    5-6), so {1 + adj} to {6 + adj}.
+                    {fixed ? (
+                      <>
+                        {ordinal(toRoll[0])} level adds {NAME_LEVEL_HP[k.class]} hit point{NAME_LEVEL_HP[k.class] === 1 ? "" : "s"}, with no
+                        roll (WW pp. 7-9).
+                      </>
+                    ) : (
+                      <>
+                        {ordinal(toRoll[0])} level&apos;s hit die is 1d6
+                        {HIT_DIE_ADJUST[k.class] ? ` ${formatModifier(HIT_DIE_ADJUST[k.class])} for the class` : ""}
+                        {conModifier ? `${HIT_DIE_ADJUST[k.class] ? "," : ""} ${formatModifier(conModifier)} for Constitution` : ""} (WW pp.
+                        5-6), so {Math.max(1, 1 + adj)} to {Math.max(1, 6 + adj)}. Every hit die adds at least 1 (Jay&apos;s ruling).
+                      </>
+                    )}
                     {toRoll.length > 1 ? ` ${toRoll.length - 1} more level${toRoll.length > 2 ? "s" : ""} to roll after this one.` : ""}
                   </span>
-                  {canRoll ? (
+                  {blocked ? (
+                    <span className="text-sm text-amber">{blocked}</span>
+                  ) : canRoll ? (
                     <form action={rollLevelHitPoints}>
                       <input type="hidden" name="id" value={characterId} />
                       <input type="hidden" name="classId" value={k.id} />
-                      <SubmitButton pendingText="Rolling…">Roll hit points for {ordinal(toRoll[0])} level</SubmitButton>
+                      <SubmitButton pendingText={fixed ? "Adding…" : "Rolling…"}>
+                        {fixed ? `Add ${ordinal(toRoll[0])} level's hit points` : `Roll hit points for ${ordinal(toRoll[0])} level`}
+                      </SubmitButton>
                     </form>
                   ) : (
                     <span className="text-xs text-subtle">The player rolls this.</span>
@@ -126,7 +150,8 @@ export function LevelPanel({
             ) : (
               <p className="text-sm text-subtle">
                 No new level to roll for.
-                {capped ? ` ${ordinal(cap)} level is as high as this race goes in this class (WW pp. 7-10).` : ""}
+                {capped && cap < TOP_LEVEL ? ` ${ordinal(cap)} level is as high as this race goes in this class (WW pp. 7-10).` : ""}
+                {capped && cap === TOP_LEVEL ? " The vault stops at 10th level until Jay rules on what comes after (past-tenth-level)." : ""}
               </p>
             )}
             {last && (
@@ -142,18 +167,16 @@ export function LevelPanel({
                 {dice.map((d) => (
                   <li key={d.id} className={`flex flex-wrap items-center gap-3 py-2 text-sm ${d.lostAt ? "opacity-60" : ""}`}>
                     <span className="w-24 text-muted">{ordinal(d.level)} level</span>
-                    <DiceFaces faces={d.dice[0]} size="sm" />
+                    {d.dice ? <DiceFaces faces={d.dice[0]} size="sm" /> : <span className="text-xs text-subtle">no roll</span>}
                     {d.lostAt ? (
                       <span className="text-ember">
-                        <s className="font-mono">{d.gain === null ? "+0" : `+${d.gain}`} hp</s> lost to a level drain on{" "}
+                        <s className="font-mono">{d.gain === null ? "+0" : `+${d.gain}`} hp</s> level taken away on{" "}
                         {d.lostAt.toISOString().slice(0, 10)}
                       </span>
                     ) : d.gain !== null ? (
                       <span className="font-mono">+{d.gain} hp</span>
                     ) : (
-                      <span className="text-amber">
-                        Total {d.total[0]}, so nothing added yet. Jay rules on whether a hit die can add less than 1 (hit-die-floor).
-                      </span>
+                      <span className="text-amber">Total {d.total?.[0]}, rolled before Jay&apos;s hit-die-floor ruling, so it added nothing.</span>
                     )}
                   </li>
                 ))}
@@ -163,8 +186,7 @@ export function LevelPanel({
         );
       })}
       <p className="text-xs text-subtle">
-        A new level&apos;s hit die adds to maximum hit points. Current hit points stay as they are until Jay rules on that
-        (level-hp-current).
+        A new level&apos;s hit points add to the maximum, and current hit points rise by the same amount (Jay&apos;s ruling).
       </p>
       {canDrain && hpMax !== null && firstLevelCounted && (
         <DrainForm

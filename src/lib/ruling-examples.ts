@@ -159,6 +159,18 @@ export const RULING_EXAMPLES: Record<string, RulingExample[]> = {
     { answer: "Yes. Elves need an Intelligence bonus (15+) like any magic-user.", basis: NOW },
     { answer: "No. Every elf may store one spell in a staff or wand." },
   ],
+  "energy-drain": [
+    { answer: "Here is p. 56. (Paste or summarize the rule, and Lars builds it.)" },
+    { answer: "Jay tracks drained points at the table; the vault doesn't need them.", basis: NOW },
+  ],
+  "past-tenth-level": [
+    { answer: "Keep 10th level's saving throw and spells for every level past it. Only hit points and title change." },
+    { answer: "Stop at 10th level until a character gets close.", basis: NOW },
+  ],
+  "starting-magic-item-list": [
+    { answer: "Jay hands out each new character's magic item; the vault doesn't need a list.", basis: NOW },
+    { answer: "Use the magic items in Monsters & Treasure. The player picks one and Jay approves it." },
+  ],
   "staff-int-drop": [
     { answer: "The extra stored spell is lost at once." },
     { answer: "The stored spell stays until it is released, but no new spell can be loaded past the limit.", basis: NOW },

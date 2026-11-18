@@ -3,6 +3,13 @@ import { ABILITIES, type Ability } from "@/lib/rules/abilities";
 import { RACE_CLASSES } from "@/lib/rules/advancement";
 
 export const RACES: Race[] = ["human", "dwarf", "elf", "halfling"];
+
+/**
+ * Jay's ruling "starting-xp" (17 Nov 2026): new characters start at 5,000 XP.
+ * The hit points for the levels it reaches are rolled on the sheet once the
+ * character is with Jay, one die per level (WW p. 6).
+ */
+export const STARTING_XP = 5000;
 export const ALIGNMENTS: Alignment[] = ["lawful", "neutral", "chaotic"];
 
 /**

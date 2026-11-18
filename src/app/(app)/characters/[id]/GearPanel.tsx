@@ -14,7 +14,7 @@ export type GearItem = {
   location: string;
   /** The staff or wand that stores spells (WW p. 7), set on the Spell staff card. */
   isSpellFocus: boolean;
-  /** Set when the price-list item is outside the class limits (classAllows). */
+  /** Set when the class can't use the price-list item (classAllows). It may still carry it. */
   warn: string | null;
 };
 
@@ -121,7 +121,7 @@ export function GearPanel({
 
       {editing && (
         <div className="flex flex-col gap-4 border-t border-rule pt-4">
-          <AddFromList id={id} catalog={catalog} staff={staff} />
+          <AddFromList id={id} catalog={catalog} />
           <AddOther id={id} staff={staff} />
           <p className="text-xs text-subtle">
             Adding gear doesn&apos;t change your coins. Price-list weights are from Woundwort&apos;s Warren p. 18.
@@ -139,7 +139,7 @@ function ItemMeta({ item }: { item: GearItem }) {
       {item.isMagic && <span className="text-xs text-lime">Magic: counts 0</span>}
       {item.isSpellFocus && <span className="text-xs text-lime">Spell focus: stores spells</span>}
       {item.location !== "carried" && <span className="text-xs text-subtle">{item.location === "mount" ? "On the mount" : "Stashed"}: not carried</span>}
-      {item.warn && <span className="text-xs text-amber">{item.warn} Carrying it waits on Jay&apos;s ruling.</span>}
+      {item.warn && <span className="text-xs text-amber">Carried, not used: {item.warn}</span>}
     </>
   );
 }
@@ -283,7 +283,7 @@ function EditRow({ characterId, item, staff }: { characterId: string; item: Gear
   );
 }
 
-function AddFromList({ id, catalog, staff }: { id: string; catalog: GearCatalogRow[]; staff: boolean }) {
+function AddFromList({ id, catalog }: { id: string; catalog: GearCatalogRow[] }) {
   const [state, action, pending] = useActionState(addCatalogItem, idle);
   const [key, setKey] = useState("");
   const [qty, setQty] = useState("1");
@@ -322,9 +322,9 @@ function AddFromList({ id, catalog, staff }: { id: string; catalog: GearCatalogR
               {catalog
                 .filter((r) => r.category === category)
                 .map((r) => (
-                  <option key={r.key} value={r.key} disabled={Boolean(r.why) && !staff}>
+                  <option key={r.key} value={r.key}>
                     {r.name} · {r.cost} · {r.enc === 0 ? "no weight" : units(r.enc)}
-                    {r.why ? (staff ? " (outside class limits)" : " (not for this class)") : ""}
+                    {r.why ? " (can carry, can't use)" : ""}
                   </option>
                 ))}
             </optgroup>
@@ -344,7 +344,7 @@ function AddFromList({ id, catalog, staff }: { id: string; catalog: GearCatalogR
         />
         <AddButton pending={pending} tone="lime" />
       </div>
-      {chosen?.why && <p className="text-xs text-amber">{chosen.why} Jay can add it; the sheet will flag it.</p>}
+      {chosen?.why && <p className="text-xs text-amber">{chosen.why} Anyone may carry anything (Jay&apos;s ruling); the sheet flags it.</p>}
       <Problem text={state.error} />
     </form>
   );

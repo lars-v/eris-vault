@@ -1,5 +1,5 @@
 import type { Alignment, CharacterClass, Race } from "@/db/schema";
-import { CLASS_NAMES, levelFor, levelRow, maxLevel } from "./advancement";
+import { CLASS_NAMES, levelFor, levelRow, maxLevel, NAME_LEVEL_HP, TOP_LEVEL } from "./advancement";
 import { combatRows } from "./combat";
 import { castsSpells, spellSlots } from "./spells";
 import { thiefSkills } from "./thief";
@@ -55,12 +55,6 @@ export function levelUp(input: LevelUpInput, from: number, to: number): LevelUp 
   const hitBefore = toHitAc9(cls, from);
   const hitAfter = toHitAc9(cls, to);
   if (hitBefore !== hitAfter) changes.push({ label: "Roll to hit AC 9", before: hitBefore, after: hitAfter, source: "WW p. 20" });
-  if (combatRows(cls, to).length > 1) {
-    notes.push({
-      text: `The WW p. 20 matrix lists a ${ordinal(to)}-level magic-user in two rows, so both are shown. WW p. 19 says magic-users improve every 3 levels.`,
-      ruling: "mu-combat-rows",
-    });
-  }
 
   // Thief skills (WW p. 9).
   if (cls === "thief") {
@@ -83,31 +77,61 @@ export function levelUp(input: LevelUpInput, from: number, to: number): LevelUp 
       });
     }
     // WW p. 8: a neutral cleric must choose Law or Chaos before advancing to 4th level.
+    // Jay's ruling "neutral-cleric-fourth": the 4th-level hit die waits until then (neutralClericBlocked).
     if (alignment === "neutral" && from < 4 && to >= 4) {
       notes.push({
-        text: "A neutral cleric may not stay neutral past 3rd level and, under most circumstances, must choose Law or Chaos before advancing to 4th (WW p. 8).",
-        ruling: "neutral-cleric-fourth",
+        text: "A neutral cleric must choose Law or Chaos before advancing to 4th level (WW p. 8). The 4th-level hit die can't be rolled until Jay changes the alignment.",
       });
     }
   }
 
   const cap = maxLevel(race, cls);
-  if (to === cap && cap < 9 && race) {
+  if (to >= TOP_LEVEL) {
+    changes.push({ label: "Hit points per level", before: "1d6", after: `+${NAME_LEVEL_HP[cls]}`, source: book });
+  }
+  if (to === cap && cap < TOP_LEVEL && race) {
     notes.push({ text: `${ordinal(cap)} level is as high as a ${race} ${CLASS_NAMES[cls].toLowerCase()} goes (WW pp. 7-10).` });
-  } else if (to === 9) {
-    notes.push({ text: "10th level is name level. What its +100,000 XP means waits on Jay.", ruling: "name-level-xp" });
+  } else if (to === TOP_LEVEL) {
+    notes.push({
+      text: "10th level is name level (WW p. 6). WW lists saving throws and cleric spells only to 10th, so the vault stops here for now.",
+      ruling: "past-tenth-level",
+    });
   }
   return { from, to, changes, notes };
 }
 
 /**
- * Levels gained by an XP award, for the award form (M&M p. 18 recommends no
- * more XP from one adventure than it takes to gain one level; pending ruling
- * "one-level-per-adventure").
+ * Jay's ruling "neutral-cleric-fourth" (17 Nov 2026): a neutral cleric's
+ * 4th-level hit die is not rolled until the cleric chooses Law or Chaos (WW p. 8).
+ * Returns the message to show, or null.
+ */
+export function neutralClericBlocked(cls: CharacterClass, alignment: Alignment | null, level: number): string | null {
+  if (cls !== "cleric" || alignment !== "neutral" || level < 4) return null;
+  return "A neutral cleric must choose Law or Chaos before advancing to 4th level (WW p. 8). Ask Jay to change the alignment first.";
+}
+
+/**
+ * Levels gained by an XP award, for the award form. M&M p. 18 recommends no
+ * more XP from one adventure than it takes to gain one level; Jay's ruling
+ * "one-level-per-adventure" (17 Nov 2026) makes that the rule (awardTooBig).
  */
 export function levelsGained(race: Race | null, cls: CharacterClass, xp: number, amount: number): { from: number; to: number } {
   const cap = maxLevel(race, cls);
   const from = Math.min(levelFor(cls, xp).level, cap);
   const to = Math.min(levelFor(cls, Math.max(0, xp + amount)).level, cap);
   return { from, to };
+}
+
+/**
+ * Jay's ruling "one-level-per-adventure" (17 Nov 2026): no single award gains
+ * more than one level. Returns the message to show, naming the most XP the
+ * award may bring, or null when the new total is fine. Lowering XP is never
+ * an award. Jay corrects a mistake with Set by hand (overrideStats) instead.
+ */
+export function awardTooBig(race: Race | null, cls: CharacterClass, xp: number, newXp: number): string | null {
+  if (newXp <= xp) return null;
+  const { from, to } = levelsGained(race, cls, xp, newXp - xp);
+  if (to - from <= 1) return null;
+  const most = levelRow(cls, from + 2).xp - 1;
+  return `No single award gains more than one level (Jay's ruling; Men & Magic p. 18). From ${ordinal(from)} level the most this award can bring is ${most.toLocaleString("en-US")} XP.`;
 }

@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { characterClasses, characters, inventory } from "@/db/schema";
+import { characters, inventory, storedSpellEvents } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { can } from "@/lib/roles";
 import { checkAddCatalog, checkCustomItem, checkQuantity, ITEM_MAX_QUANTITY, kindFor } from "@/lib/rules/equipment";
+import { lostWithItem, LOST_WITH_ITEM_NOTE, slotStates } from "@/lib/rules/staff";
 import { requireUser, type CurrentUser } from "@/lib/session";
 
 /**
@@ -91,18 +92,8 @@ async function addCatalogItemImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
   const result = await db.transaction(async (tx) => {
-    const c = await lockForGear(tx, viewer, id);
-    const [k] = await tx
-      .select({ cls: characterClasses.class })
-      .from(characterClasses)
-      .where(and(eq(characterClasses.characterId, id), eq(characterClasses.active, true)))
-      .limit(1);
-    const checked = checkAddCatalog(
-      k ? { cls: k.cls, race: c.race, int: c.int } : null,
-      str(formData, "key"),
-      wholeNumber(formData, "quantity"),
-      can.approve(viewer),
-    );
+    await lockForGear(tx, viewer, id);
+    const checked = checkAddCatalog(str(formData, "key"), wholeNumber(formData, "quantity"));
     if (typeof checked === "string") throw new Error(checked);
     const { item, quantity } = checked;
 
@@ -212,12 +203,38 @@ async function setItemMagicImpl(formData: FormData) {
   done(id);
 }
 
+/**
+ * Jay's ruling "staff-loss" (17 Nov 2026): spells stored in a staff or wand
+ * are lost with it. When the item leaves the character's gear, each slot it
+ * held is voided (an insert-only event, audited like any void).
+ */
+async function voidSpellsStoredIn(tx: Tx, viewer: CurrentUser, characterId: string, itemId: string) {
+  const events = await tx.select().from(storedSpellEvents).where(eq(storedSpellEvents.characterId, characterId));
+  for (const s of lostWithItem(slotStates(events), itemId)) {
+    await tx.insert(storedSpellEvents).values({
+      characterId,
+      inventoryId: itemId,
+      slot: s.slot,
+      spell: s.spell!,
+      action: "void",
+      actorId: viewer.userId,
+      note: LOST_WITH_ITEM_NOTE,
+    });
+    await writeAudit(
+      viewer,
+      { action: "staff.void", characterId, after: { slot: s.slot, spell: s.spell, inventoryId: itemId, note: LOST_WITH_ITEM_NOTE } },
+      tx,
+    );
+  }
+}
+
 async function deleteItemImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
   const before = await db.transaction(async (tx) => {
     await lockForGear(tx, viewer, id);
     const item = await findItem(tx, id, str(formData, "itemId"));
+    await voidSpellsStoredIn(tx, viewer, id, item.id);
     await tx.delete(inventory).where(eq(inventory.id, item.id));
     return snapshot(item);
   });

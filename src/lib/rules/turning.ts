@@ -77,3 +77,14 @@ export function canAffectUndead(alignment: Alignment | null): boolean | null {
 export function formatTurn(r: TurnResult): string {
   return r === null ? "-" : String(r);
 }
+
+/**
+ * Jay's ruling "ashan-patronage" (17 Nov 2026): Ashan's patronage gives +1 to
+ * turn undead rolls. The question was asked for Liz; it applies to any cleric
+ * whose patron is Ashan (Planet Eris Gazetteer, setting name only).
+ */
+export const ASHAN_TURN_BONUS = 1;
+
+export function patronTurnBonus(deity: string | null): number {
+  return deity?.trim().toLowerCase() === "ashan" ? ASHAN_TURN_BONUS : 0;
+}

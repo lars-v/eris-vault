@@ -82,14 +82,15 @@ describe("what counts", () => {
     expect(texts(r)).toContain("plate mail isn't counted");
     expect(texts(r)).toContain("shield isn't counted");
   });
-  it("a large shield counts as a shield until Jay rules", () => {
+  it("a large shield counts as a shield (Jay's ruling large-shield-ac)", () => {
     const r = armorClass([item("chain-mail"), item("shield-large")], 10, fighter);
     expect(r.ac).toBe(4);
-    expect(texts(r)).toContain("large-shield-ac");
-    expect(texts(armorClass([item("shield"), item("shield-large")], 10, fighter))).not.toContain("large-shield-ac");
+    expect(texts(r)).toContain("A large shield counts as a shield");
+    expect(texts(armorClass([item("shield"), item("shield-large")], 10, fighter))).not.toContain("large shield");
   });
   it("reads a hand-added item named exactly like price-list armor", () => {
-    expect(armorClass([item(null, { name: "Chain Mail +1", isMagic: true })], 10, fighter).ac).toBe(5);
+    expect(armorClass([item(null, { name: "Chain Mail +1", isMagic: true })], 10, fighter).ac).toBe(4);
+    expect(armorClass([item(null, { name: "Chain Mail +1" })], 10, fighter).ac).toBe(5);
     expect(armorClass([item(null, { name: "Large shield" })], 10, fighter).ac).toBe(8);
   });
   it("names armor it can't read instead of guessing", () => {
@@ -100,31 +101,29 @@ describe("what counts", () => {
   });
 });
 
-describe("magic armor (Monsters & Treasure p. 30)", () => {
-  it("doesn't change the number; attackers take the bonus off their hit dice", () => {
+describe("magic armor and shields (Jay's ruling magic-armor-ac)", () => {
+  it("magic armor lowers the number by its bonus", () => {
     const r = armorClass([item("plate-mail", { isMagic: true, magicBonus: 2 })], 10, fighter);
-    expect(r.ac).toBe(3);
-    expect(texts(r)).toContain("attackers take 2 off their hit dice");
-  });
-  it("gives the number with the armor's bonus in beside the book number (magic-armor-ac)", () => {
-    const r = armorClass([item("plate-mail", { isMagic: true, magicBonus: 2 }), item("shield", { isMagic: true, magicBonus: 3 })], 16, fighter);
     expect(r.ac).toBe(1);
+    expect(r.table).toBe(3);
     expect(r.armorBonus).toBe(2);
-    expect(r.withMagic).toBe(-1);
-    expect(texts(r)).toContain("plays like AC -1");
-    expect(armorClass([item(null, { name: "Chain Mail +1", isMagic: true })], 10, fighter).withMagic).toBe(4);
+    expect(armorClassWorking(r)).toContain("Magic lowers it by the armor's +2");
   });
-  it("has no magic number for plain armor, a magic shield alone, or a missing bonus", () => {
-    expect(armorClass([item("chain-mail")], 10, fighter).withMagic).toBeNull();
-    expect(armorClass([item("chain-mail"), item("shield", { isMagic: true, magicBonus: 2 })], 10, fighter).withMagic).toBeNull();
-    expect(armorClass([item("chain-mail", { isMagic: true })], 10, fighter).withMagic).toBeNull();
+  it("a magic shield lowers it by its bonus too", () => {
+    const r = armorClass([item("plate-mail", { isMagic: true, magicBonus: 2 }), item("shield", { isMagic: true, magicBonus: 3 })], 16, fighter);
+    // 2 on the table, Dex 16 -1, armor -2, shield -3.
+    expect(r.ac).toBe(-4);
+    expect(r.shieldBonus).toBe(3);
+    expect(armorClass([item("chain-mail"), item("shield", { isMagic: true, magicBonus: 2 })], 10, fighter).ac).toBe(2);
+    expect(armorClass([item(null, { name: "Chain Mail +1", isMagic: true })], 10, fighter).ac).toBe(4);
   });
-  it("a better magic shield catches one blow in three", () => {
-    const r = armorClass([item("chain-mail", { isMagic: true, magicBonus: 1 }), item("shield", { isMagic: true, magicBonus: 2 })], 10, fighter);
-    expect(r.ac).toBe(4);
-    expect(texts(r)).toContain("one blow in three");
-    const weaker = armorClass([item("chain-mail", { isMagic: true, magicBonus: 2 }), item("shield", { isMagic: true, magicBonus: 1 })], 10, fighter);
-    expect(texts(weaker)).not.toContain("one blow in three");
+  it("uses the best magic shield carried", () => {
+    const r = armorClass([item("shield"), item("shield-large", { isMagic: true, magicBonus: 1 })], 10, fighter);
+    expect(r.ac).toBe(7);
+  });
+  it("adds nothing for plain armor or a missing bonus", () => {
+    expect(armorClass([item("chain-mail")], 10, fighter).ac).toBe(5);
+    expect(armorClass([item("chain-mail", { isMagic: true })], 10, fighter).ac).toBe(5);
   });
   it("magic with no bonus entered is said, not guessed", () => {
     expect(texts(armorClass([item("chain-mail", { isMagic: true })], 10, fighter))).toContain("bonus isn't entered");

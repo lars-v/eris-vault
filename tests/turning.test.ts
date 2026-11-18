@@ -44,3 +44,13 @@ describe("turningGroups (WW p. 8)", () => {
     }
   });
 });
+
+describe("Ashan's patronage (Jay's ruling ashan-patronage)", () => {
+  it("gives +1 to turning rolls for a cleric of Ashan", async () => {
+    const { patronTurnBonus } = await import("@/lib/rules/turning");
+    expect(patronTurnBonus("Ashan")).toBe(1);
+    expect(patronTurnBonus(" ashan ")).toBe(1);
+    expect(patronTurnBonus("Diana")).toBe(0);
+    expect(patronTurnBonus(null)).toBe(0);
+  });
+});

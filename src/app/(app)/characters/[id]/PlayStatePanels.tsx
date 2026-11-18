@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useOptimistic, useState, type FormEvent, type ReactNode } from "react";
 import { Panel } from "@/components/ui";
-import { applyHpChange, COIN_MAX, GP_MIN, HP_LIMIT, HP_MIN, type HpChange } from "@/lib/rules/overrides";
+import { applyHpChange, COIN_MAX, GP_MIN, HP_LIMIT, HP_MIN, hpCondition, type HpChange } from "@/lib/rules/overrides";
 import { changeHitPoints, setCoins, type StatResult } from "../stat-actions";
 
 const idle: StatResult = { error: null, at: 0 };
@@ -63,6 +63,7 @@ export function HitPointsPanel({
   id,
   current,
   max,
+  level,
   canEdit,
   staff,
   handSet,
@@ -70,6 +71,8 @@ export function HitPointsPanel({
   id: string;
   current: number | null;
   max: number | null;
+  /** The level that sets how far below 0 the character lives (WW p. 6); null if unknown. */
+  level: number | null;
   canEdit: boolean;
   staff: boolean;
   /** A line saying who set maximum hit points by hand, if anyone did. */
@@ -173,8 +176,14 @@ export function HitPointsPanel({
       </div>
       <HpBar current={shown} max={max} />
       {shown > max && <div className="text-xs text-amber">Above the maximum.</div>}
-      {shown <= 0 && (
-        <div className="text-xs text-subtle">What 0 or less means waits on Jay&apos;s ruling (hp-below-zero).</div>
+      {hpCondition(shown, level) === "unconscious" && (
+        <div className="text-sm text-amber">
+          Unconscious. Loses 1 hit point a round until healed to 1 or more{level !== null ? `, and dies below −${level}` : ""} (WW p. 6;
+          Jay&apos;s ruling).
+        </div>
+      )}
+      {hpCondition(shown, level) === "dead" && (
+        <div className="text-sm text-ember">Dead: below −{level}, one point per level (WW p. 6). A raise dead spell or the like can revive.</div>
       )}
       {canEdit && last && last.from !== last.to && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">

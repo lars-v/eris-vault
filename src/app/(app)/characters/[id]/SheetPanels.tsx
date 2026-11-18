@@ -1,13 +1,15 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { DiceFaces, PURPOSE_LABEL } from "@/components/Dice";
+import { rollDarkSightOnSheet } from "../actions";
+import { SubmitButton } from "./build/forms";
 import { Panel } from "@/components/ui";
 import type { getCharacter, sheetsForCharacter } from "@/lib/queries";
-import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, formatModifier } from "@/lib/rules/abilities";
+import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, canReadAndWrite, formatModifier, surviveAdversity } from "@/lib/rules/abilities";
 import { ADVANCEMENT_SOURCE, cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { armorClassWorking, ARMOR_CLASS_SOURCE, type ArmorClass } from "@/lib/rules/armor";
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
-import { againstText, CLASS_SAVE_BONUSES, overlappingForms, RACE_SAVE_BONUSES } from "@/lib/rules/saves";
+import { againstText, CLASS_SAVE_BONUSES, overlappingForms, RACE_SAVE_BONUSES, saveBonusesFor, totalAgainst } from "@/lib/rules/saves";
 
 /** Everything the sheet page loads for one character. */
 export type CharacterSheet = NonNullable<Awaited<ReturnType<typeof getCharacter>>>;
@@ -15,7 +17,7 @@ export type CharacterSheet = NonNullable<Awaited<ReturnType<typeof getCharacter>
 const divider = "divide-y divide-rule";
 
 /** The six scores and their modifiers (WW p. 5). */
-export function AbilitiesPanel({ c, handSet }: { c: CharacterSheet; handSet: ReactNode }) {
+export function AbilitiesPanel({ c, handSet, canRollDarkSight }: { c: CharacterSheet; handSet: ReactNode; canRollDarkSight: boolean }) {
   return (
     <Panel title="Abilities" aside={ABILITY_SOURCE}>
       {ABILITIES.map((a) => {
@@ -51,6 +53,32 @@ export function AbilitiesPanel({ c, handSet }: { c: CharacterSheet; handSet: Rea
           </div>
         );
       })}
+      {canReadAndWrite(c.int) === false && (
+        <p className="text-sm text-amber">
+          Can&apos;t read or write: Intelligence {c.int} (WW p. 11{c.int === 3 ? "" : "; Jay's ruling for 4 to 6"}).
+        </p>
+      )}
+      {c.race === "dwarf" &&
+        (c.darkSightRollId ? (
+          <p className="text-sm">
+            Sight in the dark: {c.darkSight ? "sees up to 30' in darkness underground" : "no"}{" "}
+            <span className="text-xs text-subtle">(WW p. 10; Jay&apos;s ruling)</span>
+          </p>
+        ) : canRollDarkSight ? (
+          <form action={rollDarkSightOnSheet} className="flex flex-wrap items-center gap-3">
+            <input type="hidden" name="id" value={c.id} />
+            <span className="text-sm text-muted">A dwarf rolls 1d6 once for sight in the dark; 1 or 2 sees (WW p. 10; Jay&apos;s ruling).</span>
+            <SubmitButton pendingText="Rolling…">Roll for sight in the dark</SubmitButton>
+          </form>
+        ) : (
+          <p className="text-sm text-subtle">Sight in the dark: not rolled yet.</p>
+        ))}
+      {c.con !== null && (
+        <p className="text-xs text-subtle">
+          Survive adversity, Constitution {c.con}: {surviveAdversity(c.con) ?? "the table gives no chance for this score"} (Men &amp; Magic p. 11, as
+          printed).
+        </p>
+      )}
       {handSet}
     </Panel>
   );
@@ -64,12 +92,6 @@ export function ArmorClassPanel({ ac }: { ac: ArmorClass }) {
         <span className="font-mono text-4xl">{ac.ac}</span>
         <span className="text-sm text-muted">{ac.wearing}</span>
       </div>
-      {ac.withMagic !== null && (
-        <div className="flex items-baseline gap-2">
-          <span className="font-mono text-2xl">{ac.withMagic}</span>
-          <span className="text-sm text-muted">with the armor&apos;s +{ac.armorBonus} against attack rolls</span>
-        </div>
-      )}
       <p className="text-xs text-subtle">{armorClassWorking(ac)} Lower is better.</p>
       {ac.notes.map((n) => (
         <p key={n.text} className={`text-xs ${n.tone === "amber" ? "text-amber" : "text-subtle"}`}>
@@ -84,7 +106,9 @@ export function ArmorClassPanel({ ac }: { ac: ArmorClass }) {
 export function SavingThrowPanel({ c }: { c: CharacterSheet }) {
   const active = c.classes.find((k) => k.active) ?? c.classes[0];
   const bonuses = [...c.classes.flatMap((k) => CLASS_SAVE_BONUSES[k.class]), ...(c.race ? RACE_SAVE_BONUSES[c.race] : [])];
-  const overlap = overlappingForms(bonuses);
+  // Totals are per class: an elf's class bonus belongs to that class's block (WW p. 21).
+  const mine = active ? saveBonusesFor(active.class, c.race) : [];
+  const overlap = overlappingForms(mine);
   const source = active ? `${ADVANCEMENT_SOURCE[active.class].replace(" p. ", " pp. ")}, 21` : "Woundwort's Warren p. 21";
   return (
     <Panel title="Saving throw" aside={source}>
@@ -112,12 +136,19 @@ export function SavingThrowPanel({ c }: { c: CharacterSheet }) {
         </ul>
       )}
       {overlap.length > 0 && (
-        <p className="text-xs text-amber">
-          Class and race both give a bonus vs {againstText(overlap)}. Whether they add together waits on Jay (save-bonus-stacking).
+        <p className="text-sm">
+          {c.classes.length > 1 && active ? `${CLASS_NAMES[active.class]} together: ` : "Together: "}
+          {overlap.map((f, i) => (
+            <span key={f}>
+              {i > 0 && ", "}
+              <span className="font-mono">{formatModifier(totalAgainst(mine, f))}</span> vs {f}
+            </span>
+          ))}
+          <span className="block text-xs text-subtle">Class and race bonuses add together (Jay&apos;s ruling).</span>
         </p>
       )}
       <p className="text-xs text-subtle">
-        One number for every saving throw (WW p. 21). Wisdom vs charms and illusions is the referee&apos;s call (wis-vs-mind).
+        One number for every saving throw (WW p. 21). Wisdom doesn&apos;t change saves against charms and illusions (Jay&apos;s ruling).
       </p>
     </Panel>
   );

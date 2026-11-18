@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { CharacterClass, Race } from "@/db/schema";
+import type { CharacterClass } from "@/db/schema";
 import { can, type Viewer } from "@/lib/roles";
 import {
   checkLoad,
   checkRelease,
   checkVoid,
   isStaffSpell,
+  lostWithItem,
   slotStates,
   STAFF_NOTE_MAX,
   staffBadge,
@@ -25,29 +26,29 @@ const ev = (slot: number, action: StaffEvent["action"], spell: string, n: number
 });
 
 describe("staff capacity (Woundwort's Warren pp. 5, 7)", () => {
-  const cases: { who: string; classes: CharacterClass[]; race: Race }[] = [
-    { who: "magic-user", classes: ["magic-user"], race: "human" },
-    // An elf with magic-user as one of two classes, whichever is active (WW p. 10).
-    { who: "elf magic-user", classes: ["fighting-man", "magic-user"], race: "elf" },
+  const cases: { who: string; classes: CharacterClass[] }[] = [
+    { who: "magic-user", classes: ["magic-user"] },
+    // An elf with magic-user as one of two classes follows the same rule (Jay's ruling elf-wand-int).
+    { who: "elf magic-user", classes: ["fighting-man", "magic-user"] },
   ];
   for (const c of cases) {
     it(`${c.who}: Int 3, 14 none; 15, 17 one; 18 two`, () => {
-      expect([3, 14, 15, 17, 18].map((int) => staffCapacity(c.classes, c.race, int))).toEqual([0, 0, 1, 1, 2]);
+      expect([3, 14, 15, 17, 18].map((int) => staffCapacity(c.classes, int))).toEqual([0, 0, 1, 1, 2]);
     });
   }
 
   it("clerics and thieves never store spells, whatever their Intelligence", () => {
     for (const cls of ["cleric", "thief"] as const) {
-      expect([3, 14, 15, 17, 18].map((int) => staffCapacity([cls], "human", int))).toEqual([0, 0, 0, 0, 0]);
+      expect([3, 14, 15, 17, 18].map((int) => staffCapacity([cls], int))).toEqual([0, 0, 0, 0, 0]);
     }
   });
 
   it("an elf who is only a fighting-man stores nothing", () => {
-    expect(staffCapacity(["fighting-man"], "elf", 18)).toBe(0);
+    expect(staffCapacity(["fighting-man"], 18)).toBe(0);
   });
 
   it("unknown Intelligence stores nothing", () => {
-    expect(staffCapacity(["magic-user"], "human", null)).toBe(0);
+    expect(staffCapacity(["magic-user"], null)).toBe(0);
   });
 });
 
@@ -153,15 +154,25 @@ describe("warnings never clear anything", () => {
   it("the staff has left the gear, or is no longer the focus", () => {
     const states = slotStates([ev(1, "load", "mu:sleep", 1, "gone")]);
     expect(staffWarnings({ states, capacity: 1, focusId: "staff-1", itemIds: items })).toEqual([
-      { ruling: "staff-loss", text: "The staff or wand holding Sleep is no longer in this character's gear." },
+      { ruling: "staff-loss", text: "The staff or wand holding Sleep is no longer in this character's gear, so the spell is lost. Jay voids the slot." },
     ]);
     const moved = slotStates([ev(1, "load", "mu:sleep", 1, "staff-1")]);
-    expect(staffWarnings({ states: moved, capacity: 1, focusId: "wand-2", itemIds: items }).map((w) => w.ruling)).toEqual(["staff-loss"]);
+    expect(staffWarnings({ states: moved, capacity: 1, focusId: "wand-2", itemIds: items }).map((w) => w.ruling)).toEqual([null]);
   });
 
-  it("the same spell in both slots", () => {
+  it("the same spell in both slots is fine (Jay's ruling staff-same-spell-twice)", () => {
     const states = slotStates([ev(1, "load", "mu:sleep", 1), ev(2, "load", "mu:sleep", 2)]);
-    expect(staffWarnings({ states, capacity: 2, focusId: "staff-1", itemIds: items }).map((w) => w.ruling)).toEqual(["staff-same-spell-twice"]);
+    expect(staffWarnings({ states, capacity: 2, focusId: "staff-1", itemIds: items })).toEqual([]);
+  });
+});
+
+describe("spells lost with the staff (Jay's ruling staff-loss)", () => {
+  it("finds the slots stored in the item that left", () => {
+    const states = slotStates([ev(1, "load", "mu:sleep", 1, "staff-1"), ev(2, "load", "mu:light", 2, "wand-2")]);
+    expect(lostWithItem(states, "staff-1").map((s) => s.slot)).toEqual([1]);
+    expect(lostWithItem(states, "other")).toEqual([]);
+    const released = slotStates([ev(1, "load", "mu:sleep", 1, "staff-1"), ev(1, "release", "mu:sleep", 2, "staff-1")]);
+    expect(lostWithItem(released, "staff-1")).toEqual([]);
   });
 });
 

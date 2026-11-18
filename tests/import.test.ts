@@ -203,7 +203,7 @@ describe("checking an imported character (WW pp. 5, 7-10)", () => {
     const flags = importFlags(raz, written);
     expect(flags.map((f) => f.title)).toEqual(["Save bonuses differ from the book"]);
     expect(flags[0].body).toBe(
-      "The sheet has no bonus vs magic; WW p. 21 gives Halfling +4. Whether class and race bonuses add together waits on a ruling (save-bonus-stacking).",
+      "The sheet gives +2 vs death; WW p. 21 gives +3. The sheet gives +2 vs poison; WW p. 21 gives +3. The sheet has no bonus vs magic; WW p. 21 gives +4. Class and race bonuses add together (Jay's ruling).",
     );
   });
 

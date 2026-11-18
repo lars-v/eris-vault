@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Portrait } from "@/components/Portrait";
 import { Chip } from "@/components/ui";
-import { CLASS_NAMES, type cappedLevelFor } from "@/lib/rules/advancement";
+import { CLASS_NAMES, noNextLevelText, type cappedLevelFor } from "@/lib/rules/advancement";
 import { approveCharacter } from "../actions";
 import { SubmitButton } from "./build/forms";
 import { PortraitEditor } from "./PortraitEditor";
@@ -52,11 +52,7 @@ function XpBar({ c, xp, lvl, cls }: { c: CharacterSheet; xp: number; lvl: Level;
       <div className="flex flex-wrap justify-between gap-x-3 text-[13px]">
         <span className="text-muted">{xp.toLocaleString("en-US")} XP</span>
         <span className="text-subtle">
-          {lvl.nextTitle && lvl.nextXp
-            ? `${lvl.nextTitle} at ${lvl.nextXp.toLocaleString("en-US")}`
-            : lvl.level < 9
-              ? `Highest level for a ${c.race} ${CLASS_NAMES[cls].toLowerCase()} (WW pp. 7-10)`
-              : "10th level waits on a GM ruling"}
+          {lvl.nextTitle && lvl.nextXp ? `${lvl.nextTitle} at ${lvl.nextXp.toLocaleString("en-US")}` : noNextLevelText(c.race, cls)}
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-rule">
@@ -103,7 +99,7 @@ export function SheetHeader({
           {lvl && (
             <Chip tone="lime">
               Level {lvl.level}
-              {lvl.pastNine ? "+" : ""} · {lvl.title}
+              {lvl.pastTen ? "+" : ""} · {lvl.title}
             </Chip>
           )}
           {c.status === "submitted" ? (

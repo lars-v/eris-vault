@@ -110,7 +110,7 @@ export function buildSteps(): GuideStep[] {
     {
       target: "kit",
       title: "Starting kit",
-      body: "Press Choose gear and tick everything you want in one go, or press Random basic kit. Items your class can't use are greyed out, and Jay approves the kit. Item weights come from Woundwort's Warren p. 18.",
+      body: "Press Choose gear and tick everything you want in one go, or press Random basic kit. You may carry items your class can't use (Jay's ruling); they are marked, and they don't count for armor class or the weapon table. Jay approves the kit. Item weights come from Woundwort's Warren p. 18.",
       source: EQUIPMENT_SOURCE,
     },
     {

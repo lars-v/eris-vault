@@ -141,15 +141,20 @@ export function catalogItem(key: string): CatalogItem | undefined {
 export type Wielder = { cls: CharacterClass; race: Race | null; int: number | null };
 
 /**
- * Class limits on starting gear that the books state outright:
+ * What a class may use. Jay's ruling "carry-unusable-gear" (17 Nov 2026):
+ * anyone may carry anything; class limits are about using it. So these limits
+ * never stop an item being added, bought or carried. They decide what counts
+ * (armor class, the weapon table) and what the sheet flags.
  * - Thieves (WW p. 9): "any type of small or normal weapon", armor no heavier
  *   than leather, no shield.
  * - Magic-users (Men & Magic p. 6): "may arm themselves with daggers only".
  *   Woundwort's Warren p. 7 adds a staff for storing spells when Intelligence
  *   gives a bonus (15+). Elves are exempt: they "may use both weaponry and
  *   spells" (Men & Magic p. 8).
- * Anything the books leave open (magic-user armor, clerics and ordinary edged
- * weapons) is for Jay to judge at approval.
+ * - Clerics: Jay's ruling "cleric-edged-weapons" (17 Nov 2026), non-edged
+ *   weapons only (Men & Magic p. 7: "all non-edged magic weapons (no arrows!)").
+ *   CLERIC_WEAPONS lists them.
+ * Anything the books leave open (magic-user armor) is for Jay to judge at approval.
  */
 export function classAllows(w: Wielder, item: CatalogItem): { ok: true } | { ok: false; why: string } {
   if (w.cls === "thief") {
@@ -172,9 +177,12 @@ export function classAllows(w: Wielder, item: CatalogItem): { ok: true } | { ok:
       ok: false,
       why:
         item.key === "staff"
-          ? "A magic-user may carry a staff for storing spells only with an Intelligence bonus, 15+ (WW p. 7)."
+          ? "A magic-user may use a staff, for storing spells, only with an Intelligence bonus, 15+ (WW p. 7)."
           : "Magic-users may arm themselves with daggers only (Men & Magic p. 6).",
     };
+  }
+  if (w.cls === "cleric" && item.category === "weapon" && !CLERIC_WEAPONS.has(item.key)) {
+    return { ok: false, why: "Clerics use non-edged weapons only, and no arrows (Jay's ruling; Men & Magic p. 7)." };
   }
   return { ok: true };
 }
@@ -182,11 +190,12 @@ export function classAllows(w: Wielder, item: CatalogItem): { ok: true } | { ok:
 export const KIT_MAX_QUANTITY = 20;
 
 /**
- * Checks a whole kit picked in one go: every key must be on the price list,
- * allowed for the class (classAllows), and taken 1 to 20 times. Returns the
- * first problem as a message, or the picks in price-list order.
+ * Checks a whole kit picked in one go: every key must be on the price list
+ * and taken 1 to 20 times. Items the class can't use may be carried (Jay's
+ * ruling carry-unusable-gear); the sheet flags them. Returns the first problem
+ * as a message, or the picks in price-list order.
  */
-export function checkKit(w: Wielder, picks: Record<string, number>): { key: string; quantity: number }[] | string {
+export function checkKit(picks: Record<string, number>): { key: string; quantity: number }[] | string {
   for (const key of Object.keys(picks)) if (!catalogItem(key)) return "That item isn't on the price list.";
   const kit: { key: string; quantity: number }[] = [];
   for (const item of CATALOG) {
@@ -195,8 +204,6 @@ export function checkKit(w: Wielder, picks: Record<string, number>): { key: stri
     if (!Number.isInteger(quantity) || quantity < 0 || quantity > KIT_MAX_QUANTITY) {
       return `Take 1 to ${KIT_MAX_QUANTITY} of ${item.name}.`;
     }
-    const allowed = classAllows(w, item);
-    if (!allowed.ok) return allowed.why;
     kit.push({ key: item.key, quantity });
   }
   return kit;
@@ -213,8 +220,14 @@ const AMMO_OR_LAUNCHER = new Set([
   "short-bow",
   "sling",
 ]);
-/** Damage table (WW p. 19) weapons with no edge. Used for clerics while "cleric-edged-weapons" waits on Jay. */
+/**
+ * Weapons a cleric may use (Jay's ruling cleric-edged-weapons): the damage
+ * table (WW p. 19) weapons with no edge, and the sling with its stones. Bows,
+ * crossbows, arrows and bolts are out (Men & Magic p. 7: "no arrows!"), and so
+ * are spears and pole-arms, which have blades or points.
+ */
 const NON_EDGED = new Set(["club", "flail", "mace", "morning-star", "staff", "war-hammer", "heavy-war-hammer"]);
+const CLERIC_WEAPONS = new Set([...NON_EDGED, "sling", "sling-stones-iron", "sling-stones-silver"]);
 const CLASS_EXTRAS = new Set(["thieves-tools", "holy-symbol-wood", "holy-symbol-silver", "spellbook"]);
 
 /**
@@ -225,7 +238,7 @@ const CLASS_EXTRAS = new Set(["thieves-tools", "holy-symbol-wood", "holy-symbol-
  * - Thieves: leather armor, no shield (WW p. 9); thieves' tools.
  * - Magic-users: no armor (left to Jay); human magic-users get a dagger and a
  *   spellbook (Men & Magic p. 6; WW p. 23: first-level magic-users have a spellbook).
- * - Clerics: a non-edged weapon until Jay rules on edged weapons; a wooden holy symbol.
+ * - Clerics: a non-edged melee weapon (cleric-edged-weapons); a wooden holy symbol.
  */
 export function randomKitKeys(w: Wielder, rand: () => number = Math.random): string[] {
   const pickOne = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)];
@@ -271,25 +284,15 @@ const quantityProblem = (n: number) =>
 
 /**
  * Adding an item from the price list (WW p. 17) to a character's gear.
- * Players keep to the class limits the books state (classAllows), as in the
- * kit dialog. Jay may add anything; the sheet then flags the item. Whether a
- * character may carry gear the class can't use waits on "carry-unusable-gear".
- * `wielder` is null when no class is chosen yet, so there's nothing to check.
+ * Anyone may carry anything (Jay's ruling carry-unusable-gear), so the class
+ * limits (classAllows) don't stop it; the sheet flags an item the class
+ * can't use.
  */
-export function checkAddCatalog(
-  wielder: Wielder | null,
-  key: string,
-  quantity: number,
-  staff: boolean,
-): { item: CatalogItem; quantity: number } | string {
+export function checkAddCatalog(key: string, quantity: number): { item: CatalogItem; quantity: number } | string {
   const item = catalogItem(key);
   if (!item) return "Choose an item from the price list.";
   const q = quantityProblem(quantity);
   if (q) return q;
-  if (wielder && !staff) {
-    const allowed = classAllows(wielder, item);
-    if (!allowed.ok) return allowed.why;
-  }
   return { item, quantity };
 }
 

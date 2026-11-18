@@ -73,7 +73,6 @@ async function loadStaff(tx: Tx, id: string) {
   ]);
   const capacity = staffCapacity(
     classes.map((k) => k.class),
-    c.race,
     c.int,
   );
   const focus = items.find((i) => i.isSpellFocus) ?? null;

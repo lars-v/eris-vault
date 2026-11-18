@@ -15,10 +15,13 @@ import { abilityModifier } from "./abilities";
  *   "mental" book grown by study). Spells per day (WW pp. 5, 7, 8) are unchanged,
  *   so a caster still prepares only at spell levels they have slots for.
  *
- * Open questions left to Jay (rulings seed in scripts/migrate.mjs):
- * - "prepare-same-spell": may one spell fill two slots? Allowed here, and shown as a flag.
- * - "cleric-wis-penalty": does a Wisdom penalty take spells away? WW p. 5 only speaks of
- *   bonuses, so no spells are taken away here, and the sheet says the question is open.
+ * Jay's rulings (17 Nov 2026):
+ * - "prepare-same-spell": a caster may prepare the same spell in several slots.
+ * - "cleric-wis-penalty": a low Wisdom never takes spells away (WW p. 5 names only bonuses).
+ * - "cleric-l1-scroll" and "cleric-l1-scroll-spells": a 1st-level cleric with
+ *   Wis 15+ gets one spell, even with Wis 18, and the player picks it. WW p. 25
+ *   says "one or two". With every cleric spell known, the pick is the day's
+ *   prepared spell.
  */
 export const SPELL_SLOTS_SOURCE: Record<SpellClass, string> = {
   "magic-user": "Woundwort's Warren p. 7",
@@ -67,15 +70,22 @@ const SLOTS: Record<SpellClass, number[][]> = {
 /**
  * Spells a character may hold each day, by spell level (index 0 = 1st).
  * A cleric adds the Wisdom bonus to 1st-level spells (WW p. 5), which is how a
- * 1st-level cleric with Wis 15+ casts at all (WW p. 25).
+ * 1st-level cleric with Wis 15+ casts at all (WW p. 25). At 1st level that is
+ * one spell at most (Jay's ruling cleric-l1-scroll).
  */
 export function spellSlots(cls: SpellClass, level: number, wis: number | null): number[] {
   const table = SLOTS[cls];
   if (!Number.isInteger(level) || level < 1 || level > table.length) throw new RangeError(`No spell row for level ${level}`);
   const slots = [...table[level - 1]];
-  if (cls === "cleric" && wis !== null) slots[0] += Math.max(0, abilityModifier(wis));
+  if (cls === "cleric" && wis !== null) {
+    const bonus = Math.max(0, abilityModifier(wis));
+    slots[0] += level === 1 ? Math.min(bonus, CLERIC_FIRST_LEVEL_MAX) : bonus;
+  }
   return slots;
 }
+
+/** Jay's ruling cleric-l1-scroll: a 1st-level cleric's prayer scroll holds one spell. */
+export const CLERIC_FIRST_LEVEL_MAX = 1;
 
 const MU: string[][] = [
   ["Charm Person", "Detect Magic", "Floating Disc", "Hold Portal", "Light", "Magic Missile", "Protection from Chaos", "Read Languages", "Read Magic", "Sleep"],
@@ -177,14 +187,6 @@ export function checkPrepared(cls: SpellClass, slots: number[], known: Spell[], 
     if (n > max) return `${n} ${ordinal(level)}-level spells prepared, but only ${max} allowed at this level.`;
   }
   return null;
-}
-
-/** Names of spells that fill more than one slot (pending ruling "prepare-same-spell"). */
-export function repeatedSpells(prepared: string[]): string[] {
-  const seen = new Set<string>();
-  const twice = new Set<string>();
-  for (const key of prepared) (seen.has(key) ? twice : seen).add(key);
-  return SPELLS.filter((s) => twice.has(s.key)).map((s) => s.name);
 }
 
 export function ordinal(n: number): string {

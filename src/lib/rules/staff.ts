@@ -1,4 +1,4 @@
-import type { CharacterClass, Race } from "@/db/schema";
+import type { CharacterClass } from "@/db/schema";
 import { abilityModifier } from "./abilities";
 import { spell, spellsFor, type Spell } from "./spells";
 
@@ -15,17 +15,16 @@ import { spell, spellsFor, type Spell } from "./spells";
  *   wand instead. Only one staff or wand at a time.
  * - 1st-level magic-user spells: WW p. 26 (the list in spells.ts).
  *
- * Open questions left to Jay (rulings seed in scripts/migrate.mjs):
- * - "elf-wand-int": does an elf need an Intelligence bonus too? Here the same
- *   Intelligence rule applies to elves, and the card says so.
- * - "staff-carry-over-rest": does a stored spell last through rest? Here it
- *   stays stored until released.
- * - "staff-same-spell-twice": may both slots hold the same spell? Allowed here,
- *   and shown as a warning.
- * - "staff-loss": is a stored spell lost with the staff? Nothing is cleared
- *   here; the card warns, and Jay can void the slot.
- * - "staff-int-drop": what happens to stored spells past a lowered capacity?
- *   Nothing is cleared here; the card warns.
+ * Jay's rulings (17 Nov 2026):
+ * - "elf-wand-int": elves need an Intelligence bonus (15+) like any magic-user.
+ * - "staff-carry-over-rest": a stored spell stays until it is used, through any
+ *   amount of rest.
+ * - "staff-same-spell-twice": both slots may hold the same spell.
+ * - "staff-loss": if the staff or wand is broken, stolen or dropped, the stored
+ *   spells are lost. Removing the item from the character's gear voids them
+ *   (lostWithItem); Jay voids them by hand when the staff is lost in play.
+ * - "staff-int-drop": a stored spell past a lowered limit stays until it is
+ *   released, but no new spell can be loaded past the limit (checkLoad).
  */
 export const STAFF_SOURCE = "Woundwort's Warren pp. 5, 7";
 
@@ -42,11 +41,10 @@ export const STAFF_CATALOG_KEY = "staff";
 /**
  * How many 1st-level spells the character's staff or wand can hold: 0, 1 or 2
  * (WW pp. 5, 7). Only a character with a magic-user class, which includes an
- * elf who has magic-user as one of its two classes (WW p. 10). The same
- * Intelligence rule applies to elves until "elf-wand-int" is decided.
+ * elf who has magic-user as one of its two classes (WW p. 10). Elves follow
+ * the same Intelligence rule (Jay's ruling elf-wand-int).
  */
-export function staffCapacity(classes: readonly CharacterClass[], race: Race | null, int: number | null): 0 | 1 | 2 {
-  void race; // Elves use the same rule for now (pending "elf-wand-int").
+export function staffCapacity(classes: readonly CharacterClass[], int: number | null): 0 | 1 | 2 {
   if (!classes.includes("magic-user") || int === null) return 0;
   const bonus = abilityModifier(int);
   return bonus >= 2 ? 2 : bonus === 1 ? 1 : 0;
@@ -138,11 +136,11 @@ export function checkVoid(states: readonly SlotState[], slot: number, note: stri
   return null;
 }
 
-export type StaffWarning = { ruling: string; text: string };
+export type StaffWarning = { ruling: string | null; text: string };
 
 /**
- * Things the card should flag without changing anything (never automatic
- * deletion). `focusId` is the current focus item, null if none.
+ * Things the card should flag without changing anything. `focusId` is the
+ * current focus item, null if none.
  */
 export function staffWarnings(input: {
   states: readonly SlotState[];
@@ -157,25 +155,34 @@ export function staffWarnings(input: {
     warnings.push({
       ruling: "staff-int-drop",
       text:
-        input.capacity === 0
+        (input.capacity === 0
           ? `This character can't store spells now, but ${over.length === 1 ? "a spell is" : "spells are"} still stored.`
-          : `Slot ${over.map((s) => s.slot).join(" and ")} holds a spell past what Intelligence now allows.`,
+          : `Slot ${over.map((s) => s.slot).join(" and ")} holds a spell past what Intelligence now allows.`) +
+        " It stays until released, but no new spell can be loaded there.",
     });
   }
+  // Spells stored in an item removed before the staff-loss ruling, which nothing voided.
   const gone = loaded.filter((s) => !s.inventoryId || !input.itemIds.has(s.inventoryId));
   const moved = loaded.filter((s) => s.inventoryId && input.itemIds.has(s.inventoryId) && s.inventoryId !== input.focusId);
   if (gone.length > 0) {
-    warnings.push({ ruling: "staff-loss", text: `The staff or wand holding ${names(gone)} is no longer in this character's gear.` });
+    warnings.push({
+      ruling: "staff-loss",
+      text: `The staff or wand holding ${names(gone)} is no longer in this character's gear, so the spell is lost. Jay voids the slot.`,
+    });
   }
   if (moved.length > 0) {
-    warnings.push({ ruling: "staff-loss", text: `${names(moved)} ${moved.length === 1 ? "was" : "were"} stored in an item that is no longer the spell focus.` });
-  }
-  const keys = loaded.map((s) => s.spell);
-  if (keys.length === 2 && keys[0] === keys[1]) {
-    warnings.push({ ruling: "staff-same-spell-twice", text: `Both slots hold ${names(loaded.slice(0, 1))}.` });
+    warnings.push({ ruling: null, text: `${names(moved)} ${moved.length === 1 ? "was" : "were"} stored in an item that is no longer the spell focus.` });
   }
   return warnings;
 }
+
+/** Slots whose spell is stored in this item, to void when the item leaves the character's gear (staff-loss). */
+export function lostWithItem(states: readonly SlotState[], itemId: string): SlotState[] {
+  return states.filter((s) => s.spell && s.inventoryId === itemId);
+}
+
+/** The note on a void written because the staff or wand left the character's gear. */
+export const LOST_WITH_ITEM_NOTE = "Lost with the staff or wand when it left the character's gear (Jay's ruling staff-loss).";
 
 function names(states: readonly SlotState[]): string {
   return states.map((s) => (s.spell ? spell(s.spell)?.name ?? s.spell : "a spell")).join(" and ");

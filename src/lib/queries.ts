@@ -119,7 +119,8 @@ export async function getCharacter(id: string) {
     db
       .select({ id: hitDice.id, class: hitDice.class, level: hitDice.level, gain: hitDice.gain, lostAt: hitDice.lostAt, dice: rolls.dice, total: rolls.totals, formula: rolls.formula })
       .from(hitDice)
-      .innerJoin(rolls, eq(rolls.id, hitDice.rollId))
+      // From 10th level hit points are a fixed amount with no roll (WW pp. 7-9).
+      .leftJoin(rolls, eq(rolls.id, hitDice.rollId))
       .where(eq(hitDice.characterId, id))
       .orderBy(asc(hitDice.level), asc(hitDice.createdAt)),
     db

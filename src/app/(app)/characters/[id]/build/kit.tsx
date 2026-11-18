@@ -12,7 +12,7 @@ export type KitRow = {
   cost: string;
   costGp: number | null;
   enc: number;
-  why: string | null; // set when the class may not take it (classAllows)
+  why: string | null; // set when the class can't use it (classAllows); it may still be carried
 };
 
 const SECTIONS = [
@@ -116,12 +116,11 @@ export function KitPicker({
                     {list.map((r) => {
                       const n = qty[r.key] ?? 0;
                       return (
-                        <li key={r.key} className={`flex items-center gap-3 py-1.5 ${r.why ? "opacity-50" : ""}`}>
+                        <li key={r.key} className="flex items-center gap-3 py-1.5">
                           <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3">
                             <input
                               type="checkbox"
                               checked={n > 0}
-                              disabled={Boolean(r.why)}
                               onChange={(e) => toggle(r.key, e.target.checked)}
                               className="size-5 flex-none accent-lime"
                             />
@@ -129,7 +128,7 @@ export function KitPicker({
                               <span className="text-[15px]">{r.name}</span>
                               <span className="text-xs text-subtle">
                                 {r.cost} · {r.enc === 0 ? "no weight" : `${r.enc} unit${r.enc === 1 ? "" : "s"}`}
-                                {r.why && ` · ${r.why}`}
+                                {r.why && <span className="text-amber"> · Can carry, can&apos;t use. {r.why}</span>}
                               </span>
                             </span>
                           </label>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { combatRows, combatRuling, toHit } from "@/lib/rules/combat";
-import { levelsGained, levelUp, type LevelUpInput } from "@/lib/rules/levelup";
+import { combatRows, toHit } from "@/lib/rules/combat";
+import { awardTooBig, levelsGained, levelUp, neutralClericBlocked, type LevelUpInput } from "@/lib/rules/levelup";
 import { thiefSkills } from "@/lib/rules/thief";
 import { canAffectUndead, turningColumn, turningRow } from "@/lib/rules/turning";
 
@@ -26,16 +26,15 @@ describe("Character Combat Matrix (WW pp. 19-20)", () => {
     expect(toHit("thief", 9, 9)).toEqual(toHit("cleric", 9, 9));
     expect(toHit("thief", 9, 9)).toEqual([6]);
   });
-  it("magic-users as printed, with 5th and 6th level in two rows (mu-combat-rows)", () => {
+  it("magic-users: 5th and 6th level use the 4-6 row, 7th-9th the next (Jay's ruling mu-combat-rows)", () => {
     expect(combatRows("magic-user", 3).map((r) => r.row)).toEqual([1]);
     expect(combatRows("magic-user", 4).map((r) => r.row)).toEqual([2]);
-    expect(combatRows("magic-user", 5).map((r) => r.row)).toEqual([2, 3]);
-    expect(combatRows("magic-user", 6).map((r) => r.row)).toEqual([2, 3]);
+    expect(combatRows("magic-user", 5).map((r) => r.row)).toEqual([2]);
+    expect(combatRows("magic-user", 6).map((r) => r.row)).toEqual([2]);
     expect(combatRows("magic-user", 7).map((r) => r.row)).toEqual([3]);
-    expect(toHit("magic-user", 5, 9)).toEqual([9, 8]);
-    expect(combatRuling("magic-user", 6)).toBe("mu-combat-rows");
-    expect(combatRuling("magic-user", 7)).toBeNull();
-    expect(combatRuling("fighting-man", 5)).toBeNull();
+    expect(combatRows("magic-user", 9).map((r) => r.row)).toEqual([3]);
+    expect(combatRows("magic-user", 10).map((r) => r.row)).toEqual([4]);
+    expect(toHit("magic-user", 5, 9)).toEqual([9]);
   });
 });
 
@@ -127,11 +126,15 @@ describe("levelUp", () => {
     expect(find(u, "Affect Skeleton")).toMatchObject({ before: "3", after: "T" });
     expect(find(u, "Affect Wraith")).toMatchObject({ before: "-", after: "11" });
   });
-  it("warns about a neutral cleric reaching 4th level (neutral-cleric-fourth)", () => {
+  it("says a neutral cleric can't take 4th level's hit die yet (neutral-cleric-fourth)", () => {
     const u = levelUp(human("cleric", { alignment: "neutral" }), 3, 4);
-    expect(u.notes.map((n) => n.ruling)).toContain("neutral-cleric-fourth");
+    expect(u.notes.some((n) => n.text.includes("can't be rolled until Jay changes the alignment"))).toBe(true);
     expect(u.changes.some((c) => c.label.startsWith("Affect"))).toBe(false);
-    expect(levelUp(human("cleric", { alignment: "neutral" }), 1, 2).notes.map((n) => n.ruling)).not.toContain("neutral-cleric-fourth");
+    expect(levelUp(human("cleric", { alignment: "neutral" }), 1, 2).notes.some((n) => n.text.includes("4th level"))).toBe(false);
+    expect(neutralClericBlocked("cleric", "neutral", 4)).toContain("Law or Chaos");
+    expect(neutralClericBlocked("cleric", "neutral", 3)).toBeNull();
+    expect(neutralClericBlocked("cleric", "lawful", 4)).toBeNull();
+    expect(neutralClericBlocked("fighting-man", "neutral", 4)).toBeNull();
   });
   it("lists thief skills that improve", () => {
     const u = levelUp(human("thief"), 1, 2);
@@ -139,16 +142,31 @@ describe("levelUp", () => {
     expect(find(u, "Read Languages")).toMatchObject({ before: "-", after: "1" });
     expect(find(u, "Pick Pockets")).toBeUndefined();
   });
-  it("flags the magic-user combat misprint at 5th level", () => {
+  it("magic-users keep the 4-6 row at 5th level (mu-combat-rows)", () => {
     const u = levelUp(human("magic-user"), 4, 5);
-    expect(find(u, "Roll to hit AC 9")).toMatchObject({ before: "9", after: "9 or 8" });
-    expect(u.notes.map((n) => n.ruling)).toContain("mu-combat-rows");
+    expect(find(u, "Roll to hit AC 9")).toBeUndefined();
+    expect(find(levelUp(human("magic-user"), 6, 7), "Roll to hit AC 9")).toMatchObject({ before: "9", after: "8" });
   });
-  it("notes the race cap and 9th level", () => {
+  it("notes the race cap and 10th level", () => {
     expect(levelUp({ ...human("fighting-man"), race: "halfling" }, 4, 5).notes[0].text).toContain("as high as a halfling fighting-man goes");
-    expect(levelUp(human("fighting-man"), 8, 9).notes.map((n) => n.ruling)).toContain("name-level-xp");
+    expect(levelUp(human("fighting-man"), 8, 9).notes).toEqual([]);
+    const ten = levelUp(human("fighting-man"), 9, 10);
+    expect(ten.notes.map((n) => n.ruling)).toContain("past-tenth-level");
+    expect(find(ten, "Title")).toMatchObject({ before: "Knight", after: "Lord" });
+    expect(find(ten, "Hit points per level")).toMatchObject({ before: "1d6", after: "+3" });
     expect(() => levelUp({ ...human("fighting-man"), race: "halfling" }, 5, 6)).toThrow(RangeError);
     expect(() => levelUp(human("fighting-man"), 3, 3)).toThrow(RangeError);
+    expect(() => levelUp(human("fighting-man"), 10, 11)).toThrow(RangeError);
+  });
+});
+
+describe("one level per award (Jay's ruling one-level-per-adventure)", () => {
+  it("refuses an award that gains two levels and names the most it can bring", () => {
+    expect(awardTooBig("human", "fighting-man", 0, 3999)).toBeNull();
+    expect(awardTooBig("human", "fighting-man", 0, 4000)).toContain("the most this award can bring is 3,999 XP");
+    expect(awardTooBig("human", "fighting-man", 5000, 1000)).toBeNull();
+    // Held at the race cap, so no second level can be gained.
+    expect(awardTooBig("halfling", "fighting-man", 10000, 999999)).toBeNull();
   });
 });
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { CharacterClass, Race } from "@/db/schema";
 import { CLASS_NAMES, levelRow } from "@/lib/rules/advancement";
-import { DRAIN_SOURCE, planDrain, untrackedLevelsFor, type DrainDie } from "@/lib/rules/drain";
+import { planDrain, untrackedLevelsFor, type DrainDie } from "@/lib/rules/drain";
 import { ordinal } from "@/lib/rules/levelup";
 import { drainLevels } from "../actions";
 import { SubmitButton } from "./build/forms";
@@ -13,7 +13,8 @@ type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean
 const input = "min-h-11 rounded-xl border border-line-2 bg-ink px-3 text-sm text-parchment";
 
 /**
- * Jay's level-loss form (Monsters & Treasure p. 9). The preview runs the same
+ * Jay's form for taking back levels given by mistake (there is no level drain
+ * in this campaign; see src/lib/rules/drain.ts). The preview runs the same
  * planDrain the server runs, so what Jay sees is what gets saved.
  */
 export function DrainForm({ characterId, race, hpMax, classes }: { characterId: string; race: Race | null; hpMax: number; classes: ClassRow[] }) {
@@ -40,12 +41,12 @@ export function DrainForm({ characterId, race, hpMax, classes }: { characterId: 
 
   return (
     <details className="rounded-xl border border-ember-edge px-4 py-2.5">
-      <summary className="min-h-8 cursor-pointer text-sm text-ember">Level loss</summary>
+      <summary className="min-h-8 cursor-pointer text-sm text-ember">Take levels away</summary>
       <form action={drainLevels} className="flex flex-col gap-3 pt-2">
         <p className="text-xs text-subtle">
-          {DRAIN_SOURCE}: a Wight or Wraith drains one level per hit, a Spectre or Vampire two. A hit removes both the level and its hit
-          die. The book doesn&apos;t say what XP is left, so you set it (drain-xp). Current hit points stay as they are until you rule
-          on that (drain-hp-current).
+          There is no level drain in this campaign: undead drain abilities instead (Jay&apos;s ruling, house rules p. 56). Use this
+          only to take back levels given by mistake. Each level above the new XP loses its hit die and the hit points it gave.
+          Current hit points stay as they are.
         </p>
         <input type="hidden" name="id" value={characterId} />
         <div className="flex flex-wrap items-end gap-2">
@@ -94,7 +95,7 @@ export function DrainForm({ characterId, race, hpMax, classes }: { characterId: 
           )}
           <label className="flex min-w-50 flex-1 flex-col gap-1.5 text-[13px] text-muted">
             Reason
-            <input name="reason" required maxLength={200} placeholder="Wight's hit, session 12" className={input} />
+            <input name="reason" required maxLength={200} placeholder="XP typed wrong, session 12" className={input} />
           </label>
           <SubmitButton tone="plain" pendingText="Saving…">
             Take levels away

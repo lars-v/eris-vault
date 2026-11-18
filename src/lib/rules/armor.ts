@@ -10,18 +10,12 @@ import { CATALOG, catalogItem, classAllows, type CatalogItem, type Wielder } fro
  *   indicated amount, and a penalty raises the character's AC."
  * - WW p. 9: thieves may not wear armor heavier than leather or employ a
  *   shield, so such armor never counts for a thief (via classAllows).
- * - Monsters & Treasure p. 30: magic armor does not change the number. "Armor
- *   proper subtracts its bonus from the hit dice of the opponents of its
- *   wearer. If the shield's bonus is greater than that of the armor there is a
- *   one-third chance that the blow will be caught by the shield, thus giving
- *   the additional subtraction." The sheet says this in words.
- *   On the WW pp. 19-20 to-hit tables, 1 off the attacker's roll plays like 1
- *   better armor class except where 20 is needed. Until Jay rules
- *   (magic-armor-ac), the sheet shows the book number and, beside it, the
- *   number with the armor's bonus in. A shield's bonus counts only one blow in
- *   three, so it is never folded in.
- * - WW p. 17 sells "Shield (large)" but the table names only "Shield". Until
- *   Jay rules (large-shield-ac), a large shield counts as a shield.
+ * - Magic armor and shields: Jay's ruling "magic-armor-ac" (17 Nov 2026).
+ *   Magic armor lowers armor class by its bonus, and a magic shield lowers it
+ *   by its bonus too. This replaces Monsters & Treasure p. 30, where the bonus
+ *   comes off the attacker's roll and a shield's counts one blow in three.
+ * - WW p. 17 sells "Shield (large)" but the table names only "Shield". Jay's
+ *   ruling "large-shield-ac" (17 Nov 2026): a large shield counts as a shield.
  * Only armor on the character ("carried") counts. An item is armor when it has
  * a price-list key, or its name is a price-list armor name with an optional
  * "+N". Anything else that sounds like armor is named, not counted.
@@ -54,16 +48,16 @@ export type ArmorNote = { text: string; tone: "plain" | "amber" };
 export type ArmorClass = {
   /** Final armor class: the table value moved by the Dexterity modifier. */
   ac: number;
-  /** The Armor Class Table value before Dexterity. */
+  /** The Armor Class Table value before Dexterity and magic. */
   table: number;
   /** Null when Dexterity isn't assigned yet. */
   dexMod: number | null;
   /** "Plate mail and shield", "Leather armor", "Shield only", "No armor". */
   wearing: string;
-  /** The worn armor's magic bonus, when one is entered. */
+  /** The worn armor's magic bonus, when one is entered. Already in `ac`. */
   armorBonus: number | null;
-  /** `ac` less the armor's magic bonus; null without one (magic-armor-ac). */
-  withMagic: number | null;
+  /** The carried shield's magic bonus, when one is entered. Already in `ac`. */
+  shieldBonus: number | null;
   notes: ArmorNote[];
 };
 
@@ -114,18 +108,21 @@ export function armorClass(items: ArmorItem[], dex: number | null, wielder: Wiel
     .sort((a, b) => BODY_ARMOR.indexOf(a.entry.key as BodyArmor) - BODY_ARMOR.indexOf(b.entry.key as BodyArmor));
   const shields = pieces.filter((p) => isShield(p.entry.key));
   const armor = bodies[0] ?? null;
-  // A plain shield first, since that is the one the table names; then the best magic bonus.
+  // The best magic bonus first; a large shield is the same as a shield, so a plain one breaks ties.
   const shield =
     [...shields].sort(
       (a, b) =>
-        Number(a.entry.key === "shield-large") - Number(b.entry.key === "shield-large") ||
-        (bonusOf(b.item) ?? 0) - (bonusOf(a.item) ?? 0),
+        (bonusOf(b.item) ?? 0) - (bonusOf(a.item) ?? 0) ||
+        Number(a.entry.key === "shield-large") - Number(b.entry.key === "shield-large"),
     )[0] ?? null;
 
   const row = ARMOR_CLASS_TABLE[armor ? (armor.entry.key as BodyArmor) : "none"];
   const table = shield ? row.shield : row.plain;
   const dexMod = dex === null ? null : abilityModifier(dex);
-  const ac = table - (dexMod ?? 0);
+  // Magic armor and shields lower the number by their bonus (Jay's ruling magic-armor-ac).
+  const armorBonus = armor ? bonusOf(armor.item) : null;
+  const shieldBonus = shield ? bonusOf(shield.item) : null;
+  const ac = table - (dexMod ?? 0) - (armorBonus ?? 0) - (shieldBonus ?? 0);
 
   const otherSuits = [...new Set(bodies.slice(1).map((b) => plain(b.entry)))].filter((n) => n !== plain(armor!.entry));
   if (otherSuits.length > 0) {
@@ -135,35 +132,12 @@ export function armorClass(items: ArmorItem[], dex: number | null, wielder: Wiel
     });
   }
   if (shield?.entry.key === "shield-large") {
-    notes.push({
-      text: "The Armor Class Table names only a shield, so a large shield counts as one until Jay rules (large-shield-ac).",
-      tone: "amber",
-    });
+    notes.push({ text: "A large shield counts as a shield (Jay's ruling).", tone: "plain" });
   }
   if (dexMod === null) notes.push({ text: "Dexterity isn't assigned yet, so its bonus or penalty isn't in.", tone: "amber" });
 
-  // Magic armor and shields change what attackers roll, not the number (M&T p. 30).
-  const armorBonus = armor ? bonusOf(armor.item) : null;
-  const shieldBonus = shield ? bonusOf(shield.item) : null;
-  if (armor?.item.isMagic) {
-    notes.push(
-      armorBonus
-        ? {
-            text: `Magic armor +${armorBonus}: attackers take ${armorBonus} off their hit dice when they roll to hit you (Monsters & Treasure p. 30). On the to-hit tables that plays like AC ${ac - armorBonus}, except where 20 is needed. Jay will rule which number the table uses (magic-armor-ac).`,
-            tone: "plain",
-          }
-        : { text: "The armor is magic but its bonus isn't entered.", tone: "amber" },
-    );
-  }
-  if (shield?.item.isMagic) {
-    if (!shieldBonus) notes.push({ text: "The shield is magic but its bonus isn't entered.", tone: "amber" });
-    else if (shieldBonus > (armorBonus ?? 0)) {
-      notes.push({
-        text: `Magic shield +${shieldBonus}: one blow in three is caught by the shield, which gives its greater bonus (Monsters & Treasure p. 30).`,
-        tone: "plain",
-      });
-    }
-  }
+  if (armor?.item.isMagic && !armorBonus) notes.push({ text: "The armor is magic but its bonus isn't entered.", tone: "amber" });
+  if (shield?.item.isMagic && !shieldBonus) notes.push({ text: "The shield is magic but its bonus isn't entered.", tone: "amber" });
 
   const away = [
     ...new Set(
@@ -194,15 +168,19 @@ export function armorClass(items: ArmorItem[], dex: number | null, wielder: Wiel
     dexMod,
     wearing,
     armorBonus: armorBonus || null,
-    withMagic: armorBonus ? ac - armorBonus : null,
+    shieldBonus: shieldBonus || null,
     notes: notes.filter((n) => !seen.has(n.text) && seen.add(n.text)),
   };
 }
 
-/** How the number was reached, in one or two plain sentences. */
+/** How the number was reached, in a few plain sentences. */
 export function armorClassWorking(r: ArmorClass): string {
-  const base = `${r.table} on the Armor Class Table.`;
-  if (r.dexMod === null || r.dexMod === 0) return base;
-  const dir = r.dexMod > 0 ? "lowers" : "raises";
-  return `${base} Dexterity ${formatModifier(r.dexMod)} ${dir} it by ${Math.abs(r.dexMod)} (WW p. 5).`;
+  const parts = [`${r.table} on the Armor Class Table.`];
+  if (r.dexMod !== null && r.dexMod !== 0) {
+    const dir = r.dexMod > 0 ? "lowers" : "raises";
+    parts.push(`Dexterity ${formatModifier(r.dexMod)} ${dir} it by ${Math.abs(r.dexMod)} (WW p. 5).`);
+  }
+  const magic = [r.armorBonus && `the armor's +${r.armorBonus}`, r.shieldBonus && `the shield's +${r.shieldBonus}`].filter(Boolean);
+  if (magic.length) parts.push(`Magic lowers it by ${magic.join(" and ")} (Jay's ruling).`);
+  return parts.join(" ");
 }

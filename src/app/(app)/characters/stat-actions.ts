@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { and, eq, isNull, max } from "drizzle-orm";
 import { db } from "@/db";
-import { characterClasses, characters, hitDice } from "@/db/schema";
+import { characterClasses, characters, hitDice, rolls } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { can } from "@/lib/roles";
 import { ABILITIES } from "@/lib/rules/abilities";
 import { CLASS_NAMES, levelRow, xpBelowRolledLevel } from "@/lib/rules/advancement";
+import { awardTooBig } from "@/lib/rules/levelup";
 import {
   applyHpChange,
   checkCoins,
@@ -19,6 +20,7 @@ import {
   REASON_MAX,
   XP_LIMIT,
   type HpChange,
+  type HpDieRecord,
   type OverrideInput,
 } from "@/lib/rules/overrides";
 import { requireUser, type CurrentUser } from "@/lib/session";
@@ -132,6 +134,36 @@ async function setCoinsImpl(formData: FormData) {
 
 /* ---------- Tier 2: overrides by Jay and admins ---------- */
 
+/**
+ * Every die behind maximum hit points, for a Constitution recount (Jay's
+ * ruling con-change-hp). Null when they can't all be read from the rolls:
+ * a character from a sheet, levels the sheet brought in, a hand-set maximum,
+ * or a total that doesn't match the dice.
+ */
+async function hpDiceFor(
+  tx: Tx,
+  c: typeof characters.$inferSelect,
+  classRows: (typeof characterClasses.$inferSelect)[],
+  firstClass: (typeof characterClasses.$inferSelect)["class"] | null,
+): Promise<HpDieRecord[] | null> {
+  if (c.source !== "app" || !c.hpRollId || !firstClass || c.hpMax === null || c.manualFields.includes("hpMax")) return null;
+  if (classRows.some((k) => k.baseHpLevel !== 1)) return null;
+  const [first] = await tx.select({ dice: rolls.dice, totals: rolls.totals }).from(rolls).where(eq(rolls.id, c.hpRollId));
+  const later = await tx
+    .select({ id: hitDice.id, cls: hitDice.class, level: hitDice.level, gain: hitDice.gain, dice: rolls.dice })
+    .from(hitDice)
+    .leftJoin(rolls, eq(rolls.id, hitDice.rollId))
+    .where(and(eq(hitDice.characterId, c.id), isNull(hitDice.lostAt)));
+  const face = first?.dice[0]?.[0];
+  if (face === undefined) return null;
+  const dice: HpDieRecord[] = [
+    { id: null, cls: firstClass, level: 1, face, gain: first.totals[0] },
+    ...later.map((d) => ({ id: d.id, cls: d.cls, level: d.level, face: d.dice?.[0]?.[0] ?? null, gain: d.gain ?? 0 })),
+  ];
+  if (dice.reduce((n, d) => n + d.gain, 0) !== c.hpMax) return null;
+  return dice;
+}
+
 async function overrideStatsImpl(formData: FormData) {
   const viewer = await requireUser();
   if (!can.overrideStats(viewer)) throw new Error("Only Jay or an admin can set stats by hand.");
@@ -158,8 +190,10 @@ async function overrideStatsImpl(formData: FormData) {
       deity: str(formData, "deity"),
       hpMax: num(formData, "hpMax"),
       xp: xpInput,
+      hpRecounted: formData.get("hpRecounted") === "on",
     } as OverrideInput;
     const active = classRows.find((k) => k.active) ?? classRows[0];
+    const hpDice = await hpDiceFor(tx, c, classRows, active?.class ?? null);
     const plan = planOverride(
       {
         ...Object.fromEntries(ABILITIES.map((a) => [a, c[a]])),
@@ -173,6 +207,7 @@ async function overrideStatsImpl(formData: FormData) {
           xp: k.xp,
           highestHitDie: rolled.find((r) => r.class === k.class)?.top ?? 0,
         })),
+        hpDice,
       } as Parameters<typeof planOverride>[0],
       input,
       active?.class ?? null,
@@ -184,6 +219,10 @@ async function overrideStatsImpl(formData: FormData) {
       .where(eq(characters.id, id));
     for (const [classId, xp] of Object.entries(plan.xp)) {
       await tx.update(characterClasses).set({ xp }).where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
+    }
+    // Constitution recount (Jay's ruling con-change-hp): each hit die keeps its roll and records its new gain.
+    for (const d of plan.dieGains) {
+      await tx.update(hitDice).set({ gain: d.gain }).where(and(eq(hitDice.id, d.id), eq(hitDice.characterId, id)));
     }
     return plan.changes;
   });
@@ -225,6 +264,10 @@ async function setXpImpl(formData: FormData) {
       .where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
     if (!k) throw new Error("Unknown class");
     if (xp === k.xp) return null;
+    // No single award gains more than one level (Jay's ruling one-level-per-adventure).
+    // Jay fixes a mistake with Set stats by hand, which needs a reason.
+    const tooBig = awardTooBig(c.race, k.class, k.xp, xp);
+    if (tooBig) throw new Error(tooBig);
     if (xp < k.xp) {
       const [row] = await tx
         .select({ level: max(hitDice.level) })

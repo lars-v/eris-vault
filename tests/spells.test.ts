@@ -3,7 +3,6 @@ import {
   checkPrepared,
   knownSpells,
   maxSpellLevel,
-  repeatedSpells,
   spell,
   SPELLS,
   spellSlots,
@@ -31,12 +30,14 @@ describe("spells per day (Woundwort's Warren pp. 7-8)", () => {
 
   it("a cleric's Wisdom bonus adds 1st-level spells (WW p. 5)", () => {
     expect(spellSlots("cleric", 1, 15)).toEqual([1, 0, 0, 0, 0]);
-    expect(spellSlots("cleric", 1, 18)).toEqual([2, 0, 0, 0, 0]);
+    // Jay's ruling cleric-l1-scroll: one spell at 1st level, even with Wis 18.
+    expect(spellSlots("cleric", 1, 18)).toEqual([1, 0, 0, 0, 0]);
+    expect(spellSlots("cleric", 2, 18)).toEqual([3, 0, 0, 0, 0]);
     // Liz: a 4th-level Vicar with a +1 Wisdom bonus has 3 1st-level and 1 2nd-level spell.
     expect(spellSlots("cleric", 4, 16)).toEqual([3, 1, 0, 0, 0]);
   });
 
-  it("a Wisdom penalty takes nothing away while the ruling is pending", () => {
+  it("a Wisdom penalty takes nothing away (Jay's ruling cleric-wis-penalty)", () => {
     expect(spellSlots("cleric", 2, 5)).toEqual([1, 0, 0, 0, 0]);
   });
 
@@ -106,8 +107,7 @@ describe("checking prepared spells", () => {
     expect(checkPrepared("cleric", slots, known, ["mu:sleep"])).toMatch(/class's list/);
   });
 
-  it("lists spells prepared twice", () => {
-    expect(repeatedSpells(["mu:sleep", "mu:light", "mu:sleep"])).toEqual(["Sleep"]);
-    expect(repeatedSpells(["mu:sleep"])).toEqual([]);
+  it("lets one spell fill several slots (Jay's ruling prepare-same-spell)", () => {
+    expect(checkPrepared("magic-user", spellSlots("magic-user", 3, 10), knownSpells("magic-user"), ["mu:sleep", "mu:sleep", "mu:sleep"])).toBeNull();
   });
 });

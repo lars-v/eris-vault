@@ -1,6 +1,6 @@
 import { Chip, Panel } from "@/components/ui";
 import { abilityModifier } from "@/lib/rules/abilities";
-import { checkPrepared, knownSpells, maxSpellLevel, ordinal, repeatedSpells, spell, spellSlots, type SpellClass } from "@/lib/rules/spells";
+import { checkPrepared, knownSpells, maxSpellLevel, ordinal, spell, spellSlots, type SpellClass } from "@/lib/rules/spells";
 import { PreparedSpells, type PrepareLevel } from "./PreparedSpells";
 
 export function SpellsPanel({
@@ -22,7 +22,6 @@ export function SpellsPanel({
   const known = knownSpells(cls);
   const list = cls === "cleric" ? "cleric" : "magic-user";
   const problem = checkPrepared(cls, slots, known, prepared);
-  const twice = repeatedSpells(prepared);
   const levels = Array.from({ length: maxSpellLevel(cls) }, (_, i) => i + 1);
   const castable = levels.filter((l) => (slots[l - 1] ?? 0) > 0);
   const prepareLevels: PrepareLevel[] = castable.map((l) => ({
@@ -50,20 +49,19 @@ export function SpellsPanel({
       <p className="text-sm text-muted">
         Every {list} has every spell on the {list} list (table ruling, 16 Nov 2026). Spells per day still follow WW {cls === "cleric" ? "pp. 5 and 8" : "p. 7"}.
       </p>
-      {cls === "cleric" && level === 1 && castable.length === 0 && (
-        <p className="text-sm text-muted">A 1st-level cleric casts no spells unless Wisdom is 15 or more (WW p. 25).</p>
+      {cls === "cleric" && level === 1 && (
+        <p className="text-sm text-muted">
+          {castable.length === 0
+            ? "A 1st-level cleric casts no spells unless Wisdom is 15 or more (WW p. 25)."
+            : "With Wisdom 15 or more, a 1st-level cleric has one spell, and the player picks it (WW p. 25; Jay's ruling)."}
+        </p>
       )}
       {cls === "cleric" && wis !== null && abilityModifier(wis) < 0 && (
-        <p className="text-sm text-amber">WW p. 5 gives clerics extra spells for high Wisdom but says nothing about low Wisdom. Jay hasn&apos;t ruled yet, so no spells are taken away.</p>
+        <p className="text-sm text-muted">A low Wisdom never takes spells away (Jay&apos;s ruling).</p>
       )}
 
       {problem && prepared.length > 0 && (
         <p className="rounded-xl border border-amber-edge bg-amber-wash px-3 py-2 text-sm text-amber">Saved spells no longer fit: {problem} Prepare again.</p>
-      )}
-      {twice.length > 0 && (
-        <p className="rounded-xl border border-amber-edge bg-amber-wash px-3 py-2 text-sm text-amber">
-          {twice.join(", ")} {twice.length === 1 ? "is" : "are"} prepared more than once. The books don&apos;t say if that&apos;s allowed; Jay will rule.
-        </p>
       )}
 
       {castable.length > 0 && <PreparedSpells id={id} levels={prepareLevels} canEdit={canPrepare} />}

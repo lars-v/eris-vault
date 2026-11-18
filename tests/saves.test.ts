@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptableTotals, againstText, bonusText, overlappingForms, parseAgainst, saveBonusesFor } from "@/lib/rules/saves";
+import { againstText, bonusText, overlappingForms, parseAgainst, saveBonusesFor, saveTotal } from "@/lib/rules/saves";
 
 describe("Saving Throw Bonuses (WW p. 21)", () => {
   it("lists the class row, then the race rows", () => {
@@ -14,18 +14,19 @@ describe("Saving Throw Bonuses (WW p. 21)", () => {
     expect(saveBonusesFor("fighting-man", "dwarf").map(bonusText)).toEqual(["+1 vs death and poison", "+4 vs magic", "+1 vs death and poison"]);
   });
 
-  it("names where class and race overlap, without adding them (save-bonus-stacking)", () => {
+  it("names where class and race overlap", () => {
     expect(overlappingForms(saveBonusesFor("thief", "halfling"))).toEqual(["death", "poison"]);
     expect(overlappingForms(saveBonusesFor("magic-user", "elf"))).toEqual(["magic"]);
     expect(overlappingForms(saveBonusesFor("cleric", "human"))).toEqual([]);
     expect(overlappingForms(saveBonusesFor("cleric", "dwarf"))).toEqual(["poison"]);
   });
 
-  it("accepts either bonus alone or both together while stacking is open", () => {
-    expect(acceptableTotals("thief", "halfling", "death")).toEqual([1, 2, 3]);
-    expect(acceptableTotals("thief", "halfling", "magic")).toEqual([4]);
-    expect(acceptableTotals("thief", "halfling", "paralysis")).toEqual([]);
-    expect(acceptableTotals("magic-user", "elf", "magic")).toEqual([2, 4]);
+  it("adds class and race bonuses together (Jay's ruling save-bonus-stacking)", () => {
+    expect(saveTotal("thief", "halfling", "death")).toBe(3);
+    expect(saveTotal("thief", "halfling", "magic")).toBe(4);
+    expect(saveTotal("thief", "halfling", "paralysis")).toBe(0);
+    expect(saveTotal("magic-user", "elf", "magic")).toBe(4);
+    expect(saveTotal("fighting-man", "dwarf", "poison")).toBe(2);
   });
 
   it("reads the against box only in WW's words", () => {

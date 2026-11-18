@@ -23,8 +23,10 @@ import { CATALOG, catalogItem, classAllows, type CatalogItem, type WeaponClass, 
  *   with every target at medium range; magic war hammers +1 and +2 the same.
  *
  * Two ranges are printed so that they overlap the band before them (dart long
- * 21-45 after medium 16-30; sling long 80-160 after medium 41-80). They are
- * shown as printed until Jay rules (dart-long-range, sling-long-range).
+ * 21-45 after medium 16-30; sling long 80-160 after medium 41-80). Jay's
+ * rulings "dart-long-range" and "sling-long-range" (17 Nov 2026): dart long
+ * range is 31-45 and sling long range 81-160. `printedLong` keeps the book's
+ * figure so an imported sheet that copied it isn't flagged as wrong.
  */
 export const WEAPONS_SOURCE = "Woundwort's Warren p. 19";
 
@@ -36,7 +38,8 @@ type WeaponRule = {
   ranges?: Ranges;
   /** Missile launchers: the ammunition that sets the damage (WW p. 19). */
   ammo?: { name: string; weaponClass: WeaponClass };
-  rangeRuling?: string;
+  /** The long range as WW p. 19 prints it, where Jay's ruling corrected it. */
+  printedLong?: string;
 };
 
 /** Catalog key to WW p. 19 entry. Ammunition isn't a row of its own. */
@@ -45,7 +48,7 @@ export const WEAPON_RULES: Record<string, WeaponRule> = {
   "battle-axe": { uses: ["melee"] },
   club: { uses: ["melee"] },
   dagger: { uses: ["melee", "hurled"], ranges: ["1-10", "11-20", "21-30"] },
-  "darts-3": { uses: ["hurled"], ranges: ["1-15", "16-30", "21-45"], rangeRuling: "dart-long-range" },
+  "darts-3": { uses: ["hurled"], ranges: ["1-15", "16-30", "31-45"], printedLong: "21-45" },
   flail: { uses: ["melee"] },
   "hand-axe": { uses: ["melee", "hurled"], ranges: ["1-10", "11-20", "21-30"] },
   "heavy-war-hammer": { uses: ["melee"] },
@@ -63,9 +66,9 @@ export const WEAPON_RULES: Record<string, WeaponRule> = {
   "short-bow": { uses: ["missile"], ranges: ["1-50", "51-100", "101-150"], ammo: { name: "arrow", weaponClass: "normal" } },
   sling: {
     uses: ["missile"],
-    ranges: ["1-40", "41-80", "80-160"],
+    ranges: ["1-40", "41-80", "81-160"],
     ammo: { name: "sling stone", weaponClass: "small" },
-    rangeRuling: "sling-long-range",
+    printedLong: "80-160",
   },
 };
 
@@ -213,10 +216,10 @@ export function weaponTable(
       if (entry.key === "bastard-sword") {
         notes.push({ text: `Used two-handed: ${dice(CLASS_DAMAGE["two-handed"] + strDamage + magicDamage)} (WW p. 19).`, tone: "plain" });
       }
-      if (use !== "melee" && rule.rangeRuling) {
+      if (use !== "melee" && rule.printedLong) {
         notes.push({
-          text: `WW p. 19 prints long range as ${rule.ranges![2]}, which overlaps medium. Shown as printed until Jay rules (${rule.rangeRuling}).`,
-          tone: "amber",
+          text: `WW p. 19 prints long range as ${rule.printedLong}, which overlaps medium. Jay's ruling: long range is ${rule.ranges![2]}.`,
+          tone: "plain",
         });
       }
       rows.push({

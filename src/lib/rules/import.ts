@@ -4,7 +4,7 @@ import { ADVANCEMENT_SOURCE, CLASS_NAMES, levelFor, RACE_CLASSES } from "@/lib/r
 import { alignmentsFor, classesFor } from "@/lib/rules/creation";
 import { combatRows } from "@/lib/rules/combat";
 import { catalogItem, classAllows, type WeaponClass } from "@/lib/rules/equipment";
-import { acceptableTotals, againstText, parseAgainst, SAVE_FORMS, saveBonusesFor, type SaveForm } from "@/lib/rules/saves";
+import { againstText, overlappingForms, parseAgainst, SAVE_FORMS, saveBonusesFor, saveTotal, type SaveForm } from "@/lib/rules/saves";
 import { CLASS_DAMAGE, dice, magicAdds, WEAPON_RULES, weaponEntry } from "@/lib/rules/weapons";
 
 /**
@@ -154,21 +154,23 @@ function saveBonusCheck(c: ImportedCharacter, written: WrittenOnSheet): ImportFl
     }
     for (const form of forms) {
       covered.add(form);
-      const ok = acceptableTotals(c.cls, c.race, form);
-      if (ok.length === 0) problems.push(`The sheet gives ${sign(w.bonus)} vs ${form}; WW p. 21 gives a ${c.race} ${CLASS_NAMES[c.cls]} no bonus there.`);
-      else if (!ok.includes(w.bonus)) problems.push(`The sheet gives ${sign(w.bonus)} vs ${form}; WW p. 21 gives ${ok.map(sign).join(" or ")}.`);
+      const total = saveTotal(c.cls, c.race, form);
+      if (total === 0) problems.push(`The sheet gives ${sign(w.bonus)} vs ${form}; WW p. 21 gives a ${c.race} ${CLASS_NAMES[c.cls]} no bonus there.`);
+      else if (w.bonus !== total) problems.push(`The sheet gives ${sign(w.bonus)} vs ${form}; WW p. 21 gives ${sign(total)}.`);
     }
   }
-  const missing = saveBonusesFor(c.cls, c.race).filter((b) => b.against.some((f) => !covered.has(f)));
-  for (const b of missing) {
-    const forms = b.against.filter((f) => !covered.has(f));
-    problems.push(`The sheet has no bonus vs ${againstText(forms)}; WW p. 21 gives ${b.who} ${sign(b.bonus)}.`);
+  // Forms the sheet leaves out, grouped by the total WW p. 21 gives.
+  const missing = new Map<number, SaveForm[]>();
+  for (const f of SAVE_FORMS) {
+    const total = saveTotal(c.cls, c.race, f);
+    if (total !== 0 && !covered.has(f)) missing.set(total, [...(missing.get(total) ?? []), f]);
   }
+  for (const [total, forms] of missing) problems.push(`The sheet has no bonus vs ${againstText(forms)}; WW p. 21 gives ${sign(total)}.`);
   if (!problems.length) return null;
-  const stack = SAVE_FORMS.some((f) => acceptableTotals(c.cls, c.race, f).length > 1);
+  const stack = overlappingForms(saveBonusesFor(c.cls, c.race)).length > 0;
   return {
     title: "Save bonuses differ from the book",
-    body: problems.join(" ") + (stack ? " Whether class and race bonuses add together waits on a ruling (save-bonus-stacking)." : ""),
+    body: problems.join(" ") + (stack ? " Class and race bonuses add together (Jay's ruling)." : ""),
     source: "WW p. 21",
   };
 }
@@ -219,10 +221,12 @@ function weaponCheck(c: ImportedCharacter, written: WrittenOnSheet): ImportFlag 
     if (/m/.test(mr) && !/r/.test(mr) && !melee) problems.push(`${w.name}: marked melee, but it is a missile weapon.`);
 
     if (rule.ranges && w.ranges.some(Boolean)) {
-      const differs = w.ranges.some((r, i) => r && cleanRange(r) !== rule.ranges![i]);
+      // A sheet that copied the printed long range Jay corrected is fine.
+      const ok = (r: string, i: number) => cleanRange(r) === rule.ranges![i] || (i === 2 && cleanRange(r) === rule.printedLong);
+      const differs = w.ranges.some((r, i) => r && !ok(r, i));
       if (differs) {
         problems.push(
-          `${w.name}: ranges say ${w.ranges.map((r) => r || "blank").join(" / ")}; WW p. 19 prints ${rule.ranges.join(" / ")}${rule.rangeRuling ? ` (long range waits on ${rule.rangeRuling})` : ""}.`,
+          `${w.name}: ranges say ${w.ranges.map((r) => r || "blank").join(" / ")}; WW p. 19 ${rule.printedLong ? "gives" : "prints"} ${rule.ranges.join(" / ")}${rule.printedLong ? ` (long range by Jay's ruling; printed ${rule.printedLong})` : ""}.`,
         );
       }
     }

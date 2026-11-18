@@ -77,8 +77,10 @@ export default async function BuildPage({
   const units = carriedUnits(c.items);
   const unknown = unknownUnitItems(c.items);
   const band = bandFor(units);
-  const ready = scoresDone && identityDone && Boolean(c.hpRollId) && Boolean(c.goldRollId);
+  const darkSightDone = c.race !== "dwarf" || Boolean(c.darkSightRollId);
+  const ready = scoresDone && identityDone && Boolean(c.hpRollId) && darkSightDone && Boolean(c.goldRollId);
   const hpRoll = c.rolls.find((r) => r.id === c.hpRollId);
+  const darkSightRoll = c.rolls.find((r) => r.id === c.darkSightRollId);
   const goldRoll = c.rolls.find((r) => r.id === c.goldRollId);
   // The gear dialog manages price-list items that aren't magic (see setKit).
   const managed = c.items.filter((i) => i.catalogKey && !i.isMagic);
@@ -204,12 +206,25 @@ export default async function BuildPage({
               <span className="text-sm text-muted">
                 1d6{HIT_DIE_ADJUST[cls] ? (HIT_DIE_ADJUST[cls] > 0 ? ` + ${HIT_DIE_ADJUST[cls]}` : ` − 1`) : ""} for a{" "}
                 {CLASS_NAMES[cls]}, plus your Constitution modifier ({formatModifier(abilityModifier(c.con!))}), at least 3.
+                {c.race === "dwarf" && " A dwarf also rolls 1d6 for sight in the dark: a 1 or 2 sees up to 30' underground (WW p. 10; Jay's ruling)."}
               </span>
               <SubmitButton pendingText="Rolling…">Roll hit points</SubmitButton>
             </form>
           ) : (
             <p className="text-sm text-subtle">Save abilities and a class first.</p>
           )}
+          {darkSightRoll && (
+            <div className="flex flex-wrap items-center gap-3">
+              <DiceFaces faces={darkSightRoll.dice[0]} />
+              <span className="text-sm text-muted">
+                Sight in the dark: {c.darkSight ? "sees up to 30' in darkness underground" : "no"} (WW p. 10; Jay&apos;s ruling).
+              </span>
+            </div>
+          )}
+          <p className="text-xs leading-relaxed text-subtle">
+            New characters start at 5,000 XP (Jay&apos;s ruling). Hit points for the levels it reaches are rolled on the sheet once the
+            character is with Jay, one die per level.
+          </p>
         </Step>
 
         <Step n={4} title="Starting gold" done={Boolean(c.goldRollId)} aside="Men & Magic p. 10" guide="gold">
@@ -230,9 +245,13 @@ export default async function BuildPage({
 
         <Step n={5} title="Starting kit" done={c.items.length > 0} aside={EQUIPMENT_SOURCE} guide="kit">
           <p className="text-sm text-muted">
-            Pick freely from the price list; Jay approves the kit. Thieves keep to small or normal weapons, leather at
-            most and no shield (WW p. 9). Magic-users other than elves carry daggers only (Men &amp; Magic p. 6), plus a
-            staff with Intelligence 15+ (WW p. 7). Jay judges anything the books leave open.
+            Pick freely from the price list; Jay approves the kit. Anyone may carry anything; class limits are about using it
+            (Jay&apos;s ruling). Thieves use small or normal weapons, leather at most and no shield (WW p. 9). Magic-users
+            other than elves use daggers only (Men &amp; Magic p. 6), plus a staff with Intelligence 15+ (WW p. 7). Clerics
+            use non-edged weapons only (Jay&apos;s ruling). Jay judges anything the books leave open.
+          </p>
+          <p className="text-sm text-muted">
+            Each new character also starts with one magic item (Jay&apos;s ruling). Jay adds it to the sheet.
           </p>
           {cls ? (
             <div className="flex flex-col gap-2">
@@ -247,7 +266,7 @@ export default async function BuildPage({
               </div>
               <span className="text-xs text-subtle">
                 Random basic kit replaces the price-list items with a weapon and armor your class may use, its tools, and 4
-                to 6 pieces of gear. Magic items and items Jay added stay. Clerics get a non-edged weapon until Jay rules on edged ones. Not a roll, so it isn&apos;t logged.
+                to 6 pieces of gear. Magic items and items Jay added stay. Clerics get a non-edged weapon (Jay&apos;s ruling). Not a roll, so it isn&apos;t logged.
               </span>
             </div>
           ) : (

@@ -42,7 +42,8 @@ describe("Weapon Damage by Weapon Class (WW p. 19)", () => {
       ["Long Bow", null, "1d6", "arrow", "missile"],
       ["Sling", null, "1d6-1", "sling stone", "missile"],
     ]);
-    expect(row(t, "Sling", "missile").notes.some((n) => n.text.includes("sling-long-range"))).toBe(true);
+    expect(row(t, "Sling", "missile").ranges).toEqual(["1-40", "41-80", "81-160"]);
+    expect(row(t, "Sling", "missile").notes.some((n) => n.text.includes("Jay's ruling: long range is 81-160"))).toBe(true);
   });
 
   it("shows the bastard sword used two-handed", () => {

@@ -33,32 +33,23 @@ describe("who can mark gear magic (magic counts 0 units, campaign ruling)", () =
 });
 
 describe("adding from the price list (WW p. 17)", () => {
-  const thief = { cls: "thief" as const, race: "human" as const, int: 10 };
-  const mu = { cls: "magic-user" as const, race: "human" as const, int: 10 };
-
   it("takes an item with its price-list weight", () => {
-    const r = checkAddCatalog(thief, "long-sword", 1, false);
+    const r = checkAddCatalog("long-sword", 1);
     expect(typeof r).toBe("object");
     if (typeof r === "object") expect(r.item.enc).toBe(2);
   });
   it("refuses keys that aren't on the price list", () => {
-    expect(checkAddCatalog(thief, "laser-sword", 1, false)).toBe("Choose an item from the price list.");
+    expect(checkAddCatalog("laser-sword", 1)).toBe("Choose an item from the price list.");
   });
-  it("keeps players to the class limits (WW p. 9, M&M p. 6)", () => {
-    expect(checkAddCatalog(thief, "plate-mail", 1, false)).toMatch(/WW p\. 9/);
-    expect(checkAddCatalog(mu, "long-sword", 1, false)).toMatch(/Men & Magic p\. 6/);
-  });
-  it("lets Jay add gear outside the class limits (the sheet flags it)", () => {
-    expect(typeof checkAddCatalog(thief, "plate-mail", 1, true)).toBe("object");
-  });
-  it("has nothing to check before a class is chosen", () => {
-    expect(typeof checkAddCatalog(null, "plate-mail", 1, false)).toBe("object");
+  it("lets anyone carry anything, whatever the class (Jay's ruling carry-unusable-gear)", () => {
+    expect(typeof checkAddCatalog("plate-mail", 1)).toBe("object");
+    expect(typeof checkAddCatalog("long-sword", 1)).toBe("object");
   });
   it("needs a quantity from 1 to the input limit", () => {
-    expect(checkAddCatalog(thief, "dagger", 0, false)).toMatch(/Quantity/);
-    expect(checkAddCatalog(thief, "dagger", 1.5, false)).toMatch(/Quantity/);
-    expect(checkAddCatalog(thief, "dagger", ITEM_MAX_QUANTITY + 1, false)).toMatch(/Quantity/);
-    expect(typeof checkAddCatalog(thief, "dagger", ITEM_MAX_QUANTITY, false)).toBe("object");
+    expect(checkAddCatalog("dagger", 0)).toMatch(/Quantity/);
+    expect(checkAddCatalog("dagger", 1.5)).toMatch(/Quantity/);
+    expect(checkAddCatalog("dagger", ITEM_MAX_QUANTITY + 1)).toMatch(/Quantity/);
+    expect(typeof checkAddCatalog("dagger", ITEM_MAX_QUANTITY)).toBe("object");
   });
 });
 

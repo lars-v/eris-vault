@@ -150,11 +150,10 @@ export default async function PartyPage({ searchParams }: { searchParams: Promis
                         {lvl && (
                           <Chip tone="lime">
                             Level {lvl.level}
-                            {lvl.pastNine ? "+" : ""} · {lvl.title}
+                            {lvl.pastTen ? "+" : ""} · {lvl.title}
                           </Chip>
                         )}
-                        {/* With magic armor, the number with its bonus in (M&T p. 30, until Jay rules magic-armor-ac). */}
-                        {ac !== null && <Chip>AC {ac.withMagic ?? ac.ac}</Chip>}
+                        {ac !== null && <Chip>AC {ac.ac}</Chip>}
                         {levelUp.has(c.id) && <Chip tone="amber">Level up</Chip>}
                         {staff && <Chip tone="moon">{staff}</Chip>}
                         {c.deity && <Chip>{c.deity}</Chip>}

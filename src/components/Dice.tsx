@@ -20,5 +20,6 @@ export const PURPOSE_LABEL: Record<string, string> = {
   hp: "Hit points",
   gold: "Starting gold",
   "level-hp": "Hit points, new level",
+  "dark-sight": "Sight in the dark",
   play: "Play",
 };

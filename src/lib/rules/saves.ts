@@ -6,9 +6,11 @@ import { CLASS_NAMES } from "./advancement";
  * character has one base saving throw number (the advancement tables); these
  * bonuses adjust the die for certain attack forms.
  *
- * Whether a class bonus and a race bonus against the same attack add together
- * is not stated, so it waits on Jay (pending ruling "save-bonus-stacking").
- * Nothing here adds them up.
+ * Jay's ruling "save-bonus-stacking" (17 Nov 2026): class and race bonuses
+ * against the same attack add together.
+ *
+ * Jay's ruling "wis-vs-mind" (17 Nov 2026): Wisdom doesn't change saves
+ * against charms and illusions (the referee's option on WW p. 5 is not used).
  *
  * Elves keep a separate saving throw for each class (WW p. 21 note), so the
  * class bonus belongs to the class block and the race bonus applies to both.
@@ -61,27 +63,21 @@ export function saveBonusesFor(k: CharacterClass, r: Race | null): SaveBonus[] {
   return [...CLASS_SAVE_BONUSES[k], ...(r ? RACE_SAVE_BONUSES[r] : [])];
 }
 
-/** Attack forms where both a class and a race bonus apply: the total waits on "save-bonus-stacking". */
+/** Attack forms where both a class and a race bonus apply, so the sheet shows them added. */
 export function overlappingForms(bonuses: SaveBonus[]): SaveForm[] {
   const byClass = new Set(bonuses.filter((b) => b.from === "class").flatMap((b) => b.against));
   const byRace = new Set(bonuses.filter((b) => b.from === "race").flatMap((b) => b.against));
   return FORM_ORDER.filter((f) => byClass.has(f) && byRace.has(f));
 }
 
-/**
- * The totals a sheet may fairly write for one attack form. Until Jay rules on
- * stacking, either bonus alone or both added are accepted. Empty when the
- * books give no bonus against that form.
- */
-export function acceptableTotals(k: CharacterClass, r: Race | null, form: SaveForm): number[] {
-  const sum = (from: SaveBonus["from"]) =>
-    saveBonusesFor(k, r)
-      .filter((b) => b.from === from && b.against.includes(form))
-      .reduce((n, b) => n + b.bonus, 0);
-  const c = sum("class");
-  const rc = sum("race");
-  if (!c && !rc) return [];
-  return [...new Set([c, rc, c + rc].filter((n) => n !== 0))].sort((a, b) => a - b);
+/** The whole bonus against one attack form: every class and race bonus added (save-bonus-stacking). 0 when none. */
+export function totalAgainst(bonuses: SaveBonus[], form: SaveForm): number {
+  return bonuses.filter((b) => b.against.includes(form)).reduce((n, b) => n + b.bonus, 0);
+}
+
+/** totalAgainst for one class and race. */
+export function saveTotal(k: CharacterClass, r: Race | null, form: SaveForm): number {
+  return totalAgainst(saveBonusesFor(k, r), form);
 }
 
 /**

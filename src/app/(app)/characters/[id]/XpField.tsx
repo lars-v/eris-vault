@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 import type { CharacterClass, Race } from "@/db/schema";
-import { cappedLevelFor } from "@/lib/rules/advancement";
-import { levelsGained, ordinal } from "@/lib/rules/levelup";
+import { cappedLevelFor, noNextLevelText } from "@/lib/rules/advancement";
+import { awardTooBig, levelsGained, ordinal } from "@/lib/rules/levelup";
 import { XP_LIMIT } from "@/lib/rules/overrides";
 import { setXp, type StatResult } from "../stat-actions";
 import { SubmitButton } from "./build/forms";
@@ -14,10 +14,10 @@ const fmt = (n: number) => n.toLocaleString("en-US");
 /**
  * One class's XP on the sheet. Whoever may change it (can.editXp) types the
  * new total and saves; everyone else sees the number. The line under the box
- * names the level the typed total reaches. M&M p. 18 recommends no more XP
- * from one adventure than it takes to gain one level; whether the table uses
- * that is the pending ruling "one-level-per-adventure", so it only warns.
- * Mount with key={xp} so a saved total resets the box.
+ * names the level the typed total reaches. No single award gains more than
+ * one level (Jay's ruling one-level-per-adventure, after M&M p. 18): the box
+ * says so and the server refuses it. Mount with key={xp} so a saved total
+ * resets the box.
  */
 export function XpField({
   characterId,
@@ -37,7 +37,7 @@ export function XpField({
   const [state, action] = useActionState(setXp, idle);
   const [value, setValue] = useState(String(xp));
   const now = cappedLevelFor(race, cls, xp);
-  const next = now.nextXp !== null ? `${now.nextTitle} at ${fmt(now.nextXp)}` : "Highest level for this race and class";
+  const next = now.nextXp !== null ? `${now.nextTitle} at ${fmt(now.nextXp)}` : noNextLevelText(race, cls);
 
   if (!canEdit) {
     return (
@@ -52,6 +52,7 @@ export function XpField({
   const valid = value.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= XP_LIMIT;
   const changed = valid && n !== xp;
   const gain = changed ? levelsGained(race, cls, xp, n - xp) : null;
+  const tooBig = changed ? awardTooBig(race, cls, xp, n) : null;
 
   return (
     <form action={action} className="flex flex-col gap-1.5">
@@ -74,20 +75,25 @@ export function XpField({
             className="min-h-11 w-36 rounded-xl border border-line-2 bg-ink px-3 font-mono text-[15px] text-parchment"
           />
         </label>
-        {changed ? (
+        {changed && !tooBig ? (
           <SubmitButton tone="amber" pendingText="Saving…">
             Save
           </SubmitButton>
-        ) : (
+        ) : changed ? null : (
           <span className="text-sm text-subtle">{next}</span>
         )}
       </div>
-      {gain && gain.to !== gain.from && (
-        <p aria-live="polite" className={`text-sm ${gain.to - gain.from > 1 ? "text-amber" : "text-lime"}`}>
-          {gain.to > gain.from ? "Reaches" : "Drops to"} {ordinal(gain.to)} level.
-          {gain.to - gain.from > 1 &&
-            " Men & Magic p. 18 recommends at most one level per adventure. Jay rules (one-level-per-adventure)."}
+      {tooBig ? (
+        <p aria-live="polite" className="text-sm text-amber">
+          {tooBig}
         </p>
+      ) : (
+        gain &&
+        gain.to !== gain.from && (
+          <p aria-live="polite" className="text-sm text-lime">
+            {gain.to > gain.from ? "Reaches" : "Drops to"} {ordinal(gain.to)} level.
+          </p>
+        )
       )}
       {state.error && (
         <p role="alert" className="rounded-lg border border-ember-edge bg-ember-wash px-3 py-2 text-sm text-ember">

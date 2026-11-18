@@ -2,29 +2,22 @@ import type { CharacterClass, Race } from "@/db/schema";
 import { levelFor, maxLevel } from "./advancement";
 
 /**
- * Level loss (energy drain), Monsters & Treasure p. 9: Wights drain one life
- * energy level per hit in melee, and "a hit removes both the hit die and the
- * corresponding energy to fight, i.e. a 9th-level fighter would drop to 8th
- * level". Wraiths are high-class Wights; Spectres and Vampires drain two
- * levels per hit. An opponent totally drained by a Wight becomes a Wight.
- * Woundwort's Warren says nothing on drain, so M&T stands.
+ * Taking levels away.
  *
- * Left to Jay (rulings seed in scripts/migrate.mjs):
- * - "drain-xp": M&T doesn't say what XP a drained character keeps, so Jay
- *   enters the new XP each time and it must fall in a lower level.
- * - "drain-hp-current": whether current hit points drop with the maximum.
- *   Until then they stay as they are.
- * - "regain-drained-level": whether a level earned back rolls a new hit die.
- *   Until then it does, like any new level.
+ * Jay's rulings "drain-xp", "drain-hp-current" and "regain-drained-level"
+ * (17 Nov 2026): this campaign has no level drain (Monsters & Treasure p. 9).
+ * Undead drain abilities instead, temporarily (Melan's energy drain, house
+ * rules p. 56; for example a Wight's hit drains Constitution equal to the
+ * hit points it does, and a character with an ability at 0 dies). The vault's
+ * copy of the house rules ends at p. 52, so that rule waits on the page
+ * ("energy-drain" is pending).
+ *
+ * What is left here is Jay's tool for taking back levels given by mistake:
+ * Jay sets a lower XP, each level above it loses its hit die (marked lost; the
+ * roll stays in the log) and its hit points come off the maximum. Current hit
+ * points are left alone. A level earned again rolls a new hit die (WW p. 6).
  */
-export const DRAIN_SOURCE = "Monsters & Treasure p. 9";
-
-export const DRAINERS = [
-  { name: "Wight", levels: 1 },
-  { name: "Wraith", levels: 1 },
-  { name: "Spectre", levels: 2 },
-  { name: "Vampire", levels: 2 },
-] as const;
+export const DRAIN_SOURCE = "Jay's rulings, 17 Nov 2026";
 
 export type DrainDie = { id: string; level: number; gain: number | null };
 

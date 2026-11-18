@@ -5,7 +5,7 @@ import { cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { ARMOR_CLASSES, combatRows } from "@/lib/rules/combat";
 import { ordinal } from "@/lib/rules/levelup";
 import { thiefSkills } from "@/lib/rules/thief";
-import { canAffectUndead, turningGroups } from "@/lib/rules/turning";
+import { canAffectUndead, patronTurnBonus, turningGroups } from "@/lib/rules/turning";
 import type { WeaponTable } from "@/lib/rules/weapons";
 
 type ClassRow = { id: string; class: CharacterClass; xp: number };
@@ -23,6 +23,7 @@ const USE_LABEL = { melee: "Melee", hurled: "Thrown", missile: "Missile" } as co
 export function CombatPanel({
   race,
   alignment,
+  deity,
   str,
   dex,
   classes,
@@ -30,6 +31,8 @@ export function CombatPanel({
 }: {
   race: Race | null;
   alignment: Alignment | null;
+  /** The patron, for Ashan's +1 to turning rolls (Jay's ruling). */
+  deity: string | null;
   str: number | null;
   dex: number | null;
   classes: ClassRow[];
@@ -70,7 +73,7 @@ export function CombatPanel({
                     {rows.map((r) => (
                       <tr key={r.row} className="border-t border-rule">
                         <th className="px-1.5 py-1 text-left text-xs font-normal whitespace-nowrap text-subtle">
-                          {rows.length > 1 ? `Row ${r.row}` : "Need"}
+                          Need
                         </th>
                         {r.toHit.map((n, i) => (
                           <td key={i} className={cell}>
@@ -82,10 +85,10 @@ export function CombatPanel({
                   </tbody>
                 </table>
               </div>
-              {rows.length > 1 && (
-                <p className="text-xs text-amber">
-                  The matrix lists a {ordinal(level)}-level magic-user in two rows. WW p. 19 says magic-users improve every 3 levels.
-                  Jay rules (mu-combat-rows).
+              {k.class === "magic-user" && level >= 5 && level <= 9 && (
+                <p className="text-xs text-subtle">
+                  The matrix prints magic-user rows 4-6 and 5-9. Jay&apos;s ruling: 5th and 6th level use the 4-6 row, and 5-9 is a
+                  misprint for 7-9.
                 </p>
               )}
               <p className="text-xs text-subtle">
@@ -126,7 +129,7 @@ export function CombatPanel({
                     Neutral clerics can&apos;t affect undead or demon-types. Declaring for Law or Chaos gives the power at once.
                   </p>
                 ) : (
-                  <TurningGroups level={level} chaotic={alignment === "chaotic"} />
+                  <TurningGroups level={level} chaotic={alignment === "chaotic"} bonus={patronTurnBonus(deity)} />
                 )}
               </section>
             )}
@@ -226,7 +229,7 @@ function WeaponRowView({ row: r }: { row: WeaponTable["rows"][number] }) {
  * The cleric's row of the Affecting Undead Table (WW p. 8), grouped by result
  * so the player reads what happens instead of decoding T, D and dashes.
  */
-function TurningGroups({ level, chaotic }: { level: number; chaotic: boolean }) {
+function TurningGroups({ level, chaotic, bonus }: { level: number; chaotic: boolean; bonus: number }) {
   const g = turningGroups(level);
   type Item = { name: string; hd: number; needed?: number };
   const groups: { key: string; label: string; items: Item[]; tone: string }[] = [
@@ -253,7 +256,8 @@ function TurningGroups({ level, chaotic }: { level: number; chaotic: boolean }) 
                   <span className="text-xs text-subtle">{u.hd} HD</span>
                   {u.needed !== undefined && (
                     <span className="text-amber">
-                      needs <span className="font-mono font-semibold">{u.needed}</span>
+                      needs <span className="font-mono font-semibold">{u.needed - bonus}</span>
+                      {bonus > 0 && <span className="text-xs text-subtle"> ({u.needed} on the table)</span>}
                     </span>
                   )}
                 </span>
@@ -263,6 +267,7 @@ function TurningGroups({ level, chaotic }: { level: number; chaotic: boolean }) 
         ))}
       </dl>
       <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-subtle">
+        {bonus > 0 && <li>Ashan&apos;s patronage adds +{bonus} to every turning roll, so each number needed is {bonus} lower (Jay&apos;s ruling).</li>}
         {chaotic && <li>As a chaotic priest you neutralize or command undead instead of turning or dispelling them.</li>}
         <li>
           Demon-types of 9 HD or less count as 3 levels higher than their undead equivalent, so a 2 HD demon uses the Wight

@@ -21,10 +21,11 @@ import { writeAudit } from "@/lib/audit";
 import { NOTES_MAX } from "@/lib/limits";
 import { can } from "@/lib/roles";
 import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities";
-import { assignScores, isValidIdentity } from "@/lib/rules/creation";
-import { countedHpLevel, levelFor, levelsToRoll } from "@/lib/rules/advancement";
-import { rollAbilitySets, rollFirstLevelHp, rollLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
-import { catalogItem, checkKit, classAllows, kindFor, randomKitKeys } from "@/lib/rules/equipment";
+import { assignScores, isValidIdentity, STARTING_XP } from "@/lib/rules/creation";
+import { countedHpLevel, fixedHpLevel, levelFor, levelsToRoll, NAME_LEVEL_HP } from "@/lib/rules/advancement";
+import { rollAbilitySets, rollDarkSight, rollFirstLevelHp, rollLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
+import { neutralClericBlocked } from "@/lib/rules/levelup";
+import { catalogItem, checkKit, kindFor, randomKitKeys } from "@/lib/rules/equipment";
 import { planDrain } from "@/lib/rules/drain";
 import { changedFromSheet, importFlags } from "@/lib/rules/import";
 import { draftFromFields, matchCatalog, readPdfFields, SHEET_MAX_BYTES, sniffSheetType } from "@/lib/sheets";
@@ -165,9 +166,12 @@ async function saveIdentityImpl(formData: FormData) {
     }
     await tx.update(characters).set({ name, race, alignment, deity, updatedAt: new Date() }).where(eq(characters.id, id));
     if (current !== cls) {
-      // Elves begin in one of their two classes (WW p. 10); the other record starts when they switch.
+      // Elves begin in one of their two classes (WW p. 10). The vault has no
+      // record for the second class yet; Jay's ruling elf-second-class-hp (one
+      // hit point roll per class at creation) waits on it.
+      // New characters start at 5,000 XP (Jay's ruling starting-xp).
       await tx.delete(characterClasses).where(eq(characterClasses.characterId, id));
-      await tx.insert(characterClasses).values({ characterId: id, class: cls, xp: 0, active: true });
+      await tx.insert(characterClasses).values({ characterId: id, class: cls, xp: STARTING_XP, active: true });
     }
   });
   refresh(id);
@@ -182,6 +186,41 @@ async function doHpRoll(tx: Tx, viewer: CurrentUser, c: typeof characters.$infer
     .update(characters)
     .set({ hpRollId: rollId, hpMax: roll.hp, hpCurrent: roll.hp, updatedAt: new Date() })
     .where(eq(characters.id, c.id));
+  // Race is fixed from here, so a dwarf rolls for sight in the dark now (once).
+  if (c.race === "dwarf" && c.darkSightRollId === null) await doDarkSightRoll(tx, viewer, c.id);
+}
+
+/** A player dwarf's one roll for sight in the dark (WW p. 10; Jay's ruling dwarf-darkvision). */
+async function doDarkSightRoll(tx: Tx, viewer: CurrentUser, id: string) {
+  const roll = rollDarkSight();
+  const rollId = await recordRoll(tx, viewer, id, "dark-sight", roll);
+  await tx.update(characters).set({ darkSightRollId: rollId, darkSight: roll.sees, updatedAt: new Date() }).where(eq(characters.id, id));
+}
+
+/**
+ * Rolls sight in the dark on the sheet for a dwarf who doesn't have the roll
+ * yet: one made before the ruling, or one brought in from a sheet. The owner
+ * or Jay rolls it; it happens once.
+ */
+async function rollDarkSightImpl(formData: FormData) {
+  const viewer = await requireUser();
+  const id = str(formData, "id");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Unknown character");
+  const done = await db.transaction(async (tx) => {
+    const [c] = await tx
+      .select()
+      .from(characters)
+      .where(and(eq(characters.id, id), isNull(characters.deletedAt)))
+      .for("update");
+    if (!c) throw new Error("Unknown character");
+    if (!can.editPlayState(viewer, c)) throw new Error("Only the player or Jay can roll for this character.");
+    if (c.race !== "dwarf") throw new Error("Only a dwarf rolls for sight in the dark (WW p. 10).");
+    if (c.darkSightRollId) throw new Error("Sight in the dark is already rolled.");
+    await doDarkSightRoll(tx, viewer, id);
+    return c.ownerId;
+  });
+  if (done !== viewer.userId) await writeAudit(viewer, { action: "character.dark_sight_rolled", characterId: id });
+  refresh(id);
 }
 
 async function doGoldRoll(tx: Tx, viewer: CurrentUser, c: typeof characters.$inferSelect) {
@@ -276,10 +315,10 @@ async function setKitImpl(formData: FormData) {
     if (name.startsWith("qty:")) picks[name.slice(4)] = Number(value);
   }
   await db.transaction(async (tx) => {
-    const c = await lockEditable(tx, viewer, id, "kit");
+    await lockEditable(tx, viewer, id, "kit");
     const cls = await activeClass(tx, id);
-    if (!cls) throw new Error("Choose a class first, so class limits can be checked.");
-    const kit = checkKit({ cls, race: c.race, int: c.int }, picks);
+    if (!cls) throw new Error("Choose a class first, so the kit can show what the class can use.");
+    const kit = checkKit(picks);
     if (typeof kit === "string") throw new Error(kit);
     await tx
       .delete(inventory)
@@ -359,15 +398,11 @@ async function submitCharacterImpl(formData: FormData) {
       ABILITIES.some((ab) => c[ab] === null) && "abilities",
       (!c.race || !cls || !c.alignment) && "race, class and alignment",
       !c.hpRollId && "hit points",
+      c.race === "dwarf" && !c.darkSightRollId && "the roll for sight in the dark",
       !c.goldRollId && "starting gold",
     ].filter(Boolean);
     if (missing.length) throw new Error(`Still needed: ${missing.join(", ")}.`);
-    const items = await tx.select({ key: inventory.catalogKey, name: inventory.name }).from(inventory).where(eq(inventory.characterId, id));
-    for (const it of items) {
-      const entry = it.key ? catalogItem(it.key) : undefined;
-      const allowed = entry && cls ? classAllows({ cls, race: c.race, int: c.int }, entry) : { ok: true as const };
-      if (!allowed.ok) throw new Error(`${it.name}: ${allowed.why}`);
-    }
+    // Gear the class can't use may still be carried (Jay's ruling carry-unusable-gear); the sheet flags it.
     await tx.update(characters).set({ status: "submitted", updatedAt: new Date() }).where(eq(characters.id, id));
   });
   await writeAudit(viewer, { action: "character.submitted", characterId: id });
@@ -645,8 +680,11 @@ const XP_STATUSES = new Set(["submitted", "approved"]);
 
 /**
  * Rolls the hit die for the next level the XP has reached (WW p. 6), for the
- * owner or staff. The roll is logged first; its gain is added to maximum hit
- * points. Current hit points are left alone ("level-hp-current" is pending).
+ * owner or staff. The roll is logged first; its gain, at least 1 (Jay's ruling
+ * hit-die-floor), is added to maximum hit points, and current hit points rise
+ * by the same amount (Jay's ruling level-hp-current). From 10th level the gain
+ * is a fixed amount with no roll (WW pp. 7-9). A neutral cleric's 4th level
+ * waits until the cleric chooses Law or Chaos (Jay's ruling neutral-cleric-fourth).
  */
 async function rollLevelHpImpl(formData: FormData) {
   const viewer = await requireUser();
@@ -674,13 +712,23 @@ async function rollLevelHpImpl(formData: FormData) {
     const counted = countedHpLevel(c.source !== "app" || Boolean(c.hpRollId), k.baseHpLevel, done.map((d) => d.level));
     const [level] = levelsToRoll(c.race, k.class, k.xp, counted);
     if (!level) throw new Error("There is no new level to roll hit points for.");
-    const roll = rollLevelHp(k.class, abilityModifier(c.con), level);
-    const rollId = await recordRoll(tx, viewer, id, "level-hp", roll);
-    await tx.insert(hitDice).values({ characterId: id, class: k.class, level, rollId, gain: roll.gain });
-    if (roll.gain !== null) {
-      await tx.update(characters).set({ hpMax: c.hpMax + roll.gain, updatedAt: new Date() }).where(eq(characters.id, id));
+    const blocked = neutralClericBlocked(k.class, c.alignment, level);
+    if (blocked) throw new Error(blocked);
+    let gain: number;
+    let rollId: string | null = null;
+    if (fixedHpLevel(level)) {
+      gain = NAME_LEVEL_HP[k.class];
+    } else {
+      const roll = rollLevelHp(k.class, abilityModifier(c.con), level);
+      rollId = await recordRoll(tx, viewer, id, "level-hp", roll);
+      gain = roll.gain;
     }
-    return { ownerId: c.ownerId, cls: k.class, level, gain: roll.gain, hpMax: c.hpMax };
+    await tx.insert(hitDice).values({ characterId: id, class: k.class, level, rollId, gain });
+    await tx
+      .update(characters)
+      .set({ hpMax: c.hpMax + gain, hpCurrent: (c.hpCurrent ?? c.hpMax) + gain, updatedAt: new Date() })
+      .where(eq(characters.id, id));
+    return { ownerId: c.ownerId, cls: k.class, level, gain, hpMax: c.hpMax };
   });
   if (rolled.ownerId !== viewer.userId) {
     await writeAudit(viewer, {
@@ -694,12 +742,12 @@ async function rollLevelHpImpl(formData: FormData) {
 }
 
 /**
- * Level loss (Monsters & Treasure p. 9): Jay sets a lower XP for one class.
- * Every level above the new one loses its hit die: the die is marked lost
- * (the roll stays in the log) and its gain comes off maximum hit points.
- * Levels an imported sheet brought in have no die on record, so Jay enters
- * the hit points they gave. Current hit points stay as they are
- * ("drain-hp-current" is pending).
+ * Taking back levels given by mistake (no level drain in this campaign; see
+ * src/lib/rules/drain.ts): Jay sets a lower XP for one class. Every level
+ * above the new one loses its hit die: the die is marked lost (the roll stays
+ * in the log) and its gain comes off maximum hit points. Levels an imported
+ * sheet brought in have no die on record, so Jay enters the hit points they
+ * gave. Current hit points stay as they are.
  */
 async function drainLevelsImpl(formData: FormData) {
   const viewer = await requireUser();
@@ -711,7 +759,7 @@ async function drainLevelsImpl(formData: FormData) {
   const hpRaw = str(formData, "hpLost");
   const untrackedHpLost = hpRaw === "" ? null : wholeNumber(formData, "hpLost", "Hit points lost", 0, 999);
   const reason = str(formData, "reason").slice(0, 200);
-  if (!reason) throw new Error("Give a reason, for example the monster and the session. It goes in the audit log.");
+  if (!reason) throw new Error("Give a reason, for example what was entered wrong. It goes in the audit log.");
 
   const change = await db.transaction(async (tx) => {
     const [c] = await tx
@@ -774,4 +822,8 @@ const sheetPath = (fd: FormData) => `/characters/${encodeURIComponent(str(fd, "i
 
 export async function rollLevelHitPoints(formData: FormData) {
   return guard(formData, rollLevelHpImpl, sheetPath(formData));
+}
+
+export async function rollDarkSightOnSheet(formData: FormData) {
+  return guard(formData, rollDarkSightImpl, sheetPath(formData));
 }

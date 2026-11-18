@@ -11,7 +11,7 @@ type Item = { id: string; name: string; catalogKey: string | null; isSpellFocus:
 const VERB = { load: "Loaded", release: "Released", void: "Voided" } as const;
 
 /** The rulings this card can point at (scripts/migrate.mjs). */
-export const STAFF_RULINGS = ["staff-carry-over-rest", "staff-same-spell-twice", "staff-loss", "elf-wand-int", "staff-int-drop"];
+export const STAFF_RULINGS = ["staff-carry-over-rest", "staff-loss", "elf-wand-int", "staff-int-drop"];
 
 /** Jay's answer once decided; until then a link for Jay and admins, or a note for players. */
 function RulingNote({ ruling, rulings, staff }: { ruling: string; rulings: StaffRuling[]; staff: boolean }) {
@@ -29,6 +29,7 @@ function RulingNote({ ruling, rulings, staff }: { ruling: string; rulings: Staff
 /**
  * The "Spell staff" card (WW pp. 5, 7): the staff or wand, one token per slot,
  * warnings that never change anything, and the last few loads and releases.
+ * Jay's staff rulings (17 Nov 2026) are listed in src/lib/rules/staff.ts.
  */
 export function SpellStaffPanel({
   id,
@@ -79,7 +80,7 @@ export function SpellStaffPanel({
       </p>
       {isElf && (
         <p className="text-xs text-subtle">
-          Elves follow the same Intelligence rule until Jay rules. {RulingNoteFor("elf-wand-int")}
+          Elves follow the same Intelligence rule. {RulingNoteFor("elf-wand-int")}
         </p>
       )}
 
@@ -101,8 +102,8 @@ export function SpellStaffPanel({
         <ul className="flex flex-col gap-2">
           {warnings.map((w, i) => (
             <li key={i} className="rounded-xl border border-amber-edge bg-amber-wash px-3 py-2 text-sm text-amber">
-              {w.text} Nothing has been cleared.
-              {RulingNoteFor(w.ruling)}
+              {w.text}
+              {w.ruling && RulingNoteFor(w.ruling)}
             </li>
           ))}
         </ul>
@@ -120,7 +121,9 @@ export function SpellStaffPanel({
       )}
       {slots.some((s) => s.spellName) && (
         <p className="text-xs text-subtle">
-          A stored spell stays until released. Whether it lasts through rest is open. {RulingNoteFor("staff-carry-over-rest")}
+          A stored spell stays until it is used, through any amount of rest. If the staff or wand is broken, stolen or dropped, its
+          spells are lost; removing it from Gear voids them. {RulingNoteFor("staff-carry-over-rest")}
+          {RulingNoteFor("staff-loss")}
         </p>
       )}
 

@@ -47,28 +47,35 @@ export function rollFirstLevelHp(cls: CharacterClass, conModifier: number, d6: D
   };
 }
 
+/** Jay's ruling "hit-die-floor" (17 Nov 2026): every hit die after 1st level adds at least 1 hit point. */
+export const LEVEL_HIT_DIE_MINIMUM = 1;
+
+/** What one hit die adds: the 1st-level die at least 3 (WW p. 6), later dice at least 1 (hit-die-floor). */
+export function hitDieGain(level: number, total: number): number {
+  return Math.max(level === 1 ? FIRST_LEVEL_MINIMUM_HP : LEVEL_HIT_DIE_MINIMUM, total);
+}
+
 /**
  * Hit points for a new level after the first: 1d6 adjusted by class (WW p. 6)
  * and by the Constitution modifier (WW p. 5, "whenever hit points are rolled").
- * The 3 hp minimum is for 1st level only (WW p. 6). Whether a total below 1
- * still adds anything is the pending ruling "hit-die-floor", so `gain` is null
- * then and nothing is added until Jay rules; the roll itself is kept either way.
+ * The 3 hp minimum is for 1st level only (WW p. 6); later dice add at least 1
+ * (Jay's ruling hit-die-floor). `total` is the die as rolled and adjusted.
  */
 export function rollLevelHp(
   cls: CharacterClass,
   conModifier: number,
   level: number,
   d6: D6 = cryptoD6,
-): Roll & { total: number; gain: number | null } {
+): Roll & { total: number; gain: number } {
   const face = d6();
   const total = face + HIT_DIE_ADJUST[cls] + conModifier;
   const sign = (n: number) => (n === 0 ? "" : n > 0 ? ` + ${n}` : ` − ${Math.abs(n)}`);
   return {
-    formula: `1d6${sign(HIT_DIE_ADJUST[cls])}${conModifier ? `${sign(conModifier)} Con` : ""}, level ${level}`,
+    formula: `1d6${sign(HIT_DIE_ADJUST[cls])}${conModifier ? `${sign(conModifier)} Con` : ""}, level ${level}, minimum 1`,
     dice: [[face]],
     totals: [total],
     total,
-    gain: total >= 1 ? total : null,
+    gain: hitDieGain(level, total),
   };
 }
 
@@ -77,4 +84,17 @@ export function rollStartingGold(d6: D6 = cryptoD6): Roll & { gold: number } {
   const faces = [d6(), d6(), d6()];
   const gold = sum(faces) * 10;
   return { formula: "3d6 × 10 gp", dice: [faces], totals: [gold], gold };
+}
+
+/**
+ * Sight in the dark for a player dwarf: WW p. 10 gives a 2 in 6 chance of the
+ * latent ability to see up to 30' in darkness underground. Jay's ruling
+ * "dwarf-darkvision" (17 Nov 2026): the player rolls it once at creation; a 1
+ * or 2 means the dwarf can see in the dark.
+ */
+export const DARK_SIGHT_SOURCE = "Woundwort's Warren p. 10; Jay's ruling";
+
+export function rollDarkSight(d6: D6 = cryptoD6): Roll & { sees: boolean } {
+  const face = d6();
+  return { formula: "1d6, sees in the dark on 1-2", dice: [[face]], totals: [face], sees: face <= 2 };
 }

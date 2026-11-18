@@ -64,7 +64,7 @@ export default async function CharacterPage({
 
   // The spell staff or wand (WW pp. 5, 7): shown while the character can store
   // spells, has a staff set, or has ever stored one.
-  const staffCap = staffCapacity(c.classes.map((k) => k.class), c.race, c.int);
+  const staffCap = staffCapacity(c.classes.map((k) => k.class), c.int);
   const showStaff = staffCap > 0 || c.items.some((i) => i.isSpellFocus) || c.staffEvents.length > 0;
 
   const [sheets, overrides, staffRulings] = await Promise.all([
@@ -145,6 +145,7 @@ export default async function CharacterPage({
               id={c.id}
               current={c.hpCurrent}
               max={c.hpMax}
+              level={lvl?.level ?? null}
               canEdit={canPlay}
               staff={staff}
               handSet={c.manualFields.includes("hpMax") ? handSetNote(["hpMax"]) : null}
@@ -157,7 +158,11 @@ export default async function CharacterPage({
         {/* With no class chosen the right column is empty, so the left one spreads out instead. */}
         <div className={`grid items-start gap-5 ${active ? "lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]" : ""}`}>
           <div className={active ? "flex min-w-0 flex-col gap-5" : "grid items-start gap-5 md:grid-cols-2"}>
-            <AbilitiesPanel c={c} handSet={handSetNote(ABILITIES)} />
+            <AbilitiesPanel
+              c={c}
+              handSet={handSetNote(ABILITIES)}
+              canRollDarkSight={can.editPlayState(viewer, c) && c.status !== "draft"}
+            />
             <CoinsPanel id={c.id} gp={c.coinsGp} sp={c.coinsSp} cp={c.coinsCp} canEdit={canPlay} />
             <EncumbrancePanel items={c.items} />
             <GearPanel id={c.id} items={gearItems} catalog={gearCatalog} canEdit={can.editGear(viewer, c)} staff={staff} />
@@ -184,6 +189,7 @@ export default async function CharacterPage({
               <CombatPanel
                 race={c.race}
                 alignment={c.alignment}
+                deity={c.deity}
                 str={c.str}
                 dex={c.dex}
                 classes={c.classes}

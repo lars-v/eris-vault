@@ -65,6 +65,9 @@ export function GmToolsPanel({ c, canOverride }: { c: CharacterSheet; canOverrid
                 deity={c.deity}
                 scores={{ str: c.str, int: c.int, wis: c.wis, dex: c.dex, con: c.con, cha: c.cha }}
                 hpMax={c.hpMax}
+                hpRecountable={
+                  c.source === "app" && Boolean(c.hpRollId) && !c.manualFields.includes("hpMax") && c.classes.every((k) => k.baseHpLevel === 1)
+                }
                 classes={c.classes.map((k) => ({
                   id: k.id,
                   class: k.class,

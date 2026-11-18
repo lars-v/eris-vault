@@ -1,6 +1,7 @@
 import type { Alignment, CharacterClass, CharacterStatus } from "@/db/schema";
-import { ABILITIES, ABILITY_NAMES, type Ability } from "./abilities";
+import { ABILITIES, ABILITY_NAMES, abilityModifier, type Ability } from "./abilities";
 import { CLASS_NAMES, xpBelowRolledLevel } from "./advancement";
+import { HIT_DIE_ADJUST, hitDieGain } from "./dice";
 import { alignmentsFor, ALIGNMENTS } from "./creation";
 
 /**
@@ -17,7 +18,7 @@ import { alignmentsFor, ALIGNMENTS } from "./creation";
  * Drafts are left to the build wizard so creation rolls keep their meaning.
  */
 
-/** 3d6 gives 3 to 18 (WW p. 5). Scores outside it wait on the "ability-range" ruling. */
+/** 3d6 gives 3 to 18 (WW p. 5). Jay's ruling "ability-range" (17 Nov 2026): scores stay between 3 and 18. */
 export const ABILITY_MIN = 3;
 export const ABILITY_MAX = 18;
 /** Input limits, not game rules. The low end matches the sheet import form. */
@@ -53,8 +54,8 @@ export type HpChange = { mode: "damage" | "heal" | "set"; amount: number };
 
 /**
  * Works out new current hit points. Healing stops at the maximum. Only Jay
- * and admins may set current hit points above the maximum. Nothing happens
- * automatically at 0 or below ("hp-below-zero" is pending).
+ * and admins may set current hit points above the maximum. Nothing changes
+ * automatically at 0 or below; hpCondition says what it means.
  */
 export function applyHpChange(
   hp: { current: number; max: number },
@@ -78,6 +79,22 @@ export function applyHpChange(
   return next;
 }
 
+export type HpCondition = "up" | "unconscious" | "dead";
+
+/**
+ * What current hit points mean (WW p. 6; Jay's ruling "hp-below-zero",
+ * 17 Nov 2026). At 0 a character is unconscious and loses 1 hit point a
+ * round. For each level the total may drop one point into the negatives and
+ * the character still lives, unconscious ("a 3rd level pc could go to -3");
+ * below that, dead. Healing back to 1 or more revives at once (WW p. 6).
+ * `level` is null when it isn't known yet, so only "unconscious" can be said.
+ */
+export function hpCondition(current: number, level: number | null): HpCondition {
+  if (current > 0) return "up";
+  if (level !== null && current < -level) return "dead";
+  return "unconscious";
+}
+
 export type Coins = { gp: number; sp: number; cp: number };
 
 /** Gold may be negative (a debt, as on Liz's sheet); silver and copper may not. */
@@ -93,12 +110,39 @@ export function checkCoins(c: Coins): Coins | string {
 
 export type OverrideClass = { id: string; class: CharacterClass; xp: number; highestHitDie: number };
 
+/**
+ * One die behind maximum hit points: the 1st-level roll (`id` null) or a
+ * hit_dice row. `face` is null for a level with fixed hit points (10th, WW
+ * pp. 7-9), which Constitution doesn't change.
+ */
+export type HpDieRecord = { id: string | null; cls: CharacterClass; level: number; face: number | null; gain: number };
+
+/**
+ * Jay's ruling "con-change-hp" (17 Nov 2026): when Constitution changes,
+ * maximum hit points are recounted with the new modifier for every level.
+ * Each die keeps its face; the class adjustment and minimums still apply
+ * (WW pp. 5-6; at least 1 per later die, hit-die-floor).
+ */
+export function recountHp(dice: readonly HpDieRecord[], conModifier: number): { hpMax: number; gains: { id: string | null; gain: number }[] } {
+  const gains = dice.map((d) => ({
+    id: d.id,
+    gain: d.face === null ? d.gain : hitDieGain(d.level, d.face + HIT_DIE_ADJUST[d.cls] + conModifier),
+  }));
+  return { hpMax: gains.reduce((n, g) => n + g.gain, 0), gains };
+}
+
 export type OverrideCurrent = Record<Ability, number | null> & {
   name: string;
   alignment: Alignment | null;
   deity: string | null;
   hpMax: number | null;
   classes: OverrideClass[];
+  /**
+   * Every die behind maximum hit points, when they are all on record and
+   * maximum hit points weren't set by hand; null when they can't be recounted
+   * (levels from an imported sheet, or a hand-set maximum).
+   */
+  hpDice: HpDieRecord[] | null;
 };
 
 export type OverrideInput = Record<Ability, number> & {
@@ -108,6 +152,8 @@ export type OverrideInput = Record<Ability, number> & {
   hpMax: number;
   /** Keyed by character_classes.id. */
   xp: Record<string, number>;
+  /** Jay says maximum hit points already follow a new Constitution, where they can't be recounted from the rolls. */
+  hpRecounted: boolean;
 };
 
 export type FieldChange = { field: string; label: string; from: unknown; to: unknown };
@@ -120,6 +166,8 @@ export type OverridePlan = {
   xp: Record<string, number>;
   /** Ability and hit point fields that become hand-set. */
   manual: ManualField[];
+  /** Hit dice whose gain changes in a Constitution recount (hit_dice.id). */
+  dieGains: { id: string; gain: number }[];
 };
 
 /**
@@ -170,10 +218,27 @@ export function planOverride(cur: OverrideCurrent, input: OverrideInput, activeC
   if (!isWhole(input.hpMax) || input.hpMax < 1 || input.hpMax > HP_LIMIT) {
     return `Maximum hit points must be a whole number from 1 to ${HP_LIMIT}.`;
   }
+  const dieGains: OverridePlan["dieGains"] = [];
+  const conModChanged = cur.con !== null && abilityModifier(cur.con) !== abilityModifier(input.con);
   if (input.hpMax !== cur.hpMax) {
+    // A maximum typed by hand wins over the recount.
     changes.push({ field: "hpMax", label: "Maximum hit points", from: cur.hpMax, to: input.hpMax });
     set.hpMax = input.hpMax;
     manual.push("hpMax");
+  } else if (conModChanged && cur.hpMax !== null) {
+    if (cur.hpDice) {
+      const r = recountHp(cur.hpDice, abilityModifier(input.con));
+      for (const g of r.gains) {
+        const before = cur.hpDice.find((d) => d.id === g.id)!;
+        if (g.id !== null && g.gain !== before.gain) dieGains.push({ id: g.id, gain: g.gain });
+      }
+      if (r.hpMax !== cur.hpMax) {
+        changes.push({ field: "hpMax", label: "Maximum hit points (recounted for Constitution)", from: cur.hpMax, to: r.hpMax });
+        set.hpMax = r.hpMax;
+      }
+    } else if (!input.hpRecounted) {
+      return "A new Constitution modifier changes maximum hit points for every level (Jay's ruling), and this character's can't be recounted from the rolls. Enter the new maximum, or tick that it is right.";
+    }
   }
 
   const xp: Record<string, number> = {};
@@ -194,7 +259,7 @@ export function planOverride(cur: OverrideCurrent, input: OverrideInput, activeC
   }
 
   if (changes.length === 0) return "Nothing changed.";
-  return { changes, set, xp, manual };
+  return { changes, set, xp, manual, dieGains };
 }
 
 /** Adds newly hand-set fields to the ones already marked, keeping the order of MANUAL_FIELDS. */
