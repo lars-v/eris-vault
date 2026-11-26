@@ -8,7 +8,7 @@ import { characterClasses, characters } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { can } from "@/lib/roles";
 import { levelFor } from "@/lib/rules/advancement";
-import { castsSpells, checkPrepared, knownSpells, setSpellMark, spellSlots, type SpellClass } from "@/lib/rules/spells";
+import { castsSpells, checkPrepared, knownSpells, sameSpellbook, setSpellbookSpell, spellSlots, type SpellClass } from "@/lib/rules/spells";
 import { requireUser } from "@/lib/session";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -33,7 +33,11 @@ async function lockCaster(tx: Tx, id: string) {
   return { c, cls: k.class as SpellClass, xp: k.xp };
 }
 
-/** Saves the day's prepared spells: one form field `slot` per slot, empty when left open. */
+/**
+ * Saves the day's prepared spells: one form field `slot` per slot, empty when
+ * left open. A magic-user prepares only from the spellbook (ruling
+ * magic-user-spellbook), so a spell removed from it can't be prepared again.
+ */
 async function prepareSpellsImpl(formData: FormData) {
   const viewer = await requireUser();
   const id = str(formData, "id");
@@ -45,7 +49,7 @@ async function prepareSpellsImpl(formData: FormData) {
     const { c, cls, xp } = await lockCaster(tx, id);
     if (!can.editSpells(viewer, c)) throw new Error("Only the player or Jay can prepare this character's spells.");
     const slots = spellSlots(cls, levelFor(cls, xp).level, c.wis);
-    const problem = checkPrepared(cls, slots, knownSpells(cls), prepared);
+    const problem = checkPrepared(cls, slots, knownSpells(cls, c.spellbook), prepared);
     if (problem) throw new Error(problem);
     await tx.update(characters).set({ spellsPrepared: prepared, updatedAt: new Date() }).where(eq(characters.id, id));
     return c.spellsPrepared;
@@ -69,29 +73,30 @@ export async function savePreparedSpells(_prev: PrepareResult, formData: FormDat
   }
 }
 
-export type MarkResult = { error: string | null };
+export type SpellbookResult = { error: string | null };
 
 /**
- * Highlights a magic-user spell as known on the sheet, or clears the highlight.
- * A note for the player only: preparing still uses the whole list (ruling
- * magic-user-all-spells). Sends the wanted state, not a toggle, so a repeated
- * click can't flip it back.
+ * Adds a spell to a magic-user's spellbook, or removes it (ruling
+ * magic-user-spellbook). The player who owns the character, Jay or an admin,
+ * at any time. Prepared spells are left alone: one removed from the book stays
+ * prepared that day. Sends the wanted state, not a toggle, so a repeated click
+ * can't flip it back. Changes by Jay or an admin are audited.
  */
-export async function markKnownSpell(id: unknown, key: unknown, on: unknown): Promise<MarkResult> {
+export async function setSpellbookEntry(id: unknown, key: unknown, on: unknown): Promise<SpellbookResult> {
   try {
     if (typeof id !== "string" || typeof key !== "string" || typeof on !== "boolean") throw new Error("Bad request.");
     const viewer = await requireUser();
     const result = await db.transaction(async (tx) => {
       const { c, cls } = await lockCaster(tx, id);
-      if (!can.editSpells(viewer, c)) throw new Error("Only the player or Jay can mark this character's spells.");
-      if (cls !== "magic-user") throw new Error("Only magic-users mark known spells.");
-      const next = setSpellMark(c.spellsMarked, key, on);
-      if (next.length === c.spellsMarked.length && next.every((k, i) => k === c.spellsMarked[i])) return null;
-      await tx.update(characters).set({ spellsMarked: next, updatedAt: new Date() }).where(eq(characters.id, id));
-      return { before: c.spellsMarked, after: next };
+      if (!can.editSpells(viewer, c)) throw new Error("Only the player or Jay can change this character's spellbook.");
+      if (cls !== "magic-user") throw new Error("Only magic-users keep a spellbook.");
+      const next = setSpellbookSpell(c.spellbook, key, on);
+      if (sameSpellbook(next, c.spellbook)) return null;
+      await tx.update(characters).set({ spellbook: next, updatedAt: new Date() }).where(eq(characters.id, id));
+      return { before: c.spellbook, after: next };
     });
     if (result && viewer.role !== "player") {
-      await writeAudit(viewer, { action: "spells.marked", characterId: id, before: { marked: result.before }, after: { marked: result.after } });
+      await writeAudit(viewer, { action: "spellbook.changed", characterId: id, before: { spellbook: result.before }, after: { spellbook: result.after } });
     }
     revalidatePath(`/characters/${id}`);
     return { error: null };

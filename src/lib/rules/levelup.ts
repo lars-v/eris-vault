@@ -43,8 +43,9 @@ export function levelUp(input: LevelUpInput, from: number, to: number): LevelUp 
   if (castsSpells(cls)) {
     const was = spellSlots(cls, from, wis);
     const now = spellSlots(cls, to, wis);
-    // Every caster already has every spell on the list (rulings cleric-all-spells,
-    // magic-user-all-spells), so a new spell level needs no book or scroll.
+    // A new spell level needs no book or scroll: a cleric has every cleric spell
+    // (ruling cleric-all-spells), and a magic-user adds spells to the spellbook
+    // at any time, at no cost (ruling magic-user-spellbook).
     now.forEach((n, i) => {
       if (n === was[i]) return;
       changes.push({ label: `${ordinal(i + 1)}-level spells per day`, before: String(was[i]), after: String(n), source: book });

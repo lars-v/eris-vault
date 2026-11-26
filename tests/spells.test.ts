@@ -3,7 +3,9 @@ import {
   checkPrepared,
   knownSpells,
   maxSpellLevel,
-  setSpellMark,
+  preparedOutsideBook,
+  sameSpellbook,
+  setSpellbookSpell,
   spell,
   SPELLS,
   spellSlots,
@@ -69,20 +71,29 @@ describe("spell lists (Woundwort's Warren p. 26)", () => {
   });
 });
 
-describe("known spells (rulings cleric-all-spells, magic-user-all-spells)", () => {
-  it("every caster has every spell on their own class's list, in list order", () => {
-    for (const cls of ["magic-user", "cleric"] as const) {
-      const all = Array.from({ length: maxSpellLevel(cls) }, (_, i) => spellsFor(cls, i + 1)).flat();
-      expect(knownSpells(cls)).toEqual(all);
-      expect(knownSpells(cls).every((s) => s.cls === cls)).toBe(true);
-    }
-    expect(knownSpells("magic-user").map((s) => s.key)).toContain("mu:fireball");
-    expect(knownSpells("cleric").map((s) => s.key)).not.toContain("mu:sleep");
+describe("known spells (rulings cleric-all-spells, magic-user-spellbook)", () => {
+  it("a cleric has every cleric spell, in list order, whatever the book says", () => {
+    const all = Array.from({ length: maxSpellLevel("cleric") }, (_, i) => spellsFor("cleric", i + 1)).flat();
+    expect(knownSpells("cleric", [])).toEqual(all);
+    expect(knownSpells("cleric", ["mu:sleep"])).toEqual(all);
+  });
+
+  it("a magic-user has only the spells in the spellbook, in list order", () => {
+    expect(knownSpells("magic-user", []).length).toBe(0);
+    expect(knownSpells("magic-user", ["mu:sleep", "mu:fireball", "mu:charm-person"]).map((s) => s.key)).toEqual([
+      "mu:charm-person",
+      "mu:sleep",
+      "mu:fireball",
+    ]);
+  });
+
+  it("drops keys that aren't on the magic-user list", () => {
+    expect(knownSpells("magic-user", ["cl:bless", "mu:gone", "mu:web"]).map((s) => s.key)).toEqual(["mu:web"]);
   });
 });
 
 describe("checking prepared spells", () => {
-  const known = knownSpells("cleric");
+  const known = knownSpells("cleric", []);
   const slots = spellSlots("cleric", 4, 16);
 
   it("accepts spells that fit the slots", () => {
@@ -109,33 +120,56 @@ describe("checking prepared spells", () => {
   });
 
   it("lets one spell fill several slots (Jay's ruling prepare-same-spell)", () => {
-    expect(checkPrepared("magic-user", spellSlots("magic-user", 3, 10), knownSpells("magic-user"), ["mu:sleep", "mu:sleep", "mu:sleep"])).toBeNull();
+    expect(checkPrepared("magic-user", spellSlots("magic-user", 3, 10), knownSpells("magic-user", ["mu:sleep"]), ["mu:sleep", "mu:sleep", "mu:sleep"])).toBeNull();
   });
 });
 
-describe("spells a player highlights as known (a note, not a rule)", () => {
-  it("adds and removes a mark, kept in list order without repeats", () => {
-    const one = setSpellMark([], "mu:sleep", true);
+describe("the magic-user spellbook (ruling magic-user-spellbook)", () => {
+  it("adds and removes a spell, kept in list order without repeats", () => {
+    const one = setSpellbookSpell([], "mu:sleep", true);
     expect(one).toEqual(["mu:sleep"]);
-    const two = setSpellMark(one, "mu:charm-person", true);
+    const two = setSpellbookSpell(one, "mu:charm-person", true);
     expect(two).toEqual(["mu:charm-person", "mu:sleep"]);
-    expect(setSpellMark(two, "mu:sleep", true)).toEqual(two);
-    expect(setSpellMark(two, "mu:sleep", false)).toEqual(["mu:charm-person"]);
-    expect(setSpellMark(["mu:fireball"], "mu:web", false)).toEqual(["mu:fireball"]);
+    expect(setSpellbookSpell(two, "mu:sleep", true)).toEqual(two);
+    expect(setSpellbookSpell(two, "mu:sleep", false)).toEqual(["mu:charm-person"]);
+    expect(setSpellbookSpell(["mu:fireball"], "mu:web", false)).toEqual(["mu:fireball"]);
+  });
+
+  it("takes any spell on the list, even one the character can't cast yet", () => {
+    expect(setSpellbookSpell([], "mu:disintegrate", true)).toEqual(["mu:disintegrate"]);
   });
 
   it("drops keys that are no longer on the list", () => {
-    expect(setSpellMark(["mu:gone", "mu:light"], "mu:sleep", true)).toEqual(["mu:light", "mu:sleep"]);
+    expect(setSpellbookSpell(["mu:gone", "mu:light"], "mu:sleep", true)).toEqual(["mu:light", "mu:sleep"]);
   });
 
   it("refuses spells off the magic-user list", () => {
-    expect(() => setSpellMark([], "cl:bless", true)).toThrow(/magic-user list/);
-    expect(() => setSpellMark([], "mu:nope", true)).toThrow(/magic-user list/);
+    expect(() => setSpellbookSpell([], "cl:bless", true)).toThrow(/magic-user list/);
+    expect(() => setSpellbookSpell([], "mu:nope", true)).toThrow(/magic-user list/);
   });
 
-  it("never limits what a magic-user can prepare (ruling magic-user-all-spells)", () => {
-    const marked = setSpellMark([], "mu:sleep", true);
-    expect(marked).not.toContain("mu:magic-missile");
-    expect(checkPrepared("magic-user", spellSlots("magic-user", 1, 10), knownSpells("magic-user"), ["mu:magic-missile"])).toBeNull();
+  it("limits what a magic-user can prepare", () => {
+    const book = setSpellbookSpell([], "mu:sleep", true);
+    const slots = spellSlots("magic-user", 1, 10);
+    expect(checkPrepared("magic-user", slots, knownSpells("magic-user", book), ["mu:sleep"])).toBeNull();
+    expect(checkPrepared("magic-user", slots, knownSpells("magic-user", book), ["mu:magic-missile"])).toMatch(/Magic Missile isn't in this character's spellbook/);
+    expect(checkPrepared("magic-user", slots, knownSpells("magic-user", []), ["mu:sleep"])).toMatch(/isn't in this character's spellbook/);
+  });
+
+  it("a spell taken out while prepared still passes the slot-count check", () => {
+    // The sheet checks slot counts against the whole list, so the spell stays today without a warning.
+    expect(checkPrepared("magic-user", spellSlots("magic-user", 1, 10), spellsFor("magic-user"), ["mu:sleep"])).toBeNull();
+  });
+
+  it("finds prepared spells no longer in the book, once each, in list order", () => {
+    expect(preparedOutsideBook("magic-user", ["mu:sleep"], ["mu:sleep", "mu:web", "mu:light", "mu:web"]).map((s) => s.key)).toEqual(["mu:light", "mu:web"]);
+    expect(preparedOutsideBook("magic-user", ["mu:sleep"], ["mu:sleep"])).toEqual([]);
+    expect(preparedOutsideBook("cleric", [], ["cl:bless"])).toEqual([]);
+  });
+
+  it("compares books as sets", () => {
+    expect(sameSpellbook(["mu:sleep", "mu:light"], ["mu:light", "mu:sleep"])).toBe(true);
+    expect(sameSpellbook(["mu:sleep"], ["mu:sleep", "mu:light"])).toBe(false);
+    expect(sameSpellbook([], [])).toBe(true);
   });
 });

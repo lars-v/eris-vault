@@ -120,6 +120,13 @@
       "when": 1795666989436,
       "tag": "0016_known_spell_marks",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795675861828,
+      "tag": "0017_spellbook",
+      "breakpoints": true
     }
   ]
 }

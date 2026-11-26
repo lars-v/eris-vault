@@ -123,15 +123,15 @@ export const characters = pgTable("characters", {
   coinsCp: integer("coins_cp").notNull().default(0),
   deity: text("deity"),
   // Spell keys from src/lib/rules/spells.ts. `spellsKnown` held books and scrolls
-  // recorded on the character (WW p. 25). Since the all-spells rulings (16 Nov 2026)
-  // every caster has the whole list, so nothing reads or writes it; old rows are
-  // kept. `spellsPrepared` has one entry per filled slot.
+  // recorded on the character (WW p. 25) before the 16 Nov 2026 rulings. Nothing
+  // reads or writes it now; old rows are kept. `spellsPrepared` has one entry per
+  // filled slot.
   spellsKnown: text("spells_known").array().notNull().default(sql`'{}'::text[]`),
   spellsPrepared: text("spells_prepared").array().notNull().default(sql`'{}'::text[]`),
-  // Magic-user spells the player highlighted as known on the sheet, in list order.
-  // A note only: every magic-user can still prepare the whole list (ruling
-  // magic-user-all-spells). Kept apart from the old `spellsKnown` rows.
-  spellsMarked: text("spells_marked").array().notNull().default(sql`'{}'::text[]`),
+  // A magic-user's spellbook: the only spells they prepare or store in a staff
+  // (ruling magic-user-spellbook, 25 Nov 2026). The player adds and removes
+  // spells at any time. Was `spells_marked`, the highlights it grew from (0017).
+  spellbook: text("spellbook").array().notNull().default(sql`'{}'::text[]`),
   notes: text("notes"),
   // Abilities and maximum hit points Jay or an admin set by hand (ManualField
   // in src/lib/rules/overrides.ts). The rolls behind the old values stay in `rolls`.

@@ -1,6 +1,6 @@
 import type { CharacterClass } from "@/db/schema";
 import { abilityModifier } from "./abilities";
-import { spell, spellsFor, type Spell } from "./spells";
+import { knownSpells, spell, type Spell } from "./spells";
 
 /**
  * The spell-storing staff or wand.
@@ -13,7 +13,10 @@ import { spell, spellsFor, type Spell } from "./spells";
  *   is stored by casting it on the staff and may be loosed at any time; once
  *   used it must be cast on the staff again. Magic-users and elves may use a
  *   wand instead. Only one staff or wand at a time.
- * - 1st-level magic-user spells: WW p. 26 (the list in spells.ts).
+ * - 1st-level magic-user spells: WW p. 26 (the list in spells.ts). Only spells
+ *   in the magic-user's spellbook can be cast on the staff (table ruling
+ *   magic-user-spellbook, 25 Nov 2026). A spell already stored stays when it
+ *   leaves the book.
  *
  * Jay's rulings (17 Nov 2026):
  * - "elf-wand-int": elves need an Intelligence bonus (15+) like any magic-user.
@@ -50,9 +53,9 @@ export function staffCapacity(classes: readonly CharacterClass[], int: number | 
   return bonus >= 2 ? 2 : bonus === 1 ? 1 : 0;
 }
 
-/** The spells a staff can hold: every 1st-level magic-user spell (WW p. 26). */
-export function staffSpells(): Spell[] {
-  return spellsFor("magic-user", 1);
+/** The spells that can be cast on the staff: 1st-level spells in the spellbook (WW pp. 7, 26; ruling magic-user-spellbook). */
+export function staffSpells(spellbook: readonly string[]): Spell[] {
+  return knownSpells("magic-user", spellbook).filter((s) => s.level === 1);
 }
 
 export function isStaffSpell(key: string): boolean {
@@ -107,6 +110,8 @@ export function checkLoad(input: {
   slot: number;
   spell: string;
   hasFocus: boolean;
+  /** The magic-user's spellbook (ruling magic-user-spellbook). */
+  spellbook: readonly string[];
 }): string | null {
   if (input.capacity === 0) return "Only a magic-user with an Intelligence bonus (15+) can store spells in a staff (WW p. 7).";
   if (!input.hasFocus) return "Set a staff or wand as the spell focus first.";
@@ -115,6 +120,7 @@ export function checkLoad(input: {
     return `Intelligence ${input.capacity === 1 ? "15 to 17 stores one spell" : "18 stores two spells"}, so slot ${input.slot} can't be used (WW p. 7).`;
   }
   if (!isStaffSpell(input.spell)) return "A staff stores 1st-level magic-user spells only (WW pp. 7, 26).";
+  if (!input.spellbook.includes(input.spell)) return `${spell(input.spell)!.name} isn't in this character's spellbook. Add it there first.`;
   const s = stateOf(input.states, input.slot);
   if (s?.spell) return `Slot ${input.slot} already holds ${spell(s.spell)?.name ?? "a spell"}. Release it first.`;
   return null;

@@ -8,12 +8,19 @@ import { abilityModifier } from "./abilities";
  *   Table) and p. 8 (Cleric Advancement Table).
  * - Extra 1st-level cleric spells from a Wisdom bonus: WW p. 5.
  * - Spell lists: WW p. 26 ("Magic-User Spellbooks", "Cleric Prayer Scrolls").
- * - Which spells a caster has: table rulings "cleric-all-spells" and
- *   "magic-user-all-spells" (Lars, 16 Nov 2026). Every caster has every spell on
- *   their class's list. They override WW p. 25 (spellbooks and prayer scrolls
- *   bought or offered for one spell level at a time) and WW p. 10 (an elf's
- *   "mental" book grown by study). Spells per day (WW pp. 5, 7, 8) are unchanged,
- *   so a caster still prepares only at spell levels they have slots for.
+ * - Which spells a caster prepares from:
+ *   - Clerics: table ruling "cleric-all-spells" (Lars, 16 Nov 2026). Every
+ *     cleric has every spell on the cleric list. It overrides WW p. 25 (prayer
+ *     scrolls offered one spell level at a time).
+ *   - Magic-users, and elves casting as one: table ruling "magic-user-spellbook"
+ *     (Lars, 25 Nov 2026), which replaces "magic-user-all-spells" (16 Nov). A
+ *     magic-user prepares only spells in their spellbook. The player adds or
+ *     removes any spell on the magic-user list at any time, with no cost or
+ *     limit. A spell removed while prepared stays prepared that day. It sets
+ *     aside WW p. 25 (spellbooks bought one spell level at a time) and WW p. 10
+ *     (an elf's "mental" book grown by study).
+ *   Spells per day (WW pp. 5, 7, 8) are unchanged, so a caster still prepares
+ *   only at spell levels they have slots for.
  *
  * Jay's rulings (17 Nov 2026):
  * - "prepare-same-spell": a caster may prepare the same spell in several slots.
@@ -28,7 +35,8 @@ export const SPELL_SLOTS_SOURCE: Record<SpellClass, string> = {
   cleric: "Woundwort's Warren p. 8",
 };
 export const SPELL_LIST_SOURCE = "Woundwort's Warren p. 26";
-export const ALL_SPELLS_SOURCE = "Table rulings cleric-all-spells and magic-user-all-spells (Lars), 16 Nov 2026";
+export const ALL_SPELLS_SOURCE = "Table ruling cleric-all-spells (Lars), 16 Nov 2026";
+export const SPELLBOOK_SOURCE = "Table ruling magic-user-spellbook (Lars), 25 Nov 2026";
 
 export type SpellClass =Extract<CharacterClass, "magic-user" | "cleric">;
 export type Spell = { key: string; name: string; cls: SpellClass; level: number };
@@ -163,15 +171,35 @@ export function maxSpellLevel(cls: SpellClass): number {
   return cls === "magic-user" ? MU.length : CLERIC.length;
 }
 
-/** Every spell on the class's list, in list order (rulings cleric-all-spells, magic-user-all-spells). */
-export function knownSpells(cls: SpellClass): Spell[] {
-  return SPELLS.filter((s) => s.cls === cls);
+/**
+ * The spells a caster prepares from, in list order. A cleric has the whole
+ * cleric list (ruling cleric-all-spells) and the book is ignored. A magic-user
+ * has the spells in their spellbook (ruling magic-user-spellbook); keys that
+ * aren't on the magic-user list drop out.
+ */
+export function knownSpells(cls: SpellClass, spellbook: readonly string[]): Spell[] {
+  if (cls === "cleric") return spellsFor("cleric");
+  const book = new Set(spellbook);
+  return spellsFor("magic-user").filter((s) => book.has(s.key));
 }
 
 /**
- * Checks a day's prepared spells: each one on the class list, known, and no
- * more at a spell level than the character has slots for. Returns the first
- * problem as a message, or null.
+ * Prepared spells a magic-user removed from the spellbook. Each one stays in
+ * its slot for the day but can't be prepared again (ruling magic-user-spellbook).
+ * One entry per spell, in list order. Always empty for a cleric.
+ */
+export function preparedOutsideBook(cls: SpellClass, spellbook: readonly string[], prepared: readonly string[]): Spell[] {
+  if (cls === "cleric") return [];
+  const book = new Set(spellbook);
+  const out = new Set(prepared.filter((k) => !book.has(k)));
+  return spellsFor("magic-user").filter((s) => out.has(s.key));
+}
+
+/**
+ * Checks a day's prepared spells: each one on the class list, known (for a
+ * magic-user, in the spellbook), and no more at a spell level than the
+ * character has slots for. Returns the first problem as a message, or null.
+ * Pass the whole class list as `known` to check only the slot counts.
  */
 export function checkPrepared(cls: SpellClass, slots: number[], known: Spell[], prepared: string[]): string | null {
   const knownKeys = new Set(known.map((s) => s.key));
@@ -190,23 +218,25 @@ export function checkPrepared(cls: SpellClass, slots: number[], known: Spell[], 
 }
 
 /**
- * Turns one highlight on or off in a magic-user's list of spells the player
- * marked as known on the sheet. Returns the new list in list order, without
- * repeats, or throws for a spell that isn't on the magic-user list (WW p. 26).
- *
- * The marks are a player's note, not a rule: every magic-user can still prepare
- * any spell on the list (ruling magic-user-all-spells), so checkPrepared never
- * reads them. Keys no longer on the list drop out.
+ * Adds a spell to a magic-user's spellbook, or removes it (ruling
+ * magic-user-spellbook). Returns the new book in list order, without repeats,
+ * or throws for a spell that isn't on the magic-user list (WW p. 26). Keys no
+ * longer on the list drop out.
  */
-export function setSpellMark(marked: readonly string[], key: string, on: boolean): string[] {
+export function setSpellbookSpell(spellbook: readonly string[], key: string, on: boolean): string[] {
   const s = spell(key);
   if (!s || s.cls !== "magic-user") throw new Error("That spell isn't on the magic-user list (WW p. 26).");
-  const next = new Set(marked);
+  const next = new Set(spellbook);
   if (on) next.add(key);
   else next.delete(key);
-  return knownSpells("magic-user")
-    .map((x) => x.key)
-    .filter((k) => next.has(k));
+  return knownSpells("magic-user", [...next]).map((x) => x.key);
+}
+
+/** True when two books hold the same spells, in any order. */
+export function sameSpellbook(a: readonly string[], b: readonly string[]): boolean {
+  const x = new Set(a);
+  const y = new Set(b);
+  return x.size === y.size && [...x].every((k) => y.has(k));
 }
 
 export function ordinal(n: number): string {

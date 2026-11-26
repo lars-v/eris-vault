@@ -15,6 +15,7 @@ import {
   staffWarnings,
   type StaffEvent,
 } from "@/lib/rules/staff";
+import { spellsFor } from "@/lib/rules/spells";
 
 const at = (n: number) => new Date(Date.UTC(2026, 10, 16, 12, 0, n));
 const ev = (slot: number, action: StaffEvent["action"], spell: string, n: number, inventoryId = "staff-1"): StaffEvent => ({
@@ -54,7 +55,7 @@ describe("staff capacity (Woundwort's Warren pp. 5, 7)", () => {
 
 describe("what a staff can hold (WW p. 26)", () => {
   it("the ten 1st-level magic-user spells, and nothing else", () => {
-    expect(staffSpells().map((s) => s.name)).toEqual([
+    expect(staffSpells(spellsFor("magic-user").map((s) => s.key)).map((s) => s.name)).toEqual([
       "Charm Person",
       "Detect Magic",
       "Floating Disc",
@@ -72,6 +73,11 @@ describe("what a staff can hold (WW p. 26)", () => {
     expect(isStaffSpell("mu:wizard-lock")).toBe(false);
     expect(isStaffSpell("cl:light")).toBe(false);
     expect(isStaffSpell("nonsense")).toBe(false);
+  });
+
+  it("only 1st-level spells in the spellbook (ruling magic-user-spellbook)", () => {
+    expect(staffSpells(["mu:web", "mu:sleep", "mu:charm-person", "cl:light"]).map((s) => s.key)).toEqual(["mu:charm-person", "mu:sleep"]);
+    expect(staffSpells([])).toEqual([]);
   });
 });
 
@@ -92,7 +98,7 @@ describe("slot state is the latest event", () => {
 describe("load and release refuse invalid states", () => {
   const empty = slotStates([]);
   const sleepIn1 = slotStates([ev(1, "load", "mu:sleep", 1)]);
-  const base = { states: empty, capacity: 1, slot: 1, spell: "mu:sleep", hasFocus: true };
+  const base = { states: empty, capacity: 1, slot: 1, spell: "mu:sleep", hasFocus: true, spellbook: ["mu:sleep", "mu:web"] };
 
   it("loads an empty slot within capacity", () => {
     expect(checkLoad(base)).toBeNull();
@@ -117,6 +123,11 @@ describe("load and release refuse invalid states", () => {
     expect(checkLoad({ ...base, spell: "mu:web" })).toMatch(/1st-level magic-user spells only/);
     expect(checkLoad({ ...base, spell: "cl:cure-light-wounds" })).toMatch(/1st-level magic-user spells only/);
     expect(checkLoad({ ...base, spell: "" })).toMatch(/1st-level magic-user spells only/);
+  });
+
+  it("refuses a 1st-level spell that isn't in the spellbook (ruling magic-user-spellbook)", () => {
+    expect(checkLoad({ ...base, spell: "mu:light" })).toMatch(/Light isn't in this character's spellbook/);
+    expect(checkLoad({ ...base, spellbook: [] })).toMatch(/Sleep isn't in this character's spellbook/);
   });
 
   it("refuses without a staff or wand set", () => {

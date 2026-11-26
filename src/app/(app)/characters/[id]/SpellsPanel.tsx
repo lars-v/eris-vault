@@ -1,8 +1,19 @@
 import { Chip, Panel } from "@/components/ui";
 import { abilityModifier } from "@/lib/rules/abilities";
-import { checkPrepared, knownSpells, maxSpellLevel, ordinal, spell, spellSlots, type SpellClass } from "@/lib/rules/spells";
+import {
+  checkPrepared,
+  knownSpells,
+  maxSpellLevel,
+  ordinal,
+  preparedOutsideBook,
+  spell,
+  spellSlots,
+  spellsFor,
+  type SpellClass,
+} from "@/lib/rules/spells";
 import { PreparedSpells, type PrepareLevel } from "./PreparedSpells";
-import { SpellList } from "./SpellList";
+import { Spellbook } from "./Spellbook";
+import { SpellList, type SpellListLevel } from "./SpellList";
 
 export function SpellsPanel({
   id,
@@ -11,21 +22,25 @@ export function SpellsPanel({
   wis,
   prepared,
   canPrepare,
-  marked,
+  spellbook,
 }: {
   id: string;
   cls: SpellClass;
   level: number;
   wis: number | null;
   prepared: string[];
+  /** Prepare spells and, for a magic-user, change the spellbook. */
   canPrepare: boolean;
-  /** Magic-user spells the player highlighted as known (a note, not a rule). */
-  marked: string[];
+  /** A magic-user's spellbook (ruling magic-user-spellbook). Ignored for a cleric. */
+  spellbook: string[];
 }) {
+  const mu = cls === "magic-user";
   const slots = spellSlots(cls, level, wis);
-  const known = knownSpells(cls);
-  const list = cls === "cleric" ? "cleric" : "magic-user";
-  const problem = checkPrepared(cls, slots, known, prepared);
+  const known = knownSpells(cls, spellbook);
+  const inBook = new Set(known.map((s) => s.key));
+  // Only slot counts here: a spell taken out of the book stays prepared today (ruling magic-user-spellbook).
+  const problem = checkPrepared(cls, slots, spellsFor(cls), prepared);
+  const outside = preparedOutsideBook(cls, spellbook, prepared);
   const levels = Array.from({ length: maxSpellLevel(cls) }, (_, i) => i + 1);
   const castable = levels.filter((l) => (slots[l - 1] ?? 0) > 0);
   const prepareLevels: PrepareLevel[] = castable.map((l) => ({
@@ -33,7 +48,14 @@ export function SpellsPanel({
     label: ordinal(l),
     slots: slots[l - 1],
     options: known.filter((s) => s.level === l).map((s) => ({ key: s.key, name: s.name })),
-    current: prepared.filter((k) => spell(k)?.level === l),
+    current: prepared
+      .filter((k) => spell(k)?.level === l)
+      .map((k) => ({ key: k, name: spell(k)?.name ?? k, inBook: inBook.has(k) })),
+  }));
+  const listLevels: SpellListLevel[] = levels.map((l) => ({
+    level: l,
+    label: ordinal(l),
+    spells: spellsFor(cls, l).map((s) => ({ key: s.key, name: s.name })),
   }));
 
   return (
@@ -51,7 +73,9 @@ export function SpellsPanel({
         )}
       </div>
       <p className="text-sm text-muted">
-        Every {list} has every spell on the {list} list (table ruling, 16 Nov 2026). Spells per day still follow WW {cls === "cleric" ? "pp. 5 and 8" : "p. 7"}.
+        {mu
+          ? "A magic-user prepares spells from their spellbook, and can add or remove spells at any time (table ruling, 25 Nov 2026). Spells per day still follow WW p. 7."
+          : "Every cleric has every spell on the cleric list (table ruling, 16 Nov 2026). Spells per day still follow WW pp. 5 and 8."}
       </p>
       {cls === "cleric" && level === 1 && (
         <p className="text-sm text-muted">
@@ -67,21 +91,24 @@ export function SpellsPanel({
       {problem && prepared.length > 0 && (
         <p className="rounded-xl border border-amber-edge bg-amber-wash px-3 py-2 text-sm text-amber">Saved spells no longer fit: {problem} Prepare again.</p>
       )}
+      {outside.length > 0 && (
+        <p className="text-sm text-muted">
+          {names(outside.map((s) => s.name))} {outside.length === 1 ? "is" : "are"} prepared but not in the spellbook.{" "}
+          {outside.length === 1 ? "It stays" : "They stay"} today and can&apos;t be prepared again.
+        </p>
+      )}
 
       {castable.length > 0 && <PreparedSpells id={id} levels={prepareLevels} canEdit={canPrepare} />}
 
-      <SpellList
-        id={id}
-        title={cls === "cleric" ? "Cleric spells" : "Magic-user spells"}
-        levels={levels.map((l) => ({
-          level: l,
-          label: ordinal(l),
-          spells: known.filter((s) => s.level === l).map((s) => ({ key: s.key, name: s.name })),
-        }))}
-        markable={cls === "magic-user"}
-        marked={marked}
-        canMark={canPrepare}
-      />
+      {mu ? (
+        <Spellbook id={id} levels={listLevels} book={known.map((s) => s.key)} canEdit={canPrepare} />
+      ) : (
+        <SpellList title="Cleric spells" levels={listLevels} />
+      )}
     </Panel>
   );
+}
+
+function names(list: string[]): string {
+  return list.length <= 1 ? (list[0] ?? "") : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
 }

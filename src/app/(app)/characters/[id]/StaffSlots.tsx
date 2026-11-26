@@ -106,8 +106,11 @@ function Slot({
           <p className="text-sm text-muted">
             Loading uses one of the day&apos;s castings: the spell is cast on the staff, and stays there until it is released (WW p. 7).
           </p>
+          {spells.length === 0 && (
+            <p className="text-sm text-subtle">No 1st-level spells in the spellbook yet. Add one under Spells to cast it on the staff.</p>
+          )}
           <label className="flex flex-col gap-1">
-            <span className="text-xs text-subtle">1st-level spell</span>
+            <span className="text-xs text-subtle">1st-level spell from the spellbook</span>
             <select name="spell" required defaultValue="" className={selectCls}>
               <option value="" disabled>
                 Choose a spell
@@ -124,7 +127,7 @@ function Slot({
             <button type="button" onClick={close} disabled={loading} className={plainBtn}>
               Cancel
             </button>
-            <button type="submit" disabled={loading} className={limeBtn}>
+            <button type="submit" disabled={loading || spells.length === 0} className={limeBtn}>
               {loading ? "Loading…" : "Cast on the staff"}
             </button>
           </div>

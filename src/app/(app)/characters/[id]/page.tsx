@@ -203,7 +203,7 @@ export default async function CharacterPage({
                   wis={c.wis}
                   prepared={c.spellsPrepared}
                   canPrepare={can.editSpells(viewer, c)}
-                  marked={c.spellsMarked}
+                  spellbook={c.spellbook}
                 />
               )}
               {showStaff && (
@@ -214,6 +214,7 @@ export default async function CharacterPage({
                   isElf={c.race === "elf"}
                   items={c.items}
                   events={c.staffEvents}
+                  spellbook={c.spellbook}
                   rulings={staffRulings}
                   canUse={can.useSpellStaff(viewer, c) && playStateOpen(c.status, staff)}
                   canVoid={can.voidStoredSpell(viewer)}

@@ -30,6 +30,8 @@ const staffs = await sql`select id from inventory where character_id = ${c.id} a
 if (staffs.length === 0) {
   await sql`insert into inventory (character_id, name, kind, quantity, enc_units, catalog_key) values (${c.id}, 'Staff', 'Weapon', 1, 3, 'staff')`;
 }
+// Only spells in the spellbook can be cast on the staff (ruling magic-user-spellbook).
+await sql`update characters set spellbook = array_append(spellbook, 'mu:sleep') where id = ${c.id} and not ('mu:sleep' = any(spellbook))`;
 const latest = await sql`
   select distinct on (slot) slot, action from stored_spell_events
   where character_id = ${c.id} order by slot, created_at desc`;

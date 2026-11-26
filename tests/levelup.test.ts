@@ -104,7 +104,7 @@ describe("levelUp", () => {
   it("leaves out to-hit when the row doesn't move", () => {
     expect(find(levelUp(human("cleric"), 1, 2), "Roll to hit AC 9")).toBeUndefined();
   });
-  it("names a new spell level for a magic-user, with no book to buy (ruling magic-user-all-spells)", () => {
+  it("names a new spell level for a magic-user, with no book to buy (ruling magic-user-spellbook)", () => {
     const u = levelUp(human("magic-user"), 2, 3);
     expect(find(u, "2nd-level spells per day")).toMatchObject({ before: "0", after: "1" });
     expect(find(u, "1st-level spells per day")).toMatchObject({ before: "2", after: "3" });

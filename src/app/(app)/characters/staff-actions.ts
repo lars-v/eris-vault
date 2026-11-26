@@ -126,7 +126,7 @@ async function loadImpl(formData: FormData) {
   await db.transaction(async (tx) => {
     const { c, capacity, focus, states } = await loadStaff(tx, id);
     checkSlotAccess(viewer, c);
-    const problem = checkLoad({ states, capacity, slot, spell: key, hasFocus: focus !== null });
+    const problem = checkLoad({ states, capacity, slot, spell: key, hasFocus: focus !== null, spellbook: c.spellbook });
     if (problem) throw new Error(problem);
     await record(tx, viewer, { characterId: id, inventoryId: focus!.id, slot, spell: key, action: "load" });
   });

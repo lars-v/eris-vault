@@ -38,6 +38,7 @@ export function SpellStaffPanel({
   isElf,
   items,
   events,
+  spellbook,
   rulings,
   canUse,
   canVoid,
@@ -50,6 +51,8 @@ export function SpellStaffPanel({
   isElf: boolean;
   items: Item[];
   events: StaffHistoryEvent[];
+  /** Only 1st-level spells in the spellbook can be cast on the staff (ruling magic-user-spellbook). */
+  spellbook: string[];
   rulings: StaffRuling[];
   /** Load and release: owner, Jay or admin, and the character in play. */
   canUse: boolean;
@@ -113,7 +116,7 @@ export function SpellStaffPanel({
         <StaffSlots
           id={id}
           slots={slots}
-          spells={staffSpells().map((s) => ({ key: s.key, name: s.name }))}
+          spells={staffSpells(spellbook).map((s) => ({ key: s.key, name: s.name }))}
           canUse={canUse}
           canVoid={canVoid}
           hasFocus={focus !== null}

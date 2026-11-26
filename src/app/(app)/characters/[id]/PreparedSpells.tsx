@@ -10,17 +10,22 @@ export type PrepareLevel = {
   /** "1st", "2nd", ... */
   label: string;
   slots: number;
-  /** Spells in the book at this level, in list order. */
+  /** Spells that can be prepared at this level, in list order (for a magic-user, the spellbook). */
   options: { key: string; name: string }[];
-  /** Spell keys prepared at this level now, in slot order. */
-  current: string[];
+  /**
+   * Spells prepared at this level now, in slot order. `inBook` is false for a
+   * spell taken out of the spellbook: it stays today but can't be picked again
+   * (ruling magic-user-spellbook).
+   */
+  current: { key: string; name: string; inBook: boolean }[];
 };
 
 const selectCls = "min-h-11 w-full min-w-0 rounded-xl border border-line-2 bg-ink px-2 text-sm";
 
 /**
  * The day's prepared spells (WW pp. 5, 7-8, 25). Shows each slot; the player
- * who owns the character, Jay and admins open the picker to change them.
+ * who owns the character, Jay and admins open the picker to change them. A
+ * magic-user picks only from the spellbook (ruling magic-user-spellbook).
  */
 export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: PrepareLevel[]; canEdit: boolean }) {
   const [state, action, pending] = useActionState(savePreparedSpells, idle);
@@ -33,14 +38,16 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
     if (!state.error) setEditing(false);
   }
 
-  const nameOf = (lvl: PrepareLevel, key: string) => lvl.options.find((o) => o.key === key)?.name ?? key;
   const anyPrepared = levels.some((l) => l.current.length > 0);
+  // With an empty spellbook there is nothing to pick, so the spellbook's own prompt says what to do.
+  const anyOptions = levels.some((l) => l.options.length > 0);
+  const dropped = levels.flatMap((l) => l.current.filter((c) => !c.inBook).map((c) => c.name));
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Prepared spells</h3>
-        {canEdit && !editing && (
+        {canEdit && !editing && (anyOptions || anyPrepared) && (
           <button
             type="button"
             onClick={() => setEditing(true)}
@@ -55,14 +62,23 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
         <form action={action} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={id} />
           <p className="text-sm text-muted">Choose a spell for each slot, then save. Leave a slot open to fill it later.</p>
+          {dropped.length > 0 && (
+            <p className="text-sm text-muted">
+              {[...new Set(dropped)].join(", ")} {new Set(dropped).size === 1 ? "isn't" : "aren't"} in the spellbook any more, so{" "}
+              {dropped.length === 1 ? "its slot opens" : "those slots open"} when you save.
+            </p>
+          )}
           {levels.map((l) => (
             <fieldset key={l.level} className="flex flex-col gap-2">
               <legend className="mb-1 text-sm font-semibold">{l.label}-level slots</legend>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
+              {l.options.length === 0 ? (
+                <p className="text-sm text-subtle">No {l.label}-level spells in the spellbook yet. Add some to prepare them.</p>
+              ) : (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
                   {Array.from({ length: l.slots }, (_, i) => (
                     <label key={i} className="flex flex-col gap-1">
                       <span className="text-xs text-subtle">Slot {i + 1}</span>
-                      <select name="slot" defaultValue={l.current[i] ?? ""} className={selectCls}>
+                      <select name="slot" defaultValue={l.current[i]?.inBook ? l.current[i].key : ""} className={selectCls}>
                         <option value="">Open slot</option>
                         {l.options.map((s) => (
                           <option key={s.key} value={s.key}>
@@ -72,7 +88,8 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
                       </select>
                     </label>
                   ))}
-              </div>
+                </div>
+              )}
             </fieldset>
           ))}
           {state.error && (
@@ -105,10 +122,10 @@ export function PreparedSpells({ id, levels, canEdit }: { id: string; levels: Pr
               <span className="text-xs font-semibold uppercase tracking-[0.12em] text-subtle">{l.label} level</span>
               <ul className="flex flex-wrap gap-1.5">
                   {Array.from({ length: l.slots }, (_, i) => {
-                    const key = l.current[i];
-                    return key ? (
+                    const cur = l.current[i];
+                    return cur ? (
                       <li key={i} className="rounded-full border border-line-2 px-2.5 py-0.5 text-sm">
-                        {nameOf(l, key)}
+                        {cur.name}
                       </li>
                     ) : (
                       <li key={i} className="rounded-full border border-dashed border-line-2 px-2.5 py-0.5 text-sm text-subtle">
