@@ -189,6 +189,26 @@ export function checkPrepared(cls: SpellClass, slots: number[], known: Spell[], 
   return null;
 }
 
+/**
+ * Turns one highlight on or off in a magic-user's list of spells the player
+ * marked as known on the sheet. Returns the new list in list order, without
+ * repeats, or throws for a spell that isn't on the magic-user list (WW p. 26).
+ *
+ * The marks are a player's note, not a rule: every magic-user can still prepare
+ * any spell on the list (ruling magic-user-all-spells), so checkPrepared never
+ * reads them. Keys no longer on the list drop out.
+ */
+export function setSpellMark(marked: readonly string[], key: string, on: boolean): string[] {
+  const s = spell(key);
+  if (!s || s.cls !== "magic-user") throw new Error("That spell isn't on the magic-user list (WW p. 26).");
+  const next = new Set(marked);
+  if (on) next.add(key);
+  else next.delete(key);
+  return knownSpells("magic-user")
+    .map((x) => x.key)
+    .filter((k) => next.has(k));
+}
+
 export function ordinal(n: number): string {
   return n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`;
 }

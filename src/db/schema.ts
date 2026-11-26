@@ -128,6 +128,10 @@ export const characters = pgTable("characters", {
   // kept. `spellsPrepared` has one entry per filled slot.
   spellsKnown: text("spells_known").array().notNull().default(sql`'{}'::text[]`),
   spellsPrepared: text("spells_prepared").array().notNull().default(sql`'{}'::text[]`),
+  // Magic-user spells the player highlighted as known on the sheet, in list order.
+  // A note only: every magic-user can still prepare the whole list (ruling
+  // magic-user-all-spells). Kept apart from the old `spellsKnown` rows.
+  spellsMarked: text("spells_marked").array().notNull().default(sql`'{}'::text[]`),
   notes: text("notes"),
   // Abilities and maximum hit points Jay or an admin set by hand (ManualField
   // in src/lib/rules/overrides.ts). The rolls behind the old values stay in `rolls`.

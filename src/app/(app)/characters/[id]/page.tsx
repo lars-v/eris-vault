@@ -203,6 +203,7 @@ export default async function CharacterPage({
                   wis={c.wis}
                   prepared={c.spellsPrepared}
                   canPrepare={can.editSpells(viewer, c)}
+                  marked={c.spellsMarked}
                 />
               )}
               {showStaff && (

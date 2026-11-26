@@ -3,6 +3,7 @@ import {
   checkPrepared,
   knownSpells,
   maxSpellLevel,
+  setSpellMark,
   spell,
   SPELLS,
   spellSlots,
@@ -109,5 +110,32 @@ describe("checking prepared spells", () => {
 
   it("lets one spell fill several slots (Jay's ruling prepare-same-spell)", () => {
     expect(checkPrepared("magic-user", spellSlots("magic-user", 3, 10), knownSpells("magic-user"), ["mu:sleep", "mu:sleep", "mu:sleep"])).toBeNull();
+  });
+});
+
+describe("spells a player highlights as known (a note, not a rule)", () => {
+  it("adds and removes a mark, kept in list order without repeats", () => {
+    const one = setSpellMark([], "mu:sleep", true);
+    expect(one).toEqual(["mu:sleep"]);
+    const two = setSpellMark(one, "mu:charm-person", true);
+    expect(two).toEqual(["mu:charm-person", "mu:sleep"]);
+    expect(setSpellMark(two, "mu:sleep", true)).toEqual(two);
+    expect(setSpellMark(two, "mu:sleep", false)).toEqual(["mu:charm-person"]);
+    expect(setSpellMark(["mu:fireball"], "mu:web", false)).toEqual(["mu:fireball"]);
+  });
+
+  it("drops keys that are no longer on the list", () => {
+    expect(setSpellMark(["mu:gone", "mu:light"], "mu:sleep", true)).toEqual(["mu:light", "mu:sleep"]);
+  });
+
+  it("refuses spells off the magic-user list", () => {
+    expect(() => setSpellMark([], "cl:bless", true)).toThrow(/magic-user list/);
+    expect(() => setSpellMark([], "mu:nope", true)).toThrow(/magic-user list/);
+  });
+
+  it("never limits what a magic-user can prepare (ruling magic-user-all-spells)", () => {
+    const marked = setSpellMark([], "mu:sleep", true);
+    expect(marked).not.toContain("mu:magic-missile");
+    expect(checkPrepared("magic-user", spellSlots("magic-user", 1, 10), knownSpells("magic-user"), ["mu:magic-missile"])).toBeNull();
   });
 });

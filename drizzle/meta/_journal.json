@@ -113,6 +113,13 @@
       "when": 1794981200146,
       "tag": "0015_rulings_17_nov",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795666989436,
+      "tag": "0016_known_spell_marks",
+      "breakpoints": true
     }
   ]
 }

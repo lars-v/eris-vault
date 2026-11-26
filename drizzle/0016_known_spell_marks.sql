@@ -1,0 +1,1 @@
+ALTER TABLE "characters" ADD COLUMN "spells_marked" text[] DEFAULT '{}'::text[] NOT NULL;

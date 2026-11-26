@@ -2,6 +2,7 @@ import { Chip, Panel } from "@/components/ui";
 import { abilityModifier } from "@/lib/rules/abilities";
 import { checkPrepared, knownSpells, maxSpellLevel, ordinal, spell, spellSlots, type SpellClass } from "@/lib/rules/spells";
 import { PreparedSpells, type PrepareLevel } from "./PreparedSpells";
+import { SpellList } from "./SpellList";
 
 export function SpellsPanel({
   id,
@@ -10,6 +11,7 @@ export function SpellsPanel({
   wis,
   prepared,
   canPrepare,
+  marked,
 }: {
   id: string;
   cls: SpellClass;
@@ -17,6 +19,8 @@ export function SpellsPanel({
   wis: number | null;
   prepared: string[];
   canPrepare: boolean;
+  /** Magic-user spells the player highlighted as known (a note, not a rule). */
+  marked: string[];
 }) {
   const slots = spellSlots(cls, level, wis);
   const known = knownSpells(cls);
@@ -66,27 +70,18 @@ export function SpellsPanel({
 
       {castable.length > 0 && <PreparedSpells id={id} levels={prepareLevels} canEdit={canPrepare} />}
 
-      <details className="border-t border-rule pt-3">
-        <summary className="cursor-pointer text-sm font-semibold">
-          {cls === "cleric" ? "Cleric" : "Magic-user"} spells · {known.length}
-        </summary>
-        <div className="mt-3 flex flex-col gap-3">
-          {levels.map((l) => (
-            <div key={l} className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-subtle">{ordinal(l)} level</span>
-              <ul className="flex flex-wrap gap-1.5">
-                {known
-                  .filter((s) => s.level === l)
-                  .map((s) => (
-                    <li key={s.key} className="rounded-full border border-line-2 px-2.5 py-0.5 text-sm">
-                      {s.name}
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </details>
+      <SpellList
+        id={id}
+        title={cls === "cleric" ? "Cleric spells" : "Magic-user spells"}
+        levels={levels.map((l) => ({
+          level: l,
+          label: ordinal(l),
+          spells: known.filter((s) => s.level === l).map((s) => ({ key: s.key, name: s.name })),
+        }))}
+        markable={cls === "magic-user"}
+        marked={marked}
+        canMark={canPrepare}
+      />
     </Panel>
   );
 }

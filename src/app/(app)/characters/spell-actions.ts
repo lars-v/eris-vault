@@ -8,7 +8,7 @@ import { characterClasses, characters } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { can } from "@/lib/roles";
 import { levelFor } from "@/lib/rules/advancement";
-import { castsSpells, checkPrepared, knownSpells, spellSlots, type SpellClass } from "@/lib/rules/spells";
+import { castsSpells, checkPrepared, knownSpells, setSpellMark, spellSlots, type SpellClass } from "@/lib/rules/spells";
 import { requireUser } from "@/lib/session";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -66,5 +66,37 @@ export async function savePreparedSpells(_prev: PrepareResult, formData: FormDat
   } catch (e) {
     unstable_rethrow(e);
     return { error: e instanceof Error ? e.message.slice(0, 200) : "Something went wrong.", at: Date.now() };
+  }
+}
+
+export type MarkResult = { error: string | null };
+
+/**
+ * Highlights a magic-user spell as known on the sheet, or clears the highlight.
+ * A note for the player only: preparing still uses the whole list (ruling
+ * magic-user-all-spells). Sends the wanted state, not a toggle, so a repeated
+ * click can't flip it back.
+ */
+export async function markKnownSpell(id: unknown, key: unknown, on: unknown): Promise<MarkResult> {
+  try {
+    if (typeof id !== "string" || typeof key !== "string" || typeof on !== "boolean") throw new Error("Bad request.");
+    const viewer = await requireUser();
+    const result = await db.transaction(async (tx) => {
+      const { c, cls } = await lockCaster(tx, id);
+      if (!can.editSpells(viewer, c)) throw new Error("Only the player or Jay can mark this character's spells.");
+      if (cls !== "magic-user") throw new Error("Only magic-users mark known spells.");
+      const next = setSpellMark(c.spellsMarked, key, on);
+      if (next.length === c.spellsMarked.length && next.every((k, i) => k === c.spellsMarked[i])) return null;
+      await tx.update(characters).set({ spellsMarked: next, updatedAt: new Date() }).where(eq(characters.id, id));
+      return { before: c.spellsMarked, after: next };
+    });
+    if (result && viewer.role !== "player") {
+      await writeAudit(viewer, { action: "spells.marked", characterId: id, before: { marked: result.before }, after: { marked: result.after } });
+    }
+    revalidatePath(`/characters/${id}`);
+    return { error: null };
+  } catch (e) {
+    unstable_rethrow(e);
+    return { error: e instanceof Error ? e.message.slice(0, 200) : "Something went wrong." };
   }
 }
