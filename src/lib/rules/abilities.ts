@@ -46,16 +46,14 @@ export function canReadAndWrite(int: number | null): boolean | null {
 }
 
 /**
- * Surviving adversity (WW p. 5 points to Men & Magic pp. 10-11). Jay's ruling
- * "survive-adversity" (17 Nov 2026): use the M&M p. 11 table as printed. It
- * gives words for Constitution 7 to 14 only; null outside them, where the
- * table says nothing about survival (15+ adds +1 to each hit die, 6 or less
- * takes 1 away).
+ * Percent chance to survive adversity (WW p. 5 points to Men & Magic
+ * pp. 10-11). Table decision "survive-adversity" (25 Nov 2026), replacing the
+ * M&M p. 11 table as printed (Jay's ruling, 17 Nov 2026): Constitution 3 or
+ * less 0%, Con 4 10%, then 10% more for each point up to Con 12 90%, and
+ * Con 13 and above 100%. Scores below 3 (for example after energy drain) stay
+ * at 0%. Null when Constitution isn't assigned.
  */
-export function surviveAdversity(con: number | null): string | null {
+export function surviveAdversity(con: number | null): number | null {
   if (con === null) return null;
-  if (con >= 13 && con <= 14) return "Will withstand adversity";
-  if (con >= 9 && con <= 12) return "60% to 90% chance of survival";
-  if (con >= 7 && con <= 8) return "40% to 50% chance of survival";
-  return null;
+  return Math.min(100, Math.max(0, (con - 3) * 10));
 }

@@ -75,8 +75,7 @@ export function AbilitiesPanel({ c, handSet, canRollDarkSight }: { c: CharacterS
         ))}
       {c.con !== null && (
         <p className="text-xs text-subtle">
-          Survive adversity, Constitution {c.con}: {surviveAdversity(c.con) ?? "the table gives no chance for this score"} (Men &amp; Magic p. 11, as
-          printed).
+          Survive adversity, Constitution {c.con}: {surviveAdversity(c.con)}% chance (table ruling, 25 Nov 2026).
         </p>
       )}
       {handSet}

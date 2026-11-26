@@ -36,6 +36,7 @@ export const RULING_EXAMPLES: Record<string, RulingExample[]> = {
     { answer: "No. Wisdom doesn't change those saves." },
   ],
   "survive-adversity": [
+    { answer: "Con 1-3 0%, Con 4 10%, Con 5 20%, Con 6 30%, Con 7 40%, Con 8 50%, Con 9 60%, Con 10 70%, Con 11 80%, Con 12 90%, Con 13 and above 100%.", basis: "What the vault does now (table decision, 25 Nov 2026)" },
     { answer: "Use the table on Men & Magic p. 11 as printed.", basis: "Men & Magic p. 11, via WW p. 5" },
     { answer: "Jay rolls it at the table; the vault doesn't need the odds." },
   ],

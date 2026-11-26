@@ -28,7 +28,7 @@ const RULINGS = [
   ["dwarf-darkvision", "Does a player dwarf have the 2 in 6 latent sight in the dark?", "WW p. 10 (referee's discretion); Jay's ruling, 17 Nov 2026", "Player must roll the 2in6 chance of sight in the dark at player creation. If a 1 or 2 are rolled player dwarf can see in the dark.", "decided"],
   ["save-bonus-stacking", "Do class and race saving throw bonuses add together?", "WW p. 23 silent; Jay's ruling, 17 Nov 2026", "Yes. Class and race saving throw bonuses add together.", "decided"],
   ["wis-vs-mind", "Apply the Wisdom modifier to saves vs charms and illusions?", "WW p. 5 (referee's discretion); Jay's ruling, 17 Nov 2026", "No. Wisdom doesn't change those saves.", "decided"],
-  ["survive-adversity", "Exact odds to survive adversity for each Constitution band", "M&M p. 11, via WW p. 5; Jay's ruling, 17 Nov 2026", "Use the table on Men & Magic p. 11 as printed.", "decided"],
+  ["survive-adversity", "Exact odds to survive adversity for each Constitution band", "M&M p. 11, via WW p. 5; Jay's ruling, 17 Nov 2026 (as printed); table decision, 25 Nov 2026", "Con 1-3 0%, Con 4 10%, Con 5 20%, Con 6 30%, Con 7 40%, Con 8 50%, Con 9 60%, Con 10 70%, Con 11 80%, Con 12 90%, Con 13 and above 100%.", "decided"],
   ["cleric-l1-scroll", "1st-level cleric with Wis 15+: prayer scroll of one or two spells?", "WW p. 25; Jay's ruling, 17 Nov 2026", "1 spell and player can pick", "decided"],
   ["cleric-edged-weapons", "May clerics use ordinary edged weapons?", "M&M p. 7; WW silent; Jay's ruling, 17 Nov 2026", "No. Clerics use non-edged weapons only.", "decided"],
   ["ashan-patronage", "What does Ashan's patronage grant Liz?", "Campaign note; Jay's ruling, 17 Nov 2026", "+1 to turn undead rolls", "decided"],

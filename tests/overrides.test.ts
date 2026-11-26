@@ -186,12 +186,10 @@ describe("abilities (WW pp. 5, 11; M&M p. 11)", () => {
     expect([3, 4, 6, 7, 18].map(canReadAndWrite)).toEqual([false, false, false, true, true]);
     expect(canReadAndWrite(null)).toBeNull();
   });
-  it("survive adversity as printed (Jay's ruling survive-adversity)", async () => {
+  it("survive adversity by Constitution (table ruling survive-adversity, 25 Nov 2026)", async () => {
     const { surviveAdversity } = await import("@/lib/rules/abilities");
-    expect(surviveAdversity(14)).toBe("Will withstand adversity");
-    expect(surviveAdversity(9)).toBe("60% to 90% chance of survival");
-    expect(surviveAdversity(7)).toBe("40% to 50% chance of survival");
-    expect(surviveAdversity(15)).toBeNull();
-    expect(surviveAdversity(6)).toBeNull();
+    const cons = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 18];
+    expect(cons.map(surviveAdversity)).toEqual([0, 0, 0, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 100, 100]);
+    expect(surviveAdversity(null)).toBeNull();
   });
 });
