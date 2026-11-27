@@ -108,7 +108,21 @@ export function checkCoins(c: Coins): Coins | string {
 
 /* ---------- Tier 2: overrides by Jay and admins ---------- */
 
-export type OverrideClass = { id: string; class: CharacterClass; xp: number; highestHitDie: number };
+/**
+ * One class record. `hpMax` is the class's own maximum (WW p. 10: an elf keeps
+ * hit points per class), null until rolled. `hpDice` is every die behind it
+ * when they are all on record and maximum hit points weren't set by hand;
+ * null when they can't be recounted (levels from an imported sheet, or a
+ * hand-set maximum).
+ */
+export type OverrideClass = {
+  id: string;
+  class: CharacterClass;
+  xp: number;
+  highestHitDie: number;
+  hpMax: number | null;
+  hpDice: HpDieRecord[] | null;
+};
 
 /**
  * One die behind maximum hit points: the 1st-level roll (`id` null) or a
@@ -135,21 +149,15 @@ export type OverrideCurrent = Record<Ability, number | null> & {
   name: string;
   alignment: Alignment | null;
   deity: string | null;
-  hpMax: number | null;
   classes: OverrideClass[];
-  /**
-   * Every die behind maximum hit points, when they are all on record and
-   * maximum hit points weren't set by hand; null when they can't be recounted
-   * (levels from an imported sheet, or a hand-set maximum).
-   */
-  hpDice: HpDieRecord[] | null;
 };
 
 export type OverrideInput = Record<Ability, number> & {
   name: string;
   alignment: string;
   deity: string;
-  hpMax: number;
+  /** Keyed by character_classes.id. NaN (left empty) for a class with no hit points yet. */
+  hpMax: Record<string, number>;
   /** Keyed by character_classes.id. */
   xp: Record<string, number>;
   /** Jay says maximum hit points already follow a new Constitution, where they can't be recounted from the rolls. */
@@ -161,7 +169,9 @@ export type FieldChange = { field: string; label: string; from: unknown; to: unk
 export type OverridePlan = {
   changes: FieldChange[];
   /** Column values for `characters` that change. */
-  set: Partial<Record<Ability | "hpMax", number> & { name: string; alignment: Alignment; deity: string | null }>;
+  set: Partial<Record<Ability, number> & { name: string; alignment: Alignment; deity: string | null }>;
+  /** New maximum hit points per character_classes.id. */
+  hpMax: Record<string, number>;
   /** New XP per character_classes.id. */
   xp: Record<string, number>;
   /** Ability and hit point fields that become hand-set. */
@@ -215,30 +225,47 @@ export function planOverride(cur: OverrideCurrent, input: OverrideInput, activeC
     }
   }
 
-  if (!isWhole(input.hpMax) || input.hpMax < 1 || input.hpMax > HP_LIMIT) {
-    return `Maximum hit points must be a whole number from 1 to ${HP_LIMIT}.`;
-  }
+  // Maximum hit points, per class (an elf has two, WW p. 10).
   const dieGains: OverridePlan["dieGains"] = [];
+  const hpMax: OverridePlan["hpMax"] = {};
   const conModChanged = cur.con !== null && abilityModifier(cur.con) !== abilityModifier(input.con);
-  if (input.hpMax !== cur.hpMax) {
-    // A maximum typed by hand wins over the recount.
-    changes.push({ field: "hpMax", label: "Maximum hit points", from: cur.hpMax, to: input.hpMax });
-    set.hpMax = input.hpMax;
-    manual.push("hpMax");
-  } else if (conModChanged && cur.hpMax !== null) {
-    if (cur.hpDice) {
-      const r = recountHp(cur.hpDice, abilityModifier(input.con));
+  const several = cur.classes.length > 1;
+  let unrecountable = false;
+  for (const k of cur.classes) {
+    const which = several ? ` (${CLASS_NAMES[k.class]})` : "";
+    const field = several ? `hpMax:${k.class}` : "hpMax";
+    const v = input.hpMax[k.id];
+    // A class whose hit points aren't rolled yet may be left empty.
+    if (k.hpMax === null && (v === undefined || Number.isNaN(v))) continue;
+    if (v === undefined || !isWhole(v) || v < 1 || v > HP_LIMIT) {
+      return `Maximum hit points${which} must be a whole number from 1 to ${HP_LIMIT}.`;
+    }
+    if (v !== k.hpMax) {
+      // A maximum typed by hand wins over the recount.
+      changes.push({ field, label: `Maximum hit points${which}`, from: k.hpMax, to: v });
+      hpMax[k.id] = v;
+      if (!manual.includes("hpMax")) manual.push("hpMax");
+    } else if (conModChanged && k.hpMax !== null) {
+      if (!k.hpDice) {
+        unrecountable = true;
+        continue;
+      }
+      const r = recountHp(k.hpDice, abilityModifier(input.con));
       for (const g of r.gains) {
-        const before = cur.hpDice.find((d) => d.id === g.id)!;
+        const before = k.hpDice.find((d) => d.id === g.id)!;
         if (g.id !== null && g.gain !== before.gain) dieGains.push({ id: g.id, gain: g.gain });
       }
-      if (r.hpMax !== cur.hpMax) {
-        changes.push({ field: "hpMax", label: "Maximum hit points (recounted for Constitution)", from: cur.hpMax, to: r.hpMax });
-        set.hpMax = r.hpMax;
+      if (r.hpMax !== k.hpMax) {
+        changes.push({ field, label: `Maximum hit points${which} (recounted for Constitution)`, from: k.hpMax, to: r.hpMax });
+        hpMax[k.id] = r.hpMax;
       }
-    } else if (!input.hpRecounted) {
-      return "A new Constitution modifier changes maximum hit points for every level (Jay's ruling), and this character's can't be recounted from the rolls. Enter the new maximum, or tick that it is right.";
     }
+  }
+  if (unrecountable && !input.hpRecounted) {
+    return "A new Constitution modifier changes maximum hit points for every level (Jay's ruling), and this character's can't be recounted from the rolls. Enter the new maximum, or tick that it is right.";
+  }
+  for (const key of Object.keys(input.hpMax)) {
+    if (!cur.classes.some((k) => k.id === key)) return "Unknown class";
   }
 
   const xp: Record<string, number> = {};
@@ -259,7 +286,7 @@ export function planOverride(cur: OverrideCurrent, input: OverrideInput, activeC
   }
 
   if (changes.length === 0) return "Nothing changed.";
-  return { changes, set, xp, manual, dieGains };
+  return { changes, set, hpMax, xp, manual, dieGains };
 }
 
 /** Adds newly hand-set fields to the ones already marked, keeping the order of MANUAL_FIELDS. */

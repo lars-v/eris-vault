@@ -67,6 +67,8 @@ export function HitPointsPanel({
   canEdit,
   staff,
   handSet,
+  playing = null,
+  others = [],
 }: {
   id: string;
   current: number | null;
@@ -77,6 +79,10 @@ export function HitPointsPanel({
   staff: boolean;
   /** A line saying who set maximum hit points by hand, if anyone did. */
   handSet: ReactNode;
+  /** For an elf, the class these hit points belong to (WW p. 10). */
+  playing?: string | null;
+  /** For an elf, the other class's own hit points, kept apart until it switches (WW p. 10). */
+  others?: { label: string; current: number | null; max: number | null }[];
 }) {
   const [state, action] = useActionState(changeHitPoints, idle);
   const [editing, setEditing] = useState(false);
@@ -175,6 +181,7 @@ export function HitPointsPanel({
         )}
       </div>
       <HpBar current={shown} max={max} />
+      {playing && <div className="text-xs text-subtle">{playing}&apos;s hit points.</div>}
       {shown > max && <div className="text-xs text-amber">Above the maximum.</div>}
       {hpCondition(shown, level) === "unconscious" && (
         <div className="text-sm text-amber">
@@ -184,6 +191,16 @@ export function HitPointsPanel({
       )}
       {hpCondition(shown, level) === "dead" && (
         <div className="text-sm text-ember">Dead: below −{level}, one point per level (WW p. 6). A raise dead spell or the like can revive.</div>
+      )}
+      {others.length > 0 && (
+        <ul className="flex flex-col gap-0.5 border-t border-rule pt-2 text-sm text-muted">
+          {others.map((o) => (
+            <li key={o.label}>
+              {o.label}: <span className="font-mono">{o.max === null ? "not rolled" : `${o.current ?? o.max} / ${o.max}`}</span>
+              <span className="text-xs text-subtle"> kept apart until the elf switches (WW p. 10)</span>
+            </li>
+          ))}
+        </ul>
       )}
       {canEdit && last && last.from !== last.to && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { Alignment, CharacterClass, Race } from "@/db/schema";
+import { levelFor } from "@/lib/rules/advancement";
 import { GAZETTEER_PATRONS, pick, randomName, shuffledIndexes } from "@/lib/rules/names";
 
 type Ability = "str" | "int" | "wis" | "dex" | "con" | "cha";
@@ -159,24 +160,112 @@ const CLASS_LABEL: Record<CharacterClass, string> = {
 };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
+
+/**
+ * An elf's XP for each of its two classes (WW p. 10). The player shares the
+ * total as they like (table decision elf-starting-xp): typing one class's XP
+ * fills in the rest for the other.
+ */
+function ElfXpSplit({
+  total,
+  classes,
+  split,
+  onChange,
+}: {
+  total: number;
+  classes: CharacterClass[];
+  split: Partial<Record<CharacterClass, string>>;
+  onChange: (next: Partial<Record<CharacterClass, string>>) => void;
+}) {
+  const typed = classes.map((k) => (split[k] ?? "").trim());
+  const sum = typed.reduce((n, v) => n + (v === "" ? 0 : Number(v)), 0);
+  const allTyped = typed.every((v) => v !== "");
+  const field = "min-h-11 w-full min-w-0 rounded-xl border border-line-2 bg-ink px-3 font-mono text-[15px] text-parchment";
+  const set = (k: CharacterClass, v: string) => {
+    const next = { ...split, [k]: v };
+    const n = Number(v);
+    const other = classes.find((x) => x !== k);
+    if (other && v.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= total) next[other] = String(total - n);
+    onChange(next);
+  };
+  return (
+    <fieldset className="flex flex-col gap-2 rounded-xl border border-line px-4 py-3">
+      <legend className="px-1 text-sm font-semibold">XP for each class: {total.toLocaleString("en-US")} to share</legend>
+      <p className="text-xs leading-relaxed text-subtle">
+        An elf keeps separate XP and hit points for each class (WW p. 10). Share the XP between them as you like. After that,
+        XP from an adventure goes to the class the elf played it as.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {classes.map((k) => {
+          const v = (split[k] ?? "").trim();
+          const n = Number(v);
+          const lvl = v !== "" && Number.isInteger(n) && n >= 0 ? levelFor(k, n) : null;
+          return (
+            <label key={k} className="flex flex-col gap-1.5 text-[13px] text-muted">
+              {CLASS_LABEL[k]} XP
+              <input
+                name={`xp:${k}`}
+                type="number"
+                inputMode="numeric"
+                required
+                min={0}
+                max={total}
+                step={1}
+                value={split[k] ?? ""}
+                onChange={(e) => set(k, e.target.value)}
+                className={field}
+              />
+              <span className="text-xs text-subtle">{lvl ? `${ordinal(lvl.level)} level, ${lvl.title}` : "\u00a0"}</span>
+            </label>
+          );
+        })}
+      </div>
+      {allTyped && sum !== total && (
+        <p className="text-sm text-amber">
+          These add up to {sum.toLocaleString("en-US")}. They have to add up to {total.toLocaleString("en-US")}.
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
 export function IdentityForm({
   id,
   action,
   initial,
   raceClasses,
   locked,
+  xpTotal,
 }: {
   id: string;
   action: (fd: FormData) => Promise<void>;
-  initial: { name: string; race: Race | null; cls: CharacterClass | null; alignment: Alignment | null; deity: string | null };
+  initial: {
+    name: string;
+    race: Race | null;
+    cls: CharacterClass | null;
+    alignment: Alignment | null;
+    deity: string | null;
+    /** XP by class as saved, for an elf's split. */
+    xp: Partial<Record<CharacterClass, number>>;
+  };
   raceClasses: Record<Race, CharacterClass[]>;
   locked: boolean;
+  /** The XP an elf shares between its classes: 5,000 for a new character (Jay's ruling starting-xp). */
+  xpTotal: number;
 }) {
   const [name, setName] = useState(initial.name === "Unnamed adventurer" ? "" : initial.name);
   const [race, setRace] = useState<Race | "">(initial.race ?? "");
   const [cls, setCls] = useState<CharacterClass | "">(initial.cls ?? "");
   const [alignment, setAlignment] = useState<Alignment | "">(initial.alignment ?? "");
   const [deity, setDeity] = useState(initial.deity ?? "");
+  // An elf's split starts from what is saved, if the character is already an elf.
+  const savedSplit = (): Partial<Record<CharacterClass, string>> =>
+    initial.race === "elf"
+      ? Object.fromEntries(raceClasses.elf.map((k) => [k, String(initial.xp[k] ?? 0)]))
+      : {};
+  const [split, setSplit] = useState<Partial<Record<CharacterClass, string>>>(savedSplit);
+  const elfClasses = race === "elf" ? raceClasses.elf : [];
   const races = Object.keys(raceClasses) as Race[];
   const classes = race ? raceClasses[race] : [];
   const alignmentsFor = (k: CharacterClass | ""): Alignment[] =>
@@ -188,7 +277,8 @@ export function IdentityForm({
     race === (initial.race ?? "") &&
     cls === (initial.cls ?? "") &&
     alignment === initial.alignment &&
-    deity.trim() === (initial.deity ?? "");
+    deity.trim() === (initial.deity ?? "") &&
+    elfClasses.every((k) => (split[k] ?? "").trim() === String(initial.xp[k] ?? ""));
   const field = "min-h-11 min-w-0 flex-1 rounded-xl border border-line-2 bg-ink px-3 text-[15px] text-parchment disabled:opacity-60";
 
   // Every random pick respects the rules for what's already chosen:
@@ -218,6 +308,11 @@ export function IdentityForm({
     setRace(r);
     const k = pick(raceClasses[r]);
     setCls(k);
+    if (r === "elf") {
+      // A share in hundreds; only fills the form, like every random pick.
+      const first = pick(Array.from({ length: Math.floor(xpTotal / 100) + 1 }, (_, i) => i * 100));
+      setSplit({ [raceClasses.elf[0]]: String(first), [raceClasses.elf[1]]: String(xpTotal - first) });
+    }
     const al = pick(alignmentsFor(k));
     setAlignment(al);
     setDeity(al === "chaotic" ? "" : pick(GAZETTEER_PATRONS));
@@ -263,7 +358,7 @@ export function IdentityForm({
           </span>
         </label>
         <label className="flex flex-col gap-1.5 text-[13px] text-muted">
-          Class
+          {race === "elf" ? "Begins as" : "Class"}
           {locked && <input type="hidden" name="cls" value={cls} />}
           <span className="flex gap-2">
             <select
@@ -314,6 +409,7 @@ export function IdentityForm({
           </span>
         </label>
       </div>
+      {elfClasses.length > 1 && <ElfXpSplit total={xpTotal} classes={elfClasses} split={split} onChange={setSplit} />}
       <div className="flex flex-wrap items-center gap-3">
         {!locked && (
           <button

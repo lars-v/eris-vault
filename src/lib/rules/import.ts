@@ -64,6 +64,15 @@ export function importFlags(c: ImportedCharacter, written: WrittenOnSheet): Impo
     }
   }
 
+  if (c.race === "elf" && classesFor("elf").includes(c.cls)) {
+    const other = classesFor("elf").find((k) => k !== c.cls)!;
+    flags.push({
+      title: `The elf's ${CLASS_NAMES[other]} record is missing`,
+      body: `An elf keeps XP and hit points for both of its classes. The import brought in the ${CLASS_NAMES[c.cls]} only. Jay adds the ${CLASS_NAMES[other]} in Edit as GM: share the XP at step 2, then roll its hit points at step 3.`,
+      source: "WW p. 10",
+    });
+  }
+
   if (!alignmentsFor(c.cls).includes(c.alignment)) {
     flags.push({ title: "Thief alignment", body: `The sheet says ${c.alignment}. Thieves may be neutral or chaotic.`, source: "WW p. 9" });
   }

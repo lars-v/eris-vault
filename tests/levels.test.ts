@@ -10,7 +10,7 @@ describe("hit dice after 1st level (WW pp. 5-6)", () => {
     expect(r.total).toBe(6);
     expect(r.gain).toBe(6);
     expect(r.dice).toEqual([[4]]);
-    expect(r.formula).toBe("1d6 + 1 + 1 Con, level 2, minimum 1");
+    expect(r.formula).toBe("Fighting-Man: 1d6 + 1 + 1 Con, level 2, minimum 1");
     expect(rollLevelHp("cleric", 0, 3, die(1)).gain).toBe(1);
   });
   it("adds at least 1 even when the total is below 1 (Jay's ruling hit-die-floor)", () => {

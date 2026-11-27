@@ -78,25 +78,31 @@ describe("coins", () => {
 });
 
 describe("overrides", () => {
+  // 1st level: a 5, -1 for a thief = 4. 2nd level: a 3, -1 = 2.
+  const thief = {
+    id: "k1",
+    class: "thief" as const,
+    xp: 1300,
+    highestHitDie: 2,
+    hpMax: 6,
+    hpDice: [
+      { id: null, cls: "thief" as const, level: 1, face: 5, gain: 4 },
+      { id: "d2", cls: "thief" as const, level: 2, face: 3, gain: 2 },
+    ],
+  };
   const cur: OverrideCurrent = {
     str: 9, int: 12, wis: 8, dex: 14, con: 10, cha: 7,
     name: "Liz",
     alignment: "neutral",
     deity: null,
-    hpMax: 6,
-    classes: [{ id: "k1", class: "thief", xp: 1300, highestHitDie: 2 }],
-    // 1st level: a 5, -1 for a thief = 4. 2nd level: a 3, -1 = 2.
-    hpDice: [
-      { id: null, cls: "thief", level: 1, face: 5, gain: 4 },
-      { id: "d2", cls: "thief", level: 2, face: 3, gain: 2 },
-    ],
+    classes: [thief],
   };
   const same = (): OverrideInput => ({
     str: 9, int: 12, wis: 8, dex: 14, con: 10, cha: 7,
     name: "Liz",
     alignment: "neutral",
     deity: "",
-    hpMax: 6,
+    hpMax: { k1: 6 },
     xp: { k1: 1300 },
     hpRecounted: false,
   });
@@ -106,9 +112,10 @@ describe("overrides", () => {
     expect(plan(same())).toBe("Nothing changed.");
   });
   it("lists each change and marks abilities and maximum hit points as hand-set", () => {
-    const p = plan({ ...same(), str: 13, hpMax: 9, deity: "Ashan", xp: { k1: 2600 } }) as OverridePlan;
+    const p = plan({ ...same(), str: 13, hpMax: { k1: 9 }, deity: "Ashan", xp: { k1: 2600 } }) as OverridePlan;
     expect(p.changes.map((c) => c.field)).toEqual(["deity", "str", "hpMax", "xp:thief"]);
-    expect(p.set).toEqual({ deity: "Ashan", str: 13, hpMax: 9 });
+    expect(p.set).toEqual({ deity: "Ashan", str: 13 });
+    expect(p.hpMax).toEqual({ k1: 9 });
     expect(p.xp).toEqual({ k1: 2600 });
     expect(p.manual).toEqual(["str", "hpMax"]);
   });
@@ -128,37 +135,76 @@ describe("overrides", () => {
   });
   it("needs a name, maximum hit points of 1 or more, and XP for every class", () => {
     expect(plan({ ...same(), name: "  " })).toMatch(/name/);
-    expect(plan({ ...same(), hpMax: 0 })).toMatch(/Maximum hit points/);
+    expect(plan({ ...same(), hpMax: { k1: 0 } })).toMatch(/Maximum hit points/);
+    expect(plan({ ...same(), hpMax: {} })).toMatch(/Maximum hit points/);
+    expect(plan({ ...same(), hpMax: { k1: 6, other: 5 } })).toBe("Unknown class");
     expect(plan({ ...same(), xp: {} })).toMatch(/Enter XP/);
     expect(plan({ ...same(), xp: { k1: 1300, other: 5 } })).toBe("Unknown class");
   });
   it("recounts maximum hit points when Constitution changes its modifier (Jay's ruling con-change-hp)", () => {
     // Con 15 gives +1: 5-1+1 = 5 (at least 3), 3-1+1 = 3.
     const up = plan({ ...same(), con: 15 }) as OverridePlan;
-    expect(up.set).toEqual({ con: 15, hpMax: 8 });
+    expect(up.set).toEqual({ con: 15 });
+    expect(up.hpMax).toEqual({ k1: 8 });
     expect(up.dieGains).toEqual([{ id: "d2", gain: 3 }]);
     expect(up.manual).toEqual(["con"]);
     // Con 3 gives -2: 5-1-2 = 2, but at least 3 at 1st level; 3-1-2 = 0, but at least 1.
     const down = plan({ ...same(), con: 3 }) as OverridePlan;
-    expect(down.set.hpMax).toBe(4);
+    expect(down.hpMax).toEqual({ k1: 4 });
     expect(down.dieGains).toEqual([{ id: "d2", gain: 1 }]);
     // Same modifier: nothing to recount.
-    expect((plan({ ...same(), con: 12 }) as OverridePlan).set).toEqual({ con: 12 });
+    const flat = plan({ ...same(), con: 12 }) as OverridePlan;
+    expect(flat.set).toEqual({ con: 12 });
+    expect(flat.hpMax).toEqual({});
   });
   it("keeps a maximum Jay types over the recount", () => {
-    const p = plan({ ...same(), con: 15, hpMax: 20 }) as OverridePlan;
-    expect(p.set).toEqual({ con: 15, hpMax: 20 });
+    const p = plan({ ...same(), con: 15, hpMax: { k1: 20 } }) as OverridePlan;
+    expect(p.set).toEqual({ con: 15 });
+    expect(p.hpMax).toEqual({ k1: 20 });
     expect(p.dieGains).toEqual([]);
   });
   it("asks Jay for the maximum when the rolls can't be recounted", () => {
-    const imported = { ...cur, hpDice: null };
+    const imported = { ...cur, classes: [{ ...thief, hpDice: null }] };
     expect(planOverride(imported, { ...same(), con: 15 }, "thief")).toMatch(/can't be recounted/);
     expect((planOverride(imported, { ...same(), con: 15, hpRecounted: true }, "thief") as OverridePlan).set).toEqual({ con: 15 });
-    expect((planOverride(imported, { ...same(), con: 15, hpMax: 9 }, "thief") as OverridePlan).set).toEqual({ con: 15, hpMax: 9 });
+    const typed = planOverride(imported, { ...same(), con: 15, hpMax: { k1: 9 } }, "thief") as OverridePlan;
+    expect(typed.set).toEqual({ con: 15 });
+    expect(typed.hpMax).toEqual({ k1: 9 });
   });
   it("an empty patron clears it", () => {
     const p = planOverride({ ...cur, deity: "Ashan" }, same(), "thief") as OverridePlan;
     expect(p.set).toEqual({ deity: null });
+  });
+
+  describe("an elf, with hit points for each class (WW p. 10)", () => {
+    // Fighting-man: 1st level a 4, +1 = 5. Magic-user: 1st level a 4, -1 = 3.
+    const elf: OverrideCurrent = {
+      ...cur,
+      alignment: "lawful",
+      classes: [
+        { id: "fm", class: "fighting-man", xp: 2500, highestHitDie: 0, hpMax: 5, hpDice: [{ id: null, cls: "fighting-man", level: 1, face: 4, gain: 5 }] },
+        { id: "mu", class: "magic-user", xp: 2500, highestHitDie: 0, hpMax: 3, hpDice: [{ id: null, cls: "magic-user", level: 1, face: 4, gain: 3 }] },
+      ],
+    };
+    const elfInput = (): OverrideInput => ({ ...same(), alignment: "lawful", hpMax: { fm: 5, mu: 3 }, xp: { fm: 2500, mu: 2500 } });
+
+    it("sets one class's maximum and names the class", () => {
+      const p = planOverride(elf, { ...elfInput(), hpMax: { fm: 5, mu: 4 } }, "fighting-man") as OverridePlan;
+      expect(p.changes.map((c) => [c.field, c.label])).toEqual([["hpMax:magic-user", "Maximum hit points (Magic-User)"]]);
+      expect(p.hpMax).toEqual({ mu: 4 });
+      expect(p.manual).toEqual(["hpMax"]);
+    });
+    it("recounts both classes for a new Constitution modifier", () => {
+      // Con 15, +1: fighting-man 4+1+1 = 6; magic-user 4-1+1 = 4.
+      const p = planOverride(elf, { ...elfInput(), con: 15 }, "fighting-man") as OverridePlan;
+      expect(p.hpMax).toEqual({ fm: 6, mu: 4 });
+    });
+    it("lets a class with no hit points yet stay empty", () => {
+      const unrolled = { ...elf, classes: [elf.classes[0], { ...elf.classes[1], hpMax: null, hpDice: null }] };
+      const p = planOverride(unrolled, { ...elfInput(), str: 10, hpMax: { fm: 5, mu: NaN } }, "fighting-man") as OverridePlan;
+      expect(p.hpMax).toEqual({});
+      expect(p.set).toEqual({ str: 10 });
+    });
   });
 });
 

@@ -1,30 +1,17 @@
-import Link from "next/link";
+import { RulingNote, type RulingSummary } from "@/components/RulingNote";
 import { Panel } from "@/components/ui";
 import { spell } from "@/lib/rules/spells";
 import { slotStates, STAFF_CATALOG_KEY, STAFF_SLOTS, STAFF_SOURCE, staffSpells, staffWarnings, type StaffEvent } from "@/lib/rules/staff";
 import { FocusPicker, StaffSlots, type FocusOption, type StaffSlotView } from "./StaffSlots";
 
 export type StaffHistoryEvent = StaffEvent & { note: string | null; actorName: string | null };
-export type StaffRuling = { key: string; question: string; answer: string | null; status: "pending" | "decided" };
+export type StaffRuling = RulingSummary;
 type Item = { id: string; name: string; catalogKey: string | null; isSpellFocus: boolean | null };
 
 const VERB = { load: "Loaded", release: "Released", void: "Voided" } as const;
 
 /** The rulings this card can point at (scripts/migrate.mjs). */
 export const STAFF_RULINGS = ["staff-carry-over-rest", "staff-loss", "elf-wand-int", "staff-int-drop"];
-
-/** Jay's answer once decided; until then a link for Jay and admins, or a note for players. */
-function RulingNote({ ruling, rulings, staff }: { ruling: string; rulings: StaffRuling[]; staff: boolean }) {
-  const r = rulings.find((x) => x.key === ruling);
-  if (r?.status === "decided" && r.answer) return <span className="block text-xs text-muted">Jay&apos;s ruling: {r.answer}</span>;
-  return staff ? (
-    <Link href={`/gm/rulings#ruling-${ruling}`} className="block text-xs text-lime underline-offset-4 hover:underline">
-      Open ruling: {ruling}
-    </Link>
-  ) : (
-    <span className="block text-xs text-subtle">Waiting on Jay&apos;s ruling ({ruling}).</span>
-  );
-}
 
 /**
  * The "Spell staff" card (WW pp. 5, 7): the staff or wand, one token per slot,

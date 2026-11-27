@@ -58,6 +58,20 @@ export const RULING_EXAMPLES: Record<string, RulingExample[]> = {
     { answer: "When the elf first adventures in the second class." },
     { answer: "At creation, one roll for each class." },
   ],
+  "elf-switch-wounds": [
+    { answer: "No. Each class keeps its own current hit points.", basis: NOW },
+    { answer: "Yes. The damage carries over: the other class starts at its maximum less the damage taken." },
+    { answer: "Yes, as a share: the other class keeps the same fraction of its maximum." },
+  ],
+  "elf-switch-spells": [
+    { answer: "Prepared spells stay through a switch, and the staff works in either class.", basis: NOW },
+    { answer: "A switch clears prepared spells; the elf prepares again after the next rest as a magic-user. Stored spells stay in the staff, but only a magic-user can loose them." },
+    { answer: "A switch clears prepared spells. Stored spells stay and can be loosed in either class." },
+  ],
+  "elf-unsafe-switch": [
+    { answer: "No. An elf switches only at a safe rest.", basis: NOW },
+    { answer: "Yes. The switch takes one round and costs 1 Constitution for good; Jay takes it off on the sheet.", basis: "WW p. 10, optional rule" },
+  ],
   "name-level-xp": [
     { answer: "Each level after 9th needs 100,000 more XP than the one before." },
     { answer: "Stop at 9th level until a character gets close.", basis: NOW },

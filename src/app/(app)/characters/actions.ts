@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, max } from "drizzle-orm";
 import { db } from "@/db";
 import {
   characterClasses,
@@ -22,9 +22,11 @@ import { NOTES_MAX } from "@/lib/limits";
 import { can } from "@/lib/roles";
 import { ABILITIES, abilityModifier, type Ability } from "@/lib/rules/abilities";
 import { assignScores, isValidIdentity, STARTING_XP } from "@/lib/rules/creation";
-import { countedHpLevel, fixedHpLevel, levelFor, levelsToRoll, NAME_LEVEL_HP } from "@/lib/rules/advancement";
+import { CLASS_NAMES, countedHpLevel, fixedHpLevel, levelFor, levelRow, levelsToRoll, NAME_LEVEL_HP } from "@/lib/rules/advancement";
 import { rollAbilitySets, rollDarkSight, rollFirstLevelHp, rollLevelHp, rollStartingGold, type Roll } from "@/lib/rules/dice";
+import { checkXpSplit, classRecordsFor, keepsEveryClass, switchProblem } from "@/lib/rules/elf";
 import { neutralClericBlocked } from "@/lib/rules/levelup";
+import { playStateOpen } from "@/lib/rules/overrides";
 import { catalogItem, checkKit, kindFor, randomKitKeys } from "@/lib/rules/equipment";
 import { planDrain } from "@/lib/rules/drain";
 import { changedFromSheet, importFlags } from "@/lib/rules/import";
@@ -157,35 +159,92 @@ async function saveIdentityImpl(formData: FormData) {
   if (!name) throw new Error("Give the character a name.");
   const problem = isValidIdentity(race, cls, alignment);
   if (problem) throw new Error(problem);
+  // An elf keeps a record for both of its classes and begins in `cls` (WW p. 10).
+  const records = classRecordsFor(race, cls);
+  const typedXp = Object.fromEntries(
+    records.map((k) => {
+      const raw = str(formData, `xp:${k}`);
+      return [k, raw === "" ? NaN : Number(raw)];
+    }),
+  );
 
-  await db.transaction(async (tx) => {
+  const moved = await db.transaction(async (tx) => {
     const c = await lockEditable(tx, viewer, id, "identity");
-    const current = await activeClass(tx, id);
-    if (c.hpRollId && (c.race !== race || current !== cls)) {
+    const rows = await tx.select().from(characterClasses).where(eq(characterClasses.characterId, id));
+    const current = rows.find((k) => k.active)?.class ?? null;
+    const hasHp = Boolean(c.hpRollId) || rows.some((k) => k.hpMax !== null);
+    if (hasHp && (c.race !== race || current !== cls)) {
       throw new Error("Race and class are fixed once hit points are rolled.");
     }
     await tx.update(characters).set({ name, race, alignment, deity, updatedAt: new Date() }).where(eq(characters.id, id));
-    if (current !== cls) {
-      // Elves begin in one of their two classes (WW p. 10). The vault has no
-      // record for the second class yet; Jay's ruling elf-second-class-hp (one
-      // hit point roll per class at creation) waits on it.
-      // New characters start at 5,000 XP (Jay's ruling starting-xp).
+    // New characters start at 5,000 XP (Jay's ruling starting-xp); an elf's player
+    // shares them between its two classes (table decision elf-starting-xp). Once
+    // hit points are rolled, the XP the classes hold now is what gets shared.
+    const total = hasHp ? rows.reduce((n, k) => n + k.xp, 0) : STARTING_XP;
+    const split = checkXpSplit(records, typedXp, total);
+    if (typeof split === "string") throw new Error(split);
+
+    if (!hasHp) {
+      // Nothing is rolled yet, so the class records are simply made again.
       await tx.delete(characterClasses).where(eq(characterClasses.characterId, id));
-      await tx.insert(characterClasses).values({ characterId: id, class: cls, xp: STARTING_XP, active: true });
+      await tx
+        .insert(characterClasses)
+        .values(records.map((k) => ({ characterId: id, class: k, xp: split[k]!, active: k === cls })));
+      return [];
     }
+    // Race and class stay. An elf's XP may move between its classes, and an elf
+    // made before it had both records gets the missing one; its 1st-level hit
+    // points are rolled in the next step (Jay's ruling elf-second-class-hp).
+    const changes: { class: CharacterClass; from: number; to: number }[] = [];
+    for (const k of records) {
+      const row = rows.find((r) => r.class === k);
+      const xp = split[k]!;
+      if (!row) {
+        await tx.insert(characterClasses).values({ characterId: id, class: k, xp, active: false });
+        changes.push({ class: k, from: 0, to: xp });
+        continue;
+      }
+      if (row.xp === xp) continue;
+      const [rolled] = await tx
+        .select({ level: max(hitDice.level) })
+        .from(hitDice)
+        .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k), isNull(hitDice.lostAt)));
+      // Hit points already cover this level (rolled dice, or levels an imported sheet brought).
+      const covered = Math.max(rolled?.level ?? 0, row.hpMax === null ? 0 : row.baseHpLevel);
+      if (levelFor(k, xp).level < covered) {
+        throw new Error(
+          `The ${CLASS_NAMES[k]} already has hit points for level ${covered}, so its XP can't go below ${levelRow(k, covered).xp.toLocaleString("en-US")}.`,
+        );
+      }
+      await tx.update(characterClasses).set({ xp }).where(eq(characterClasses.id, row.id));
+      changes.push({ class: k, from: row.xp, to: xp });
+    }
+    return c.status === "draft" ? [] : changes;
   });
+  // Every XP change on a character that has left draft is audited (as on the sheet).
+  for (const m of moved) {
+    await writeAudit(viewer, { action: "character.xp_set", characterId: id, before: { class: m.class, xp: m.from }, after: { class: m.class, xp: m.to } });
+  }
   refresh(id);
 }
 
-async function doHpRoll(tx: Tx, viewer: CurrentUser, c: typeof characters.$inferSelect) {
-  const cls = await activeClass(tx, c.id);
-  if (!cls || c.con === null) throw new Error("Choose a class and assign Constitution before rolling hit points.");
-  const roll = rollFirstLevelHp(cls, abilityModifier(c.con));
-  const rollId = await recordRoll(tx, viewer, c.id, "hp", roll);
-  await tx
-    .update(characters)
-    .set({ hpRollId: rollId, hpMax: roll.hp, hpCurrent: roll.hp, updatedAt: new Date() })
-    .where(eq(characters.id, c.id));
+/**
+ * Rolls 1st-level hit points for each class that has none yet, or for every
+ * class (`all`, a re-roll). An elf rolls once for each of its classes (Jay's
+ * ruling elf-second-class-hp, WW p. 10). Each roll is logged before it touches
+ * the class; the trigger copies the active class's to the character.
+ */
+async function doHpRoll(tx: Tx, viewer: CurrentUser, c: typeof characters.$inferSelect, all: boolean) {
+  const rows = await tx.select().from(characterClasses).where(eq(characterClasses.characterId, c.id));
+  if (rows.length === 0 || c.con === null) throw new Error("Choose a class and assign Constitution before rolling hit points.");
+  const todo = (all ? rows : rows.filter((k) => k.hpMax === null)).sort((a, b) => Number(b.active) - Number(a.active));
+  if (todo.length === 0) throw new Error("Hit points are already rolled. Jay can grant a re-roll.");
+  for (const k of todo) {
+    const roll = rollFirstLevelHp(k.class, abilityModifier(c.con));
+    const rollId = await recordRoll(tx, viewer, c.id, "hp", roll);
+    await tx.update(characterClasses).set({ hpRollId: rollId, hpMax: roll.hp, hpCurrent: roll.hp }).where(eq(characterClasses.id, k.id));
+  }
+  await tx.update(characters).set({ updatedAt: new Date() }).where(eq(characters.id, c.id));
   // Race is fixed from here, so a dwarf rolls for sight in the dark now (once).
   if (c.race === "dwarf" && c.darkSightRollId === null) await doDarkSightRoll(tx, viewer, c.id);
 }
@@ -237,8 +296,7 @@ async function rollHitPointsImpl(formData: FormData) {
   const id = str(formData, "id");
   await db.transaction(async (tx) => {
     const c = await lockEditable(tx, viewer, id, "hp");
-    if (c.hpRollId) throw new Error("Hit points are already rolled. Jay can grant a re-roll.");
-    await doHpRoll(tx, viewer, c);
+    await doHpRoll(tx, viewer, c, false);
   });
   refresh(id);
 }
@@ -282,14 +340,16 @@ async function spendRollGrantImpl(formData: FormData) {
           dex: null,
           con: null,
           cha: null,
-          hpRollId: null,
-          hpMax: null,
-          hpCurrent: null,
           updatedAt: new Date(),
         })
         .where(eq(characters.id, id));
+      // Every class's hit points; the trigger clears the character's copy.
+      await tx
+        .update(characterClasses)
+        .set({ hpRollId: null, hpMax: null, hpCurrent: null })
+        .where(eq(characterClasses.characterId, id));
     } else if (grant.purpose === "hp") {
-      await doHpRoll(tx, viewer, c);
+      await doHpRoll(tx, viewer, c, true);
       const [after] = await tx.select({ hpRollId: characters.hpRollId }).from(characters).where(eq(characters.id, id));
       rollId = after.hpRollId!;
     } else {
@@ -393,11 +453,13 @@ async function submitCharacterImpl(formData: FormData) {
   await db.transaction(async (tx) => {
     const c = await lockEditable(tx, viewer, id, "submit");
     if (c.status !== "draft") throw new Error("Only drafts can be sent to Jay.");
-    const cls = await activeClass(tx, id);
+    const rows = await tx.select().from(characterClasses).where(eq(characterClasses.characterId, id));
+    const cls = rows.find((k) => k.active)?.class ?? null;
     const missing = [
       ABILITIES.some((ab) => c[ab] === null) && "abilities",
       (!c.race || !cls || !c.alignment) && "race, class and alignment",
-      !c.hpRollId && "hit points",
+      keepsEveryClass(c.race) && rows.length < 2 && "XP for both of the elf's classes (step 2)",
+      (rows.length === 0 || rows.some((k) => k.hpMax === null)) && (rows.length > 1 ? "hit points for each class" : "hit points"),
       c.race === "dwarf" && !c.darkSightRollId && "the roll for sight in the dark",
       !c.goldRollId && "starting gold",
     ].filter(Boolean);
@@ -601,8 +663,6 @@ async function sendImportImpl(formData: FormData) {
         alignment,
         status: "submitted",
         ...scores,
-        hpCurrent,
-        hpMax,
         coinsGp,
         coinsSp,
         coinsCp,
@@ -612,8 +672,11 @@ async function sendImportImpl(formData: FormData) {
         importFlags: flags,
       })
       .returning({ id: characters.id });
-    // The sheet's hit points already cover the level its XP reached.
-    await tx.insert(characterClasses).values({ characterId: c.id, class: cls, xp, baseHpLevel: levelFor(cls, xp).level });
+    // The sheet's hit points already cover the level its XP reached. The trigger
+    // copies them to the character. An elf's other class is added by Jay (import flag).
+    await tx
+      .insert(characterClasses)
+      .values({ characterId: c.id, class: cls, xp, baseHpLevel: levelFor(cls, xp).level, hpMax, hpCurrent });
     if (items.length) await tx.insert(inventory).values(items.map((it) => ({ characterId: c.id, ...it })));
     await tx.update(sheetUploads).set({ characterId: c.id }).where(eq(sheetUploads.id, uploadId));
     return { id: c.id, flagCount: flags.length };
@@ -685,6 +748,7 @@ const XP_STATUSES = new Set(["submitted", "approved"]);
  * by the same amount (Jay's ruling level-hp-current). From 10th level the gain
  * is a fixed amount with no roll (WW pp. 7-9). A neutral cleric's 4th level
  * waits until the cleric chooses Law or Chaos (Jay's ruling neutral-cleric-fourth).
+ * The hit points are the class's own: an elf keeps them per class (WW p. 10).
  */
 async function rollLevelHpImpl(formData: FormData) {
   const viewer = await requireUser();
@@ -699,17 +763,18 @@ async function rollLevelHpImpl(formData: FormData) {
     if (!c) throw new Error("Unknown character");
     if (!can.editPlayState(viewer, c)) throw new Error("Only the player or Jay can roll for this character.");
     if (!XP_STATUSES.has(c.status)) throw new Error("Hit points for new levels are rolled once the character is with Jay.");
-    if (c.con === null || c.hpMax === null) throw new Error("This character has no Constitution or hit points yet.");
+    if (c.con === null) throw new Error("This character has no Constitution yet.");
     const [k] = await tx
       .select()
       .from(characterClasses)
       .where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
     if (!k) throw new Error("Unknown class");
+    if (k.hpMax === null) throw new Error(`Roll the ${CLASS_NAMES[k.class]}'s 1st-level hit points first.`);
     const done = await tx
       .select({ level: hitDice.level })
       .from(hitDice)
       .where(and(eq(hitDice.characterId, id), eq(hitDice.class, k.class), isNull(hitDice.lostAt)));
-    const counted = countedHpLevel(c.source !== "app" || Boolean(c.hpRollId), k.baseHpLevel, done.map((d) => d.level));
+    const counted = countedHpLevel(true, k.baseHpLevel, done.map((d) => d.level));
     const [level] = levelsToRoll(c.race, k.class, k.xp, counted);
     if (!level) throw new Error("There is no new level to roll hit points for.");
     const blocked = neutralClericBlocked(k.class, c.alignment, level);
@@ -725,10 +790,11 @@ async function rollLevelHpImpl(formData: FormData) {
     }
     await tx.insert(hitDice).values({ characterId: id, class: k.class, level, rollId, gain });
     await tx
-      .update(characters)
-      .set({ hpMax: c.hpMax + gain, hpCurrent: (c.hpCurrent ?? c.hpMax) + gain, updatedAt: new Date() })
-      .where(eq(characters.id, id));
-    return { ownerId: c.ownerId, cls: k.class, level, gain, hpMax: c.hpMax };
+      .update(characterClasses)
+      .set({ hpMax: k.hpMax + gain, hpCurrent: (k.hpCurrent ?? k.hpMax) + gain })
+      .where(eq(characterClasses.id, k.id));
+    await tx.update(characters).set({ updatedAt: new Date() }).where(eq(characters.id, id));
+    return { ownerId: c.ownerId, cls: k.class, level, gain, hpMax: k.hpMax };
   });
   if (rolled.ownerId !== viewer.userId) {
     await writeAudit(viewer, {
@@ -769,12 +835,12 @@ async function drainLevelsImpl(formData: FormData) {
       .for("update");
     if (!c) throw new Error("Unknown character");
     if (!XP_STATUSES.has(c.status)) throw new Error("Levels are taken away from submitted or approved characters.");
-    if (c.hpMax === null) throw new Error("This character has no hit points yet.");
     const [k] = await tx
       .select()
       .from(characterClasses)
       .where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
     if (!k) throw new Error("Unknown class");
+    if (k.hpMax === null) throw new Error(`The ${CLASS_NAMES[k.class]} has no hit points yet.`);
     const dice = await tx
       .select({ id: hitDice.id, level: hitDice.level, gain: hitDice.gain })
       .from(hitDice)
@@ -785,16 +851,19 @@ async function drainLevelsImpl(formData: FormData) {
       xp: k.xp,
       baseHpLevel: k.baseHpLevel,
       dice,
-      hpMax: c.hpMax,
+      hpMax: k.hpMax,
       newXp,
       untrackedHpLost,
     });
     if (typeof plan === "string") throw new Error(plan);
     const now = new Date();
     for (const d of plan.lostDice) await tx.update(hitDice).set({ lostAt: now }).where(eq(hitDice.id, d.id));
-    await tx.update(characterClasses).set({ xp: newXp, baseHpLevel: plan.newBaseHpLevel }).where(eq(characterClasses.id, k.id));
-    await tx.update(characters).set({ hpMax: plan.newHpMax, updatedAt: now }).where(eq(characters.id, id));
-    return { cls: k.class, xp: k.xp, hpMax: c.hpMax, plan };
+    await tx
+      .update(characterClasses)
+      .set({ xp: newXp, baseHpLevel: plan.newBaseHpLevel, hpMax: plan.newHpMax })
+      .where(eq(characterClasses.id, k.id));
+    await tx.update(characters).set({ updatedAt: now }).where(eq(characters.id, id));
+    return { cls: k.class, xp: k.xp, hpMax: k.hpMax, plan };
   });
   await writeAudit(viewer, {
     action: "character.levels_lost",
@@ -816,6 +885,57 @@ async function drainLevelsImpl(formData: FormData) {
 
 export async function drainLevels(formData: FormData) {
   return guard(formData, drainLevelsImpl, sheetPath(formData));
+}
+
+/**
+ * An elf switches to its other class (WW p. 10: "anytime he is able to safely
+ * rest, meditate, and perform the proper ritual"; the vault records the switch
+ * and doesn't police when). From then on the other class's own XP, hit points,
+ * saving throw and to hit apply, and XP from the adventure goes to it (table
+ * decision elf-starting-xp). The player on an approved character, Jay and
+ * admins on submitted ones too. Always audited, so Jay sees which class played.
+ */
+async function switchClassImpl(formData: FormData) {
+  const viewer = await requireUser();
+  const id = str(formData, "id");
+  const classId = str(formData, "classId");
+  if (!/^[0-9a-f-]{36}$/i.test(id) || !/^[0-9a-f-]{36}$/i.test(classId)) throw new Error("Unknown character");
+  const change = await db.transaction(async (tx) => {
+    const [c] = await tx
+      .select()
+      .from(characters)
+      .where(and(eq(characters.id, id), isNull(characters.deletedAt)))
+      .for("update");
+    if (!c) throw new Error("Unknown character");
+    if (!can.editPlayState(viewer, c)) throw new Error("Only the player or Jay can switch this character's class.");
+    const staff = can.approve(viewer);
+    if (!playStateOpen(c.status, staff)) {
+      throw new Error(
+        staff
+          ? "An elf switches class on the sheet once it is submitted. A draft picks the class it begins in at step 2."
+          : "You can switch class once Jay approves the character.",
+      );
+    }
+    const rows = await tx.select().from(characterClasses).where(eq(characterClasses.characterId, id));
+    const problem = switchProblem(c.race, rows, classId);
+    if (problem) throw new Error(problem);
+    const from = rows.find((k) => k.active)?.class ?? null;
+    const to = rows.find((k) => k.id === classId)!.class;
+    // One active class per character (unique index): clear the old one first.
+    await tx
+      .update(characterClasses)
+      .set({ active: false })
+      .where(and(eq(characterClasses.characterId, id), eq(characterClasses.active, true)));
+    await tx.update(characterClasses).set({ active: true }).where(eq(characterClasses.id, classId));
+    await tx.update(characters).set({ updatedAt: new Date() }).where(eq(characters.id, id));
+    return { from, to };
+  });
+  await writeAudit(viewer, { action: "character.class_switched", characterId: id, before: { class: change.from }, after: { class: change.to } });
+  refresh(id);
+}
+
+export async function switchClass(formData: FormData) {
+  return guard(formData, switchClassImpl, sheetPath(formData));
 }
 
 const sheetPath = (fd: FormData) => `/characters/${encodeURIComponent(str(fd, "id"))}`;

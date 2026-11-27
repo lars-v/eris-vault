@@ -10,7 +10,8 @@ import { getCharacter } from "@/lib/queries";
 import { can } from "@/lib/roles";
 import { ABILITIES, ABILITY_NAMES, abilityModifier, formatModifier } from "@/lib/rules/abilities";
 import { CLASS_NAMES } from "@/lib/rules/advancement";
-import { classesFor, RACES } from "@/lib/rules/creation";
+import { classesFor, RACES, STARTING_XP } from "@/lib/rules/creation";
+import { keepsEveryClass } from "@/lib/rules/elf";
 import { HIT_DIE_ADJUST } from "@/lib/rules/dice";
 import { bandFor, carriedUnits, unknownUnitItems } from "@/lib/rules/encumbrance";
 import { CATALOG, classAllows, EQUIPMENT_SOURCE, KIT_MAX_QUANTITY } from "@/lib/rules/equipment";
@@ -72,14 +73,21 @@ export default async function BuildPage({
   const cls: CharacterClass | null = (c.classes.find((k) => k.active) ?? c.classes[0])?.class ?? null;
   const totals = c.abilityRoll?.totals ?? [];
   const scoresDone = ABILITIES.every((a) => c[a] !== null);
-  const identityDone = Boolean(c.race && cls && c.alignment && c.name !== "Unnamed adventurer");
-  const hpLocked = Boolean(c.hpRollId);
+  // An elf keeps a record for both of its classes (WW p. 10).
+  const classesDone = !keepsEveryClass(c.race) || c.classes.length === classesFor("elf").length;
+  const identityDone = Boolean(c.race && cls && c.alignment && c.name !== "Unnamed adventurer") && classesDone;
+  // Hit points come from the 1st-level roll, or from the sheet for an imported character.
+  const hpLocked = Boolean(c.hpRollId) || c.classes.some((k) => k.hpMax !== null);
+  const hpDone = c.classes.length > 0 && c.classes.every((k) => k.hpMax !== null) && classesDone;
+  const hpToRoll = c.classes.filter((k) => k.hpMax === null);
+  // What an elf shares between its classes: 5,000 new (Jay's ruling starting-xp), or what they hold once rolled.
+  const xpTotal = hpLocked ? c.classes.reduce((n, k) => n + k.xp, 0) : STARTING_XP;
   const units = carriedUnits(c.items);
   const unknown = unknownUnitItems(c.items);
   const band = bandFor(units);
   const darkSightDone = c.race !== "dwarf" || Boolean(c.darkSightRollId);
-  const ready = scoresDone && identityDone && Boolean(c.hpRollId) && darkSightDone && Boolean(c.goldRollId);
-  const hpRoll = c.rolls.find((r) => r.id === c.hpRollId);
+  const ready = scoresDone && identityDone && hpDone && darkSightDone && Boolean(c.goldRollId);
+  const hpRolls = c.classes.map((k) => ({ k, roll: c.rolls.find((r) => r.id === k.hpRollId) }));
   const darkSightRoll = c.rolls.find((r) => r.id === c.darkSightRollId);
   const goldRoll = c.rolls.find((r) => r.id === c.goldRollId);
   // The gear dialog manages price-list items that aren't magic (see setKit).
@@ -185,34 +193,67 @@ export default async function BuildPage({
             action={saveIdentity}
             locked={hpLocked}
             raceClasses={raceClasses}
-            initial={{ name: c.name, race: c.race, cls, alignment: c.alignment, deity: c.deity }}
+            xpTotal={xpTotal}
+            initial={{
+              name: c.name,
+              race: c.race,
+              cls,
+              alignment: c.alignment,
+              deity: c.deity,
+              xp: Object.fromEntries(c.classes.map((k) => [k.class, k.xp])),
+            }}
           />
+          {!classesDone && c.race === "elf" && c.classes.length > 0 && (
+            <p className="text-sm text-amber">
+              This elf has a record for one class only. Share its XP above and save, then roll the other class&apos;s hit points
+              in step 3 (WW p. 10).
+            </p>
+          )}
           <p className="text-xs leading-relaxed text-subtle">
-            Dwarves are fighting-men; elves begin as fighting-man or magic-user and can switch later; halflings are
-            fighting-men or thieves; thieves are neutral or chaotic. Race and class are fixed once hit points are rolled.
+            Dwarves are fighting-men; elves keep both fighting-man and magic-user, begin as one, and switch on the sheet;
+            halflings are fighting-men or thieves; thieves are neutral or chaotic. Race and class are fixed once hit points
+            are rolled.
           </p>
         </Step>
 
-        <Step n={3} title="Hit points" done={Boolean(c.hpRollId)} aside="WW pp. 5-6" guide="hp">
-          {hpRoll ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <DiceFaces faces={hpRoll.dice[0]} />
-              <span className="text-sm text-muted">{hpRoll.formula}</span>
-              <span className="font-mono text-3xl">{c.hpMax} hp</span>
-            </div>
-          ) : scoresDone && cls ? (
-            <form action={rollHitPoints} className="flex flex-wrap items-center gap-3">
-              <input type="hidden" name="id" value={id} />
-              <span className="text-sm text-muted">
-                1d6{HIT_DIE_ADJUST[cls] ? (HIT_DIE_ADJUST[cls] > 0 ? ` + ${HIT_DIE_ADJUST[cls]}` : ` − 1`) : ""} for a{" "}
-                {CLASS_NAMES[cls]}, plus your Constitution modifier ({formatModifier(abilityModifier(c.con!))}), at least 3.
-                {c.race === "dwarf" && " A dwarf also rolls 1d6 for sight in the dark: a 1 or 2 sees up to 30' underground (WW p. 10; Jay's ruling)."}
-              </span>
-              <SubmitButton pendingText="Rolling…">Roll hit points</SubmitButton>
-            </form>
-          ) : (
-            <p className="text-sm text-subtle">Save abilities and a class first.</p>
-          )}
+        <Step n={3} title="Hit points" done={hpDone} aside="WW pp. 5-6" guide="hp">
+          {hpRolls
+            .filter((r) => r.k.hpMax !== null)
+            .map(({ k, roll }) => (
+              <div key={k.id} className="flex flex-wrap items-center gap-3">
+                {c.classes.length > 1 && <span className="w-28 text-sm font-semibold">{CLASS_NAMES[k.class]}</span>}
+                {roll ? (
+                  <>
+                    <DiceFaces faces={roll.dice[0]} />
+                    <span className="text-sm text-muted">{roll.formula}</span>
+                  </>
+                ) : (
+                  <span className="text-sm text-muted">From the uploaded sheet</span>
+                )}
+                <span className="font-mono text-3xl">{k.hpMax} hp</span>
+              </div>
+            ))}
+          {(hpToRoll.length > 0 || c.classes.length === 0) &&
+            (scoresDone && cls && classesDone ? (
+              <form action={rollHitPoints} className="flex flex-wrap items-center gap-3">
+                <input type="hidden" name="id" value={id} />
+                <span className="text-sm text-muted">
+                  {hpToRoll.map((k, i) => (
+                    <span key={k.id}>
+                      {i > 0 && "; "}
+                      1d6{HIT_DIE_ADJUST[k.class] ? (HIT_DIE_ADJUST[k.class] > 0 ? ` + ${HIT_DIE_ADJUST[k.class]}` : ` − 1`) : ""} for a{" "}
+                      {CLASS_NAMES[k.class]}
+                    </span>
+                  ))}
+                  , plus your Constitution modifier ({formatModifier(abilityModifier(c.con!))}), at least 3.
+                  {c.race === "elf" && " An elf rolls once for each class and keeps the two apart (WW p. 10; Jay's ruling)."}
+                  {c.race === "dwarf" && " A dwarf also rolls 1d6 for sight in the dark: a 1 or 2 sees up to 30' underground (WW p. 10; Jay's ruling)."}
+                </span>
+                <SubmitButton pendingText="Rolling…">{hpToRoll.length > 1 ? "Roll hit points for both" : "Roll hit points"}</SubmitButton>
+              </form>
+            ) : (
+              <p className="text-sm text-subtle">{classesDone ? "Save abilities and a class first." : "Save the elf's XP for both classes first."}</p>
+            ))}
           {darkSightRoll && (
             <div className="flex flex-wrap items-center gap-3">
               <DiceFaces faces={darkSightRoll.dice[0]} />

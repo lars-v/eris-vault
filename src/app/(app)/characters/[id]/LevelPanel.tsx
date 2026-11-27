@@ -10,7 +10,7 @@ import { DrainForm } from "./DrainForm";
 import { SubmitButton } from "./build/forms";
 import { XpField } from "./XpField";
 
-type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean; baseHpLevel: number };
+type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean; baseHpLevel: number; hpMax: number | null };
 /** `dice` and `total` are null from 10th level, where hit points are fixed and not rolled (WW pp. 7-9). */
 type LevelDie = {
   id: string;
@@ -56,7 +56,8 @@ function LevelChanges({ up }: { up: LevelUp }) {
  * XP and new levels. XP is typed straight in (the player on an approved
  * character, Jay and admins on submitted ones too); when it reaches a new level the sheet
  * lists what changed, and the player (or Jay) rolls that level's hit die
- * (WW p. 6).
+ * (WW p. 6). An elf has a block per class, each with its own XP and hit
+ * points (WW p. 10).
  */
 export function LevelPanel({
   characterId,
@@ -64,8 +65,6 @@ export function LevelPanel({
   alignment,
   wis,
   classes,
-  firstLevelCounted,
-  hpMax,
   conModifier,
   levelDice,
   canRoll,
@@ -77,8 +76,6 @@ export function LevelPanel({
   alignment: Alignment | null;
   wis: number | null;
   classes: ClassRow[];
-  firstLevelCounted: boolean;
-  hpMax: number | null;
   conModifier: number;
   levelDice: LevelDie[];
   canRoll: boolean;
@@ -89,6 +86,8 @@ export function LevelPanel({
     <Panel title="Levels and hit points" aside="Woundwort's Warren pp. 6-11">
       {classes.map((k) => {
         const dice = levelDice.filter((d) => d.class === k.class);
+        // The class's 1st-level hit points (its roll, or an imported sheet) come first.
+        const firstLevelCounted = k.hpMax !== null;
         // Dice for levels Jay took away stay listed but no longer count.
         const counted = countedHpLevel(firstLevelCounted, k.baseHpLevel, dice.filter((d) => !d.lostAt).map((d) => d.level));
         const toRoll = levelsToRoll(race, k.class, k.xp, counted);
@@ -103,7 +102,15 @@ export function LevelPanel({
         const last = !fresh && firstLevelCounted && reached > 1 ? levelUp(input, reached - 1, reached) : null;
         return (
           <div key={k.id} className="flex flex-col gap-3">
-            {classes.length > 1 && <h3 className="text-sm font-semibold">{CLASS_NAMES[k.class]}</h3>}
+            {classes.length > 1 && (
+              <h3 className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
+                {CLASS_NAMES[k.class]}
+                <span className="text-xs font-normal text-subtle">
+                  {k.active ? "playing now" : "not playing"}
+                  {k.hpMax !== null ? `, ${k.hpMax} hp maximum` : ""}
+                </span>
+              </h3>
+            )}
             <XpField key={k.xp} characterId={characterId} classId={k.id} race={race} cls={k.class} xp={k.xp} canEdit={canEditXp} />
             {fresh ? (
               <div className="flex flex-col gap-3 rounded-xl border border-lime-edge bg-lime-wash px-4 py-3">
@@ -146,7 +153,9 @@ export function LevelPanel({
                 </div>
               </div>
             ) : !firstLevelCounted ? (
-              <p className="text-sm text-subtle">Roll 1st-level hit points in the build steps first.</p>
+              <p className="text-sm text-subtle">
+                Roll {classes.length > 1 ? `the ${CLASS_NAMES[k.class]}'s ` : ""}1st-level hit points in the build steps first.
+              </p>
             ) : (
               <p className="text-sm text-subtle">
                 No new level to roll for.
@@ -186,14 +195,14 @@ export function LevelPanel({
         );
       })}
       <p className="text-xs text-subtle">
-        A new level&apos;s hit points add to the maximum, and current hit points rise by the same amount (Jay&apos;s ruling).
+        A new level&apos;s hit points add to {classes.length > 1 ? "that class's" : "the"} maximum, and current hit points rise by
+        the same amount (Jay&apos;s ruling).
       </p>
-      {canDrain && hpMax !== null && firstLevelCounted && (
+      {canDrain && classes.some((k) => k.hpMax !== null) && (
         <DrainForm
           characterId={characterId}
           race={race}
-          hpMax={hpMax}
-          classes={classes.map((k) => ({
+          classes={classes.filter((k) => k.hpMax !== null).map((k) => ({
             ...k,
             dice: levelDice.filter((d) => d.class === k.class && !d.lostAt).map((d) => ({ id: d.id, level: d.level, gain: d.gain })),
           }))}

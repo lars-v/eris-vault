@@ -1,5 +1,6 @@
 import { randomInt } from "node:crypto";
 import type { CharacterClass } from "@/db/schema";
+import { CLASS_NAMES } from "./advancement";
 
 /**
  * Dice for character creation. The server rolls; nobody can pick a result.
@@ -40,7 +41,7 @@ export function rollFirstLevelHp(cls: CharacterClass, conModifier: number, d6: D
   const hp = Math.max(FIRST_LEVEL_MINIMUM_HP, face + adj);
   const sign = (n: number) => (n === 0 ? "" : n > 0 ? ` + ${n}` : ` − ${Math.abs(n)}`);
   return {
-    formula: `1d6${sign(HIT_DIE_ADJUST[cls])}${conModifier ? `${sign(conModifier)} Con` : ""}, minimum 3`,
+    formula: `${CLASS_NAMES[cls]}: 1d6${sign(HIT_DIE_ADJUST[cls])}${conModifier ? `${sign(conModifier)} Con` : ""}, minimum 3`,
     dice: [[face]],
     totals: [hp],
     hp,
@@ -71,7 +72,7 @@ export function rollLevelHp(
   const total = face + HIT_DIE_ADJUST[cls] + conModifier;
   const sign = (n: number) => (n === 0 ? "" : n > 0 ? ` + ${n}` : ` − ${Math.abs(n)}`);
   return {
-    formula: `1d6${sign(HIT_DIE_ADJUST[cls])}${conModifier ? `${sign(conModifier)} Con` : ""}, level ${level}, minimum 1`,
+    formula: `${CLASS_NAMES[cls]}: 1d6${sign(HIT_DIE_ADJUST[cls])}${conModifier ? `${sign(conModifier)} Con` : ""}, level ${level}, minimum 1`,
     dice: [[face]],
     totals: [total],
     total,

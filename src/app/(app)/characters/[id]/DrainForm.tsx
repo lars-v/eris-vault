@@ -8,7 +8,8 @@ import { ordinal } from "@/lib/rules/levelup";
 import { drainLevels } from "../actions";
 import { SubmitButton } from "./build/forms";
 
-type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean; baseHpLevel: number; dice: DrainDie[] };
+/** `hpMax` is the class's own maximum: an elf keeps hit points per class (WW p. 10). */
+type ClassRow = { id: string; class: CharacterClass; xp: number; active: boolean; baseHpLevel: number; hpMax: number | null; dice: DrainDie[] };
 
 const input = "min-h-11 rounded-xl border border-line-2 bg-ink px-3 text-sm text-parchment";
 
@@ -17,12 +18,13 @@ const input = "min-h-11 rounded-xl border border-line-2 bg-ink px-3 text-sm text
  * in this campaign; see src/lib/rules/drain.ts). The preview runs the same
  * planDrain the server runs, so what Jay sees is what gets saved.
  */
-export function DrainForm({ characterId, race, hpMax, classes }: { characterId: string; race: Race | null; hpMax: number; classes: ClassRow[] }) {
+export function DrainForm({ characterId, race, classes }: { characterId: string; race: Race | null; classes: ClassRow[] }) {
   const [classId, setClassId] = useState(classes.find((k) => k.active)?.id ?? classes[0]?.id);
   const [xp, setXp] = useState("");
   const [hpLost, setHpLost] = useState("");
   const k = classes.find((c) => c.id === classId);
-  if (!k) return null;
+  if (!k || k.hpMax === null) return null;
+  const hpMax = k.hpMax;
   const newXp = Number(xp);
   const typed = xp !== "" && Number.isInteger(newXp);
   const untracked = typed ? untrackedLevelsFor({ race, cls: k.class, baseHpLevel: k.baseHpLevel, newXp }) : [];

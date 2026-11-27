@@ -64,14 +64,16 @@ export function GmToolsPanel({ c, canOverride }: { c: CharacterSheet; canOverrid
                 alignment={c.alignment}
                 deity={c.deity}
                 scores={{ str: c.str, int: c.int, wis: c.wis, dex: c.dex, con: c.con, cha: c.cha }}
-                hpMax={c.hpMax}
                 hpRecountable={
-                  c.source === "app" && Boolean(c.hpRollId) && !c.manualFields.includes("hpMax") && c.classes.every((k) => k.baseHpLevel === 1)
+                  c.source === "app" &&
+                  !c.manualFields.includes("hpMax") &&
+                  c.classes.every((k) => k.hpMax === null || (Boolean(k.hpRollId) && k.baseHpLevel === 1))
                 }
                 classes={c.classes.map((k) => ({
                   id: k.id,
                   class: k.class,
                   xp: k.xp,
+                  hpMax: k.hpMax,
                   highestHitDie: Math.max(0, ...c.levelDice.filter((d) => d.class === k.class && !d.lostAt).map((d) => d.level)),
                 }))}
                 activeClass={active?.class ?? null}

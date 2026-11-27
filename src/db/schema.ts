@@ -116,6 +116,9 @@ export const characters = pgTable("characters", {
   // ruling dwarf-darkvision). Null until rolled, and for everyone else.
   darkSightRollId: uuid("dark_sight_roll_id"),
   darkSight: boolean("dark_sight"),
+  // The active class's hit points and 1st-level roll, copied from
+  // character_classes by a database trigger (drizzle/0018_class_hit_points.sql).
+  // Read them here; write them on the class row, never here.
   hpCurrent: smallint("hp_current"),
   hpMax: smallint("hp_max"),
   coinsGp: integer("coins_gp").notNull().default(0),
@@ -143,20 +146,38 @@ export const characters = pgTable("characters", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
-/** Elves keep a row per class (Woundwort's Warren p. 10); everyone else has one. */
-export const characterClasses = pgTable("character_classes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  characterId: uuid("character_id")
-    .notNull()
-    .references(() => characters.id, { onDelete: "cascade" }),
-  class: text("class").$type<CharacterClass>().notNull(),
-  xp: integer("xp").notNull().default(0),
-  active: boolean("active").notNull().default(true),
-  // The level this class's hit points already covered when it entered the app:
-  // 1 for a new character, the sheet's level for an import. Later levels each
-  // get a hit_dice row (WW p. 6).
-  baseHpLevel: smallint("base_hp_level").notNull().default(1),
-});
+/**
+ * Elves keep a row per class, fighting-man and magic-user, each with its own
+ * XP and hit points (Woundwort's Warren p. 10); everyone else has one row.
+ * `active` marks the class being played: exactly one per character.
+ */
+export const characterClasses = pgTable(
+  "character_classes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    characterId: uuid("character_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    class: text("class").$type<CharacterClass>().notNull(),
+    xp: integer("xp").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    // The level this class's hit points already covered when it entered the app:
+    // 1 for a new character, the sheet's level for an import. Later levels each
+    // get a hit_dice row (WW p. 6).
+    baseHpLevel: smallint("base_hp_level").notNull().default(1),
+    // This class's hit points (WW p. 10: an elf keeps them per class). Null until
+    // its 1st-level roll (`hp_roll_id`, Jay's ruling elf-second-class-hp: one per
+    // class at creation) or an imported sheet gives them. A trigger copies the
+    // active row's three values to characters (0018_class_hit_points.sql).
+    hpMax: smallint("hp_max"),
+    hpCurrent: smallint("hp_current"),
+    hpRollId: uuid("hp_roll_id"),
+  },
+  (t) => [
+    uniqueIndex("character_classes_class").on(t.characterId, t.class),
+    uniqueIndex("character_classes_one_active").on(t.characterId).where(sql`${t.active}`),
+  ],
+);
 
 export type ItemLocation = "carried" | "stashed" | "mount";
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Portrait } from "@/components/Portrait";
 import { Chip } from "@/components/ui";
 import { CLASS_NAMES, noNextLevelText, type cappedLevelFor } from "@/lib/rules/advancement";
-import { approveCharacter } from "../actions";
+import { approveCharacter, switchClass } from "../actions";
 import { SubmitButton } from "./build/forms";
 import { PortraitEditor } from "./PortraitEditor";
 import type { CharacterSheet } from "./SheetPanels";
@@ -74,6 +74,7 @@ export function SheetHeader({
   canBuild,
   staff,
   showGrants,
+  canSwitch,
 }: {
   c: CharacterSheet;
   lvl: Level | null;
@@ -83,15 +84,20 @@ export function SheetHeader({
   staff: boolean;
   /** Whether to show the "re-rolls waiting" chip (the player and staff). */
   showGrants: boolean;
+  /** An elf may switch class now: the player once approved, Jay and admins once submitted (WW p. 10). */
+  canSwitch: boolean;
 }) {
   const active = c.classes.find((k) => k.active) ?? c.classes[0];
+  // The elf's other class, once its hit points are rolled (Jay's ruling elf-second-class-hp).
+  const switchTo = canSwitch && c.race === "elf" ? c.classes.find((k) => !k.active && k.hpMax !== null) : undefined;
   return (
     <header className="flex flex-wrap items-start gap-4 rounded-2xl border border-line bg-surface p-5 sm:gap-6 sm:p-6">
       <Medallion c={c} canEdit={canEditPortrait} />
       <div className="flex min-w-0 flex-[999_1_12rem] flex-col gap-2 sm:basis-95">
         <h1 className="font-display text-4xl leading-none text-parchment-2 sm:text-5xl">{c.name}</h1>
         <div className="text-lede">
-          {c.race ? cap(c.race) : "Race not chosen"} {active ? CLASS_NAMES[active.class] : ""}
+          {c.race ? cap(c.race) : "Race not chosen"}
+          {active ? (c.classes.length > 1 ? `, playing as ${CLASS_NAMES[active.class]}` : ` ${CLASS_NAMES[active.class]}`) : ""}
           {c.alignment ? ` · ${cap(c.alignment)}` : ""}
           {c.deity ? ` · Patron: ${c.deity}` : ""}
         </div>
@@ -120,8 +126,17 @@ export function SheetHeader({
         {lvl && active && <XpBar c={c} xp={active.xp} lvl={lvl} cls={active.class} />}
         {canEditPortrait && <PortraitEditor id={c.id} name={c.name} hasPortrait={c.portrait !== null} />}
       </div>
-      {(canBuild || (staff && c.status === "submitted")) && (
+      {(canBuild || (staff && c.status === "submitted") || switchTo) && (
         <div className="flex flex-wrap gap-2">
+          {switchTo && (
+            <form action={switchClass}>
+              <input type="hidden" name="id" value={c.id} />
+              <input type="hidden" name="classId" value={switchTo.id} />
+              <SubmitButton tone="plain" pendingText="Switching…">
+                Switch to {CLASS_NAMES[switchTo.class]}
+              </SubmitButton>
+            </form>
+          )}
           {canBuild && (
             <Link
               href={`/characters/${c.id}/build`}

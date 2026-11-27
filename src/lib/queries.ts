@@ -107,7 +107,10 @@ export async function getCharacter(id: string) {
     .select({ updatedAt: characterPortraits.updatedAt })
     .from(characterPortraits)
     .where(eq(characterPortraits.characterId, id));
-  const classes = await db.select().from(characterClasses).where(eq(characterClasses.characterId, id));
+  // The class being played first, then the elf's other (WW p. 10).
+  const classes = (await db.select().from(characterClasses).where(eq(characterClasses.characterId, id))).sort(
+    (a, b) => Number(b.active) - Number(a.active) || a.class.localeCompare(b.class),
+  );
   const items = await db
     .select()
     .from(inventory)
@@ -268,11 +271,10 @@ export async function levelUpsWaiting(): Promise<WaitingLevelUp[]> {
         name: characters.name,
         ownerName: users.name,
         race: characters.race,
-        source: characters.source,
-        hpRollId: characters.hpRollId,
         cls: characterClasses.class,
         xp: characterClasses.xp,
         baseHpLevel: characterClasses.baseHpLevel,
+        hpMax: characterClasses.hpMax,
       })
       .from(characterClasses)
       .innerJoin(characters, eq(characters.id, characterClasses.characterId))
@@ -284,7 +286,8 @@ export async function levelUpsWaiting(): Promise<WaitingLevelUp[]> {
   const out: WaitingLevelUp[] = [];
   for (const k of classRows) {
     const rolled = dice.filter((d) => d.characterId === k.characterId && d.cls === k.cls).map((d) => d.level);
-    const counted = countedHpLevel(k.source !== "app" || Boolean(k.hpRollId), k.baseHpLevel, rolled);
+    // Each class counts from its own 1st-level hit points (an elf has two, WW p. 10).
+    const counted = countedHpLevel(k.hpMax !== null, k.baseHpLevel, rolled);
     const levels = levelsToRoll(k.race, k.cls, k.xp, counted);
     if (levels.length > 0) out.push({ characterId: k.characterId, name: k.name, ownerName: k.ownerName, cls: k.cls, levels });
   }

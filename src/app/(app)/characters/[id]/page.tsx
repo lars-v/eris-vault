@@ -3,7 +3,7 @@ import { Nav } from "@/components/Nav";
 import { getCharacter, rulingsByKey, sheetsForCharacter, statOverrides } from "@/lib/queries";
 import { ABILITIES, abilityModifier } from "@/lib/rules/abilities";
 import { armorClass } from "@/lib/rules/armor";
-import { cappedLevelFor } from "@/lib/rules/advancement";
+import { cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { CATALOG, catalogItem, classAllows, type Wielder } from "@/lib/rules/equipment";
 import { overrideOpen, playStateOpen } from "@/lib/rules/overrides";
 import { castsSpells } from "@/lib/rules/spells";
@@ -21,8 +21,10 @@ import { SheetHeader } from "./SheetHeader";
 import {
   AbilitiesPanel,
   ArmorClassPanel,
+  ELF_RULINGS,
   EncumbrancePanel,
   ImportFlagsPanel,
+  RacePanel,
   RollsPanel,
   SavingThrowPanel,
   UploadedSheetsPanel,
@@ -67,12 +69,15 @@ export default async function CharacterPage({
   const staffCap = staffCapacity(c.classes.map((k) => k.class), c.int);
   const showStaff = staffCap > 0 || c.items.some((i) => i.isSpellFocus) || c.staffEvents.length > 0;
 
-  const [sheets, overrides, staffRulings] = await Promise.all([
+  const [sheets, overrides, staffRulings, elfRulings] = await Promise.all([
     staff || isOwner ? sheetsForCharacter(c.id) : [],
     // Who set abilities or maximum hit points by hand. The reason shows to the player and staff.
     c.manualFields.length > 0 ? statOverrides(c.id) : [],
     showStaff ? rulingsByKey(STAFF_RULINGS) : [],
+    c.race === "elf" ? rulingsByKey(ELF_RULINGS) : [],
   ]);
+  // An elf keeps hit points per class (WW p. 10): the panel shows the class played, and the other's below.
+  const elfClasses = c.classes.length > 1;
   const handSetNote = (fields: readonly string[]) => {
     const o = overrides.find((x) => x.fields.some((f) => fields.includes(f)));
     if (!o) return null;
@@ -128,6 +133,7 @@ export default async function CharacterPage({
           canBuild={canBuild}
           staff={staff}
           showGrants={staff || isOwner}
+          canSwitch={canPlay}
         />
 
         {error && (
@@ -149,6 +155,10 @@ export default async function CharacterPage({
               canEdit={canPlay}
               staff={staff}
               handSet={c.manualFields.includes("hpMax") ? handSetNote(["hpMax"]) : null}
+              playing={elfClasses && active ? CLASS_NAMES[active.class] : null}
+              others={c.classes
+                .filter((k) => elfClasses && k.id !== active?.id)
+                .map((k) => ({ label: CLASS_NAMES[k.class], current: k.hpCurrent, max: k.hpMax }))}
             />
           </div>
           <ArmorClassPanel ac={armorClass(c.items, c.dex, wielder)} />
@@ -158,10 +168,12 @@ export default async function CharacterPage({
         {/* With no class chosen the right column is empty, so the left one spreads out instead. */}
         <div className={`grid items-start gap-5 ${active ? "lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]" : ""}`}>
           <div className={active ? "flex min-w-0 flex-col gap-5" : "grid items-start gap-5 md:grid-cols-2"}>
-            <AbilitiesPanel
+            <AbilitiesPanel c={c} handSet={handSetNote(ABILITIES)} />
+            <RacePanel
               c={c}
-              handSet={handSetNote(ABILITIES)}
               canRollDarkSight={can.editPlayState(viewer, c) && c.status !== "draft"}
+              rulings={elfRulings}
+              staff={staff}
             />
             <CoinsPanel id={c.id} gp={c.coinsGp} sp={c.coinsSp} cp={c.coinsCp} canEdit={canPlay} />
             <EncumbrancePanel items={c.items} />
@@ -177,8 +189,6 @@ export default async function CharacterPage({
                   alignment={c.alignment}
                   wis={c.wis}
                   classes={c.classes}
-                  firstLevelCounted={imported || Boolean(c.hpRollId)}
-                  hpMax={c.hpMax}
                   conModifier={c.con === null ? 0 : abilityModifier(c.con)}
                   levelDice={c.levelDice}
                   canRoll={can.editPlayState(viewer, c)}

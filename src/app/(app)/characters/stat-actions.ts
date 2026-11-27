@@ -21,6 +21,7 @@ import {
   XP_LIMIT,
   type HpChange,
   type HpDieRecord,
+  type OverrideClass,
   type OverrideInput,
 } from "@/lib/rules/overrides";
 import { requireUser, type CurrentUser } from "@/lib/session";
@@ -99,15 +100,21 @@ async function changeHitPointsImpl(formData: FormData) {
   const result = await db.transaction(async (tx) => {
     const c = await lockCharacter(tx, id);
     const staff = checkPlayState(viewer, c);
-    if (c.hpMax === null || c.hpCurrent === null) throw new Error("This character has no hit points yet.");
-    const next = applyHpChange({ current: c.hpCurrent, max: c.hpMax }, change, staff);
+    // The class being played: an elf keeps hit points per class (WW p. 10).
+    const [k] = await tx
+      .select()
+      .from(characterClasses)
+      .where(and(eq(characterClasses.characterId, id), eq(characterClasses.active, true)));
+    if (!k || k.hpMax === null || k.hpCurrent === null) throw new Error("This character has no hit points yet.");
+    const next = applyHpChange({ current: k.hpCurrent, max: k.hpMax }, change, staff);
     if (typeof next === "string") throw new Error(next);
-    if (next === c.hpCurrent) return null;
-    await tx.update(characters).set({ hpCurrent: next, updatedAt: new Date() }).where(eq(characters.id, id));
-    return { from: c.hpCurrent, to: next };
+    if (next === k.hpCurrent) return null;
+    await tx.update(characterClasses).set({ hpCurrent: next }).where(eq(characterClasses.id, k.id));
+    await tx.update(characters).set({ updatedAt: new Date() }).where(eq(characters.id, id));
+    return { from: k.hpCurrent, to: next, cls: k.class };
   });
   if (result) {
-    await audit(viewer, "character.hp_changed", id, { hpCurrent: result.from }, { hpCurrent: result.to, ...change });
+    await audit(viewer, "character.hp_changed", id, { class: result.cls, hpCurrent: result.from }, { class: result.cls, hpCurrent: result.to, ...change });
   }
   refresh(id);
 }
@@ -135,32 +142,30 @@ async function setCoinsImpl(formData: FormData) {
 /* ---------- Tier 2: overrides by Jay and admins ---------- */
 
 /**
- * Every die behind maximum hit points, for a Constitution recount (Jay's
- * ruling con-change-hp). Null when they can't all be read from the rolls:
- * a character from a sheet, levels the sheet brought in, a hand-set maximum,
- * or a total that doesn't match the dice.
+ * Every die behind one class's maximum hit points, for a Constitution recount
+ * (Jay's ruling con-change-hp). Null when they can't all be read from the
+ * rolls: a character from a sheet, levels the sheet brought in, a hand-set
+ * maximum, or a total that doesn't match the dice.
  */
 async function hpDiceFor(
   tx: Tx,
   c: typeof characters.$inferSelect,
-  classRows: (typeof characterClasses.$inferSelect)[],
-  firstClass: (typeof characterClasses.$inferSelect)["class"] | null,
+  k: typeof characterClasses.$inferSelect,
 ): Promise<HpDieRecord[] | null> {
-  if (c.source !== "app" || !c.hpRollId || !firstClass || c.hpMax === null || c.manualFields.includes("hpMax")) return null;
-  if (classRows.some((k) => k.baseHpLevel !== 1)) return null;
-  const [first] = await tx.select({ dice: rolls.dice, totals: rolls.totals }).from(rolls).where(eq(rolls.id, c.hpRollId));
+  if (c.source !== "app" || !k.hpRollId || k.hpMax === null || k.baseHpLevel !== 1 || c.manualFields.includes("hpMax")) return null;
+  const [first] = await tx.select({ dice: rolls.dice, totals: rolls.totals }).from(rolls).where(eq(rolls.id, k.hpRollId));
   const later = await tx
     .select({ id: hitDice.id, cls: hitDice.class, level: hitDice.level, gain: hitDice.gain, dice: rolls.dice })
     .from(hitDice)
     .leftJoin(rolls, eq(rolls.id, hitDice.rollId))
-    .where(and(eq(hitDice.characterId, c.id), isNull(hitDice.lostAt)));
+    .where(and(eq(hitDice.characterId, c.id), eq(hitDice.class, k.class), isNull(hitDice.lostAt)));
   const face = first?.dice[0]?.[0];
   if (face === undefined) return null;
   const dice: HpDieRecord[] = [
-    { id: null, cls: firstClass, level: 1, face, gain: first.totals[0] },
+    { id: null, cls: k.class, level: 1, face, gain: first.totals[0] },
     ...later.map((d) => ({ id: d.id, cls: d.cls, level: d.level, face: d.dice?.[0]?.[0] ?? null, gain: d.gain ?? 0 })),
   ];
-  if (dice.reduce((n, d) => n + d.gain, 0) !== c.hpMax) return null;
+  if (dice.reduce((n, d) => n + d.gain, 0) !== k.hpMax) return null;
   return dice;
 }
 
@@ -182,32 +187,39 @@ async function overrideStatsImpl(formData: FormData) {
       .where(and(eq(hitDice.characterId, id), isNull(hitDice.lostAt)))
       .groupBy(hitDice.class);
     const xpInput: Record<string, number> = {};
-    for (const k of classRows) xpInput[k.id] = num(formData, `xp-${k.id}`);
+    const hpInput: Record<string, number> = {};
+    for (const k of classRows) {
+      xpInput[k.id] = num(formData, `xp-${k.id}`);
+      hpInput[k.id] = num(formData, `hpMax-${k.id}`);
+    }
     const input = {
       ...Object.fromEntries(ABILITIES.map((a) => [a, num(formData, a)])),
       name: str(formData, "name"),
       alignment: str(formData, "alignment"),
       deity: str(formData, "deity"),
-      hpMax: num(formData, "hpMax"),
+      hpMax: hpInput,
       xp: xpInput,
       hpRecounted: formData.get("hpRecounted") === "on",
     } as OverrideInput;
     const active = classRows.find((k) => k.active) ?? classRows[0];
-    const hpDice = await hpDiceFor(tx, c, classRows, active?.class ?? null);
+    const classes: OverrideClass[] = [];
+    for (const k of classRows) {
+      classes.push({
+        id: k.id,
+        class: k.class,
+        xp: k.xp,
+        highestHitDie: rolled.find((r) => r.class === k.class)?.top ?? 0,
+        hpMax: k.hpMax,
+        hpDice: await hpDiceFor(tx, c, k),
+      });
+    }
     const plan = planOverride(
       {
         ...Object.fromEntries(ABILITIES.map((a) => [a, c[a]])),
         name: c.name,
         alignment: c.alignment,
         deity: c.deity,
-        hpMax: c.hpMax,
-        classes: classRows.map((k) => ({
-          id: k.id,
-          class: k.class,
-          xp: k.xp,
-          highestHitDie: rolled.find((r) => r.class === k.class)?.top ?? 0,
-        })),
-        hpDice,
+        classes,
       } as Parameters<typeof planOverride>[0],
       input,
       active?.class ?? null,
@@ -219,6 +231,10 @@ async function overrideStatsImpl(formData: FormData) {
       .where(eq(characters.id, id));
     for (const [classId, xp] of Object.entries(plan.xp)) {
       await tx.update(characterClasses).set({ xp }).where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
+    }
+    // The class row holds maximum hit points; the trigger copies the active class's to the character.
+    for (const [classId, hp] of Object.entries(plan.hpMax)) {
+      await tx.update(characterClasses).set({ hpMax: hp }).where(and(eq(characterClasses.id, classId), eq(characterClasses.characterId, id)));
     }
     // Constitution recount (Jay's ruling con-change-hp): each hit die keeps its roll and records its new gain.
     for (const d of plan.dieGains) {

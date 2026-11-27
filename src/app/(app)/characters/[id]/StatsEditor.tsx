@@ -8,9 +8,16 @@ import { alignmentsFor, ALIGNMENTS } from "@/lib/rules/creation";
 import { ABILITY_MAX, ABILITY_MIN, DEITY_MAX, HP_LIMIT, NAME_MAX, REASON_MAX, XP_LIMIT } from "@/lib/rules/overrides";
 import { overrideStats, type StatResult } from "../stat-actions";
 
-export type StatsEditorClass = { id: string; class: CharacterClass; xp: number; highestHitDie: number };
+/** `hpMax` is the class's own maximum: an elf keeps hit points per class (WW p. 10). */
+export type StatsEditorClass = { id: string; class: CharacterClass; xp: number; highestHitDie: number; hpMax: number | null };
 
-type Values = Record<Ability, string> & { name: string; alignment: string; deity: string; hpMax: string; xp: Record<string, string> };
+type Values = Record<Ability, string> & {
+  name: string;
+  alignment: string;
+  deity: string;
+  hpMax: Record<string, string>;
+  xp: Record<string, string>;
+};
 
 const idle: StatResult = { error: null, at: 0 };
 const field = "min-h-11 w-full min-w-0 rounded-xl border border-line-2 bg-ink px-3 text-[15px] text-parchment";
@@ -28,7 +35,6 @@ export function StatsEditor({
   alignment,
   deity,
   scores,
-  hpMax,
   hpRecountable,
   classes,
   activeClass,
@@ -38,7 +44,6 @@ export function StatsEditor({
   alignment: string | null;
   deity: string | null;
   scores: Record<Ability, number | null>;
-  hpMax: number | null;
   /** Every die behind maximum hit points is on record, so a new Constitution can recount them (con-change-hp). */
   hpRecountable: boolean;
   classes: StatsEditorClass[];
@@ -52,7 +57,7 @@ export function StatsEditor({
     name,
     alignment: alignment ?? "",
     deity: deity ?? "",
-    hpMax: hpMax === null ? "" : String(hpMax),
+    hpMax: Object.fromEntries(classes.map((k) => [k.id, k.hpMax === null ? "" : String(k.hpMax)])),
     xp: Object.fromEntries(classes.map((k) => [k.id, String(k.xp)])),
   });
   const [initial, setInitial] = useState<Values>(start);
@@ -77,7 +82,10 @@ export function StatsEditor({
   if (values.alignment !== initial.alignment) changed.push("Alignment");
   if (values.deity.trim() !== initial.deity) changed.push("Patron");
   for (const a of ABILITIES) if (values[a] !== initial[a]) changed.push(ABILITY_NAMES[a]);
-  if (values.hpMax !== initial.hpMax) changed.push("Maximum hit points");
+  const several = classes.length > 1;
+  for (const k of classes) {
+    if (values.hpMax[k.id] !== initial.hpMax[k.id]) changed.push(`Maximum hit points${several ? ` (${CLASS_NAMES[k.class]})` : ""}`);
+  }
   for (const k of classes) if (values.xp[k.id] !== initial.xp[k.id]) changed.push(`XP (${CLASS_NAMES[k.class]})`);
   const modOf = (v: string) => {
     const n = Number(v);
@@ -86,7 +94,7 @@ export function StatsEditor({
   const conModChanged = initial.con !== "" && modOf(values.con) !== null && modOf(values.con) !== modOf(initial.con);
 
   const allowed = activeClass ? alignmentsFor(activeClass) : ALIGNMENTS;
-  const set = (k: keyof Omit<Values, "xp">) => (e: { target: { value: string } }) => setValues((v) => ({ ...v, [k]: e.target.value }));
+  const set = (k: keyof Omit<Values, "xp" | "hpMax">) => (e: { target: { value: string } }) => setValues((v) => ({ ...v, [k]: e.target.value }));
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -194,21 +202,24 @@ export function StatsEditor({
             <fieldset className="flex flex-col gap-3">
               <legend className="mb-2 text-sm font-semibold">Hit points and experience</legend>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1.5 text-[13px] text-muted">
-                  Maximum hit points
-                  <input
-                    name="hpMax"
-                    type="number"
-                    inputMode="numeric"
-                    required
-                    step={1}
-                    min={1}
-                    max={HP_LIMIT}
-                    value={values.hpMax}
-                    onChange={set("hpMax")}
-                    className={`${field} font-mono`}
-                  />
-                </label>
+                {classes.map((k) => (
+                  <label key={`hp-${k.id}`} className="flex flex-col gap-1.5 text-[13px] text-muted">
+                    Maximum hit points{several ? ` (${CLASS_NAMES[k.class]})` : ""}
+                    <input
+                      name={`hpMax-${k.id}`}
+                      type="number"
+                      inputMode="numeric"
+                      required={k.hpMax !== null}
+                      step={1}
+                      min={1}
+                      max={HP_LIMIT}
+                      value={values.hpMax[k.id] ?? ""}
+                      onChange={(e) => setValues((v) => ({ ...v, hpMax: { ...v.hpMax, [k.id]: e.target.value } }))}
+                      className={`${field} font-mono`}
+                    />
+                    {k.hpMax === null && <span className="text-xs text-subtle">Not rolled yet. Leave empty to roll it in the build steps.</span>}
+                  </label>
+                ))}
                 {classes.map((k) => (
                   <label key={k.id} className="flex flex-col gap-1.5 text-[13px] text-muted">
                     XP{classes.length > 1 ? ` (${CLASS_NAMES[k.class]})` : ""}

@@ -87,8 +87,6 @@ export async function importLiz() {
       alignment: LIZ.alignment,
       status: "submitted",
       ...LIZ.scores,
-      hpCurrent: LIZ.hpCurrent,
-      hpMax: LIZ.hpMax,
       coinsGp: LIZ.coinsGp,
       deity: LIZ.deity,
       notes: LIZ.notes,
@@ -96,7 +94,15 @@ export async function importLiz() {
       importFlags: LIZ.flags,
     })
     .returning({ id: characters.id });
-  await db.insert(characterClasses).values({ characterId: row.id, class: LIZ.cls, xp: LIZ.xp, baseHpLevel: levelFor(LIZ.cls, LIZ.xp).level });
+  // Hit points go on the class row; a trigger copies them to the character.
+  await db.insert(characterClasses).values({
+    characterId: row.id,
+    class: LIZ.cls,
+    xp: LIZ.xp,
+    baseHpLevel: levelFor(LIZ.cls, LIZ.xp).level,
+    hpMax: LIZ.hpMax,
+    hpCurrent: LIZ.hpCurrent,
+  });
   await db.insert(inventory).values(LIZ.items.map((i) => ({ characterId: row.id, ...i })));
   await writeAudit(actor, { action: "character.imported", characterId: row.id, after: { name: LIZ.name } });
   revalidatePath("/party");

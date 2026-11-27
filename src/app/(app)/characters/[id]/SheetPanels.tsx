@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { DiceFaces, PURPOSE_LABEL } from "@/components/Dice";
+import { RulingNote, type RulingSummary } from "@/components/RulingNote";
 import { rollDarkSightOnSheet } from "../actions";
 import { SubmitButton } from "./build/forms";
 import { Panel } from "@/components/ui";
@@ -9,6 +10,7 @@ import { ABILITIES, ABILITY_NAMES, ABILITY_SOURCE, abilityModifier, canReadAndWr
 import { ADVANCEMENT_SOURCE, cappedLevelFor, CLASS_NAMES } from "@/lib/rules/advancement";
 import { armorClassWorking, ARMOR_CLASS_SOURCE, type ArmorClass } from "@/lib/rules/armor";
 import { bandFor, carriedUnits, ENCUMBRANCE_SOURCE, unknownUnitItems } from "@/lib/rules/encumbrance";
+import { raceFeatures, RACE_SOURCE } from "@/lib/rules/race";
 import { againstText, CLASS_SAVE_BONUSES, overlappingForms, RACE_SAVE_BONUSES, saveBonusesFor, totalAgainst } from "@/lib/rules/saves";
 
 /** Everything the sheet page loads for one character. */
@@ -17,7 +19,7 @@ export type CharacterSheet = NonNullable<Awaited<ReturnType<typeof getCharacter>
 const divider = "divide-y divide-rule";
 
 /** The six scores and their modifiers (WW p. 5). */
-export function AbilitiesPanel({ c, handSet, canRollDarkSight }: { c: CharacterSheet; handSet: ReactNode; canRollDarkSight: boolean }) {
+export function AbilitiesPanel({ c, handSet }: { c: CharacterSheet; handSet: ReactNode }) {
   return (
     <Panel title="Abilities" aside={ABILITY_SOURCE}>
       {ABILITIES.map((a) => {
@@ -58,6 +60,51 @@ export function AbilitiesPanel({ c, handSet, canRollDarkSight }: { c: CharacterS
           Can&apos;t read or write: Intelligence {c.int} (WW p. 11{c.int === 3 ? "" : "; Jay's ruling for 4 to 6"}).
         </p>
       )}
+      {c.con !== null && (
+        <p className="text-xs text-subtle">
+          Survive adversity, Constitution {c.con}: {surviveAdversity(c.con)}% chance (table ruling, 25 Nov 2026).
+        </p>
+      )}
+      {handSet}
+    </Panel>
+  );
+}
+
+/** The open questions about an elf switching class (scripts/migrate.mjs). */
+export const ELF_RULINGS = ["elf-switch-wounds", "elf-switch-spells", "elf-unsafe-switch"];
+
+const ELF_QUESTIONS: { key: string; text: string }[] = [
+  { key: "elf-switch-wounds", text: "Wounds through a switch. For now each class keeps its own current hit points." },
+  { key: "elf-switch-spells", text: "Prepared and stored spells through a switch. For now nothing is cleared." },
+  { key: "elf-unsafe-switch", text: "Switching in a dungeon or the wilds in one round, for 1 Constitution (WW p. 10, optional)." },
+];
+
+/**
+ * What the race brings, as printed (src/lib/rules/race.ts), a dwarf's roll for
+ * sight in the dark, and for an elf the open questions about switching class.
+ * Humans have no panel.
+ */
+export function RacePanel({
+  c,
+  canRollDarkSight,
+  rulings,
+  staff,
+}: {
+  c: CharacterSheet;
+  canRollDarkSight: boolean;
+  rulings: RulingSummary[];
+  staff: boolean;
+}) {
+  if (!c.race || c.race === "human") return null;
+  return (
+    <Panel title={c.race.charAt(0).toUpperCase() + c.race.slice(1)} aside={RACE_SOURCE[c.race]}>
+      <ul className="flex flex-col gap-2 text-sm">
+        {raceFeatures(c.race).map((f) => (
+          <li key={f.text}>
+            {f.text} <span className="text-xs text-subtle">({f.source})</span>
+          </li>
+        ))}
+      </ul>
       {c.race === "dwarf" &&
         (c.darkSightRollId ? (
           <p className="text-sm">
@@ -73,12 +120,23 @@ export function AbilitiesPanel({ c, handSet, canRollDarkSight }: { c: CharacterS
         ) : (
           <p className="text-sm text-subtle">Sight in the dark: not rolled yet.</p>
         ))}
-      {c.con !== null && (
-        <p className="text-xs text-subtle">
-          Survive adversity, Constitution {c.con}: {surviveAdversity(c.con)}% chance (table ruling, 25 Nov 2026).
-        </p>
+      {c.race === "elf" && (
+        <div className="flex flex-col gap-1.5 border-t border-rule pt-3">
+          <h3 className="text-sm font-semibold">Switching class</h3>
+          <p className="text-sm text-muted">
+            XP from an adventure goes to the class the elf played it as (table decision). Each switch shows in Jay&apos;s
+            log.
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {ELF_QUESTIONS.map((q) => (
+              <li key={q.key} className="text-sm text-soft">
+                {q.text}
+                <RulingNote ruling={q.key} rulings={rulings} staff={staff} />
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-      {handSet}
     </Panel>
   );
 }
@@ -182,7 +240,9 @@ export function EncumbrancePanel({ items }: { items: CharacterSheet["items"] }) 
 
 /** Every roll made for this character, kept forever, including ones a re-roll replaced. */
 export function RollsPanel({ c, imported }: { c: CharacterSheet; imported: boolean }) {
-  const current = new Set([c.abilityRollId, c.hpRollId, c.goldRollId]);
+  // Only these rolls can be granted again; each class's 1st-level hit points count (an elf has two, WW p. 10).
+  const current = new Set([c.abilityRollId, c.goldRollId, ...c.classes.map((k) => k.hpRollId)]);
+  const replaceable = new Set(["abilities", "hp", "gold"]);
   return (
     <Panel
       title={`Rolls · ${c.rolls.length}`}
@@ -205,7 +265,7 @@ export function RollsPanel({ c, imported }: { c: CharacterSheet; imported: boole
             <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
               <span className="text-sm">
                 {PURPOSE_LABEL[r.purpose] ?? r.purpose} <span className="text-subtle">by {r.rollerName ?? "someone"}</span>
-                {!current.has(r.id) && <span className="ml-2 text-xs text-amber">replaced by a granted re-roll</span>}
+                {replaceable.has(r.purpose) && !current.has(r.id) && <span className="ml-2 text-xs text-amber">replaced by a granted re-roll</span>}
               </span>
               <span className="flex flex-wrap items-center gap-3">
                 {r.dice.map((set, i) => (
